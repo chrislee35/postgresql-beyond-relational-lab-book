@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>The Portsmith Papers: A Hands-On Tour of PostgreSQL Beyond the Relational Model</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="css/nlp-book.css" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">The Portsmith Papers: A Hands-On Tour of PostgreSQL
+Beyond the Relational Model</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#the-portsmith-papers" id="toc-the-portsmith-papers">The
+Portsmith Papers</a>
+<ul>
+<li><a href="#a-hands-on-tour-of-postgresql-beyond-the-relational-model"
+id="toc-a-hands-on-tour-of-postgresql-beyond-the-relational-model">A
+Hands-On Tour of PostgreSQL Beyond the Relational Model</a>
+<ul>
+<li><a href="#about-this-book" id="toc-about-this-book">About This
+Book</a></li>
+<li><a href="#author" id="toc-author">Author</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#chapter-1-jsonb-semi-structured-data-without-a-schema-tax"
+id="toc-chapter-1-jsonb-semi-structured-data-without-a-schema-tax">Chapter
+1 — JSONB: Semi-Structured Data Without a Schema Tax</a>
+<ul>
+<li><a href="#background" id="toc-background">Background</a></li>
+<li><a href="#the-scenario" id="toc-the-scenario">The Scenario</a></li>
+<li><a href="#exercise-goals" id="toc-exercise-goals">Exercise
+Goals</a></li>
+<li><a href="#installation" id="toc-installation">Installation</a>
+<ul>
+<li><a href="#postgresql" id="toc-postgresql">1 — PostgreSQL</a></li>
+<li><a href="#python-3.12-and-psycopg"
+id="toc-python-3.12-and-psycopg">2 — Python 3.12 and psycopg</a></li>
+</ul></li>
+<li><a href="#loading-the-data" id="toc-loading-the-data">Loading the
+Data</a>
+<ul>
+<li><a href="#create-the-database" id="toc-create-the-database">Create
+the database</a></li>
+<li><a href="#run-the-seed-script" id="toc-run-the-seed-script">Run the
+seed script</a></li>
+<li><a href="#verify-the-load" id="toc-verify-the-load">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises" id="toc-exercises">Exercises</a>
+<ul>
+<li><a href="#exercise-1-the-three-extraction-operators"
+id="toc-exercise-1-the-three-extraction-operators">Exercise 1 — The
+Three Extraction Operators</a></li>
+<li><a href="#exercise-2-filtering-with-containment-and-key-existence"
+id="toc-exercise-2-filtering-with-containment-and-key-existence">Exercise
+2 — Filtering with Containment and Key Existence</a></li>
+<li><a href="#exercise-3-missing-keys-vs.-null-values"
+id="toc-exercise-3-missing-keys-vs.-null-values">Exercise 3 — Missing
+Keys vs. NULL Values</a></li>
+<li><a href="#exercise-4-gin-indexes"
+id="toc-exercise-4-gin-indexes">Exercise 4 — GIN Indexes</a></li>
+<li><a href="#exercise-5-updating-documents-in-place"
+id="toc-exercise-5-updating-documents-in-place">Exercise 5 — Updating
+Documents in Place</a></li>
+<li><a href="#exercise-6-expanding-arrays-with-jsonb_array_elements"
+id="toc-exercise-6-expanding-arrays-with-jsonb_array_elements">Exercise
+6 — Expanding Arrays with <code>jsonb_array_elements</code></a></li>
+<li><a href="#exercise-7-path-queries-with-jsonb_path_query"
+id="toc-exercise-7-path-queries-with-jsonb_path_query">Exercise 7 — Path
+Queries with <code>jsonb_path_query</code></a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know"
+id="toc-summary-what-you-should-now-know">Summary — What You Should Now
+Know</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="the-portsmith-papers">The Portsmith Papers</h1>
+<h2 id="a-hands-on-tour-of-postgresql-beyond-the-relational-model">A
+Hands-On Tour of PostgreSQL Beyond the Relational Model</h2>
+<p><img src="imgs/cover.svg" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/></p>
+<hr />
+<blockquote>
+<p><em>“PostgreSQL is not a database with extensions.<br />
+It is an extensible data platform that happens to speak SQL.”</em></p>
+</blockquote>
+<hr />
+<h3 id="about-this-book">About This Book</h3>
+<p>Most PostgreSQL tutorials end where the interesting work begins.</p>
+<p>Once you know how to <code>SELECT</code>, <code>JOIN</code>, and
+<code>GROUP BY</code>, you have mastered perhaps twenty percent of what
+PostgreSQL can do. The remaining eighty percent — geospatial queries,
+semantic search, real-time notifications, fuzzy matching, vector
+embeddings, distributed coordination, and more — lives in a ecosystem of
+extensions, index types, and language features that most practitioners
+never discover.</p>
+<p>This book is a guided tour of that other eighty percent.</p>
+<p>Each chapter is built around a concrete engineering problem faced by
+the fictional city of <strong>Portsmith</strong> and its data platform
+team. We store business directories as semi-structured JSON documents.
+We route emergency services using geospatial proximity queries. We build
+a job queue with no message broker. We search municipal records with
+fuzzy matching that survives typos and OCR errors. We expose the entire
+platform as a REST API with zero application code.</p>
+<p>Every chapter follows the same structure: synthetic data is generated
+first, giving you a realistic dataset to work against, and then a series
+of exercises walks you from first principles to production-ready
+technique. The exercises are written to be done — not just read.</p>
+<p>By the end, you will see PostgreSQL not as a place to store rows, but
+as a programmable data infrastructure layer capable of doing work that
+most teams reach for separate specialized systems to handle.</p>
+<p><strong>What you will need:</strong></p>
+<ul>
+<li>A working PostgreSQL 16 installation (setup covered in Appendix
+A)</li>
+<li>Python 3.12+</li>
+<li>A Debian-based Linux environment</li>
+<li>Familiarity with basic SQL (<code>SELECT</code>,
+<code>INSERT</code>, <code>JOIN</code>, <code>GROUP BY</code>)</li>
+<li>Curiosity about what else is in there</li>
+</ul>
+<hr />
+<h3 id="author">Author</h3>
+<p><strong>Chris Lee</strong></p>
+<hr />
+<em>Edition 1.0 — Portsmith, 2026</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1
+id="chapter-1-jsonb-semi-structured-data-without-a-schema-tax">Chapter 1
+— JSONB: Semi-Structured Data Without a Schema Tax</h1>
+<blockquote>
+<p><em>“A schema is a prediction about the future. JSONB lets you
+hedge.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background">Background</h2>
+<p>Relational databases enforce a contract: every row in a table has
+exactly the same columns. That contract is usually a feature — it
+catches mistakes and makes queries predictable. But sometimes you
+genuinely don’t know what columns you’ll need until the data arrives. A
+business directory is a good example. A restaurant has hours, cuisine,
+and a reservations policy. A hardware shop has trade accounts and
+parking. A hotel has star ratings and room types. Forcing them all into
+the same set of columns means drowning in NULLs or building a rats’ nest
+of one-to-many extension tables.</p>
+<p>PostgreSQL’s <code>JSONB</code> type lets you store arbitrary JSON
+documents in a column while keeping the rest of your row fully
+relational. It is not a NoSQL escape hatch — it is an indexed,
+queryable, patchable document field that sits inside a SQL table. You
+can <code>WHERE</code> on it, join against it, aggregate over it, and
+update individual keys without rewriting the whole document.</p>
+<p>This chapter works through all the operators and patterns you’ll
+reach for most often. The exercises are short. Run every one, then try a
+variation of your own.</p>
+<hr />
+<h2 id="the-scenario">The Scenario</h2>
+<p>Portsmith’s city council maintains a public business directory. Every
+business gets a short relational record — an ID, a name, an address, and
+a neighbourhood — but the supplementary detail varies so widely by
+business type that a single fixed schema would be unworkable.</p>
+<p>The <code>businesses</code> table therefore stores all of that
+variable metadata in a <code>details</code> JSONB column. Each business
+category contributes its own keys:</p>
+<table>
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 80%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Category</th>
+<th>JSONB keys present</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>restaurant</code></td>
+<td><code>cuisine</code>, <code>price_range</code>, <code>rating</code>,
+<code>hours</code>, <code>tags</code>,
+<code>accepts_reservations</code>, <code>outdoor_seating</code></td>
+</tr>
+<tr class="even">
+<td><code>retail</code></td>
+<td><code>subcategory</code>, <code>rating</code>, <code>hours</code>,
+<code>tags</code>, <code>payment_methods</code>,
+<code>has_parking</code></td>
+</tr>
+<tr class="odd">
+<td><code>service</code></td>
+<td><code>subcategory</code>, <code>rating</code>, <code>hours</code>,
+<code>tags</code>, <code>appointment_required</code>,
+<code>specialties</code></td>
+</tr>
+<tr class="even">
+<td><code>accommodation</code></td>
+<td><code>subcategory</code>, <code>star_rating</code>,
+<code>rating</code>, <code>hours</code>, <code>amenities</code>,
+<code>room_types</code>, <code>price_per_night</code></td>
+</tr>
+<tr class="odd">
+<td><code>entertainment</code></td>
+<td><code>subcategory</code>, <code>rating</code>, <code>hours</code>,
+<code>tags</code>, <code>live_music</code>,
+<code>age_restriction</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>hours</code> value is itself a nested object keyed by day
+of week (<code>mon</code>–<code>sun</code>). Each day is either
+<code>null</code> (closed) or
+<code>{"open": "HH:MM", "close": "HH:MM"}</code>. Several businesses
+also carry optional keys that appear only for their category, like
+<code>social</code> (social media handles), <code>happy_hour</code>, or
+<code>approved_brands</code>.</p>
+<p>This heterogeneity is intentional — it is what makes the data a good
+vehicle for learning JSONB operators.</p>
+<hr />
+<h2 id="exercise-goals">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Extract values from a JSONB document using <code>-&gt;</code>,
+<code>-&gt;&gt;</code>, and <code>#&gt;&gt;</code>, and explain why the
+operator choice changes the result type.</li>
+<li>Filter rows using the containment operator <code>@&gt;</code> and
+the key-existence operators <code>?</code>, <code>?|</code>, and
+<code>?&amp;</code>.</li>
+<li>Create a GIN index on a JSONB column and confirm that PostgreSQL
+uses it.</li>
+<li>Update a document in place with <code>jsonb_set</code> and the
+<code>||</code> merge operator without rewriting the whole column.</li>
+<li>Expand a JSONB array into a set of rows with
+<code>jsonb_array_elements</code> and aggregate the results.</li>
+<li>Write <code>jsonb_path_query</code> expressions to filter on nested
+values.</li>
+</ul>
+<hr />
+<h2 id="installation">Installation</h2>
+<h3 id="postgresql">1 — PostgreSQL</h3>
+<p>If PostgreSQL 16 is not already installed:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt update</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16 postgresql-client-16</span></code></pre></div>
+<p>Confirm the server is running:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pg_lsclusters</span></span></code></pre></div>
+<p>You should see a cluster at version 16 in the <code>online</code>
+state.</p>
+<h3 id="python-3.12-and-psycopg">2 — Python 3.12 and psycopg</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> python3.12 python3.12-venv</span></code></pre></div>
+<p>Create a virtual environment in the book’s working directory and
+install the PostgreSQL driver:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3.12</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="st">&quot;psycopg[binary]&quot;</span></span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> <code>psycopg</code> (version 3) is the modern
+Python driver for PostgreSQL. It is not available as an <code>apt</code>
+package for Python 3.12, so we install it via pip into the virtual
+environment. The <code>[binary]</code> extra bundles a pre-compiled C
+extension so you don’t need <code>libpq-dev</code>.</p>
+</blockquote>
+<hr />
+<h2 id="loading-the-data">Loading the Data</h2>
+<h3 id="create-the-database">Create the database</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a role matching your OS user (skip if it already exists)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> <span class="at">-u</span> postgres createuser <span class="at">--createdb</span> <span class="st">&quot;</span><span class="va">$(</span><span class="fu">whoami</span><span class="va">)</span><span class="st">&quot;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the portsmith database</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">createdb</span> portsmith</span></code></pre></div>
+<h3 id="run-the-seed-script">Run the seed script</h3>
+<p>From the <code>book/</code> directory, with the virtual environment
+active:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 48 businesses …
+Done — 48 rows in businesses.</code></pre>
+<h3 id="verify-the-load">Verify the load</h3>
+<p>Open a <code>psql</code> session:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith</span></code></pre></div>
+<p>Run these checks. If all three pass, the data is correct.</p>
+<p><strong>Check 1 — Row count and column types:</strong></p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>\d businesses</span></code></pre></div>
+<pre><code>                                   Table &quot;public.businesses&quot;
+    Column     |  Type   | Collation | Nullable |              Default
+---------------+---------+-----------+----------+------------------------------------
+ id            | integer |           | not null | nextval(&#39;businesses_id_seq&#39;::regclass)
+ name          | text    |           | not null |
+ address       | text    |           | not null |
+ neighbourhood | text    |           | not null |
+ details       | jsonb   |           | not null |</code></pre>
+<p><strong>Check 2 — Counts by neighbourhood:</strong></p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> neighbourhood, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> businesses</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> neighbourhood</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> neighbourhood;</span></code></pre></div>
+<pre><code>   neighbourhood    | businesses
+--------------------+------------
+ Harbour District   |          9
+ Industrial Port    |          7
+ Northgate          |          9
+ Old Town           |          9
+ Riverside          |          9
+ University Quarter |          5
+(6 rows)</code></pre>
+<p><strong>Check 3 — Counts by category:</strong></p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> details<span class="op">-&gt;&gt;</span><span class="st">&#39;category&#39;</span> <span class="kw">AS</span> <span class="kw">category</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> businesses</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> <span class="kw">category</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">category</span>;</span></code></pre></div>
+<pre><code>    category     | businesses
+-----------------+------------
+ accommodation   |          5
+ entertainment   |          6
+ restaurant      |         15
+ retail          |         12
+ service         |         10
+(5 rows)</code></pre>
+<p>If all three match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises">Exercises</h2>
+<hr />
+<h3 id="exercise-1-the-three-extraction-operators">Exercise 1 — The
+Three Extraction Operators</h3>
+<p>JSONB has two families of accessor. The arrow operators
+(<code>-&gt;</code> and <code>-&gt;&gt;</code>) navigate one key at a
+time. The path operator (<code>#&gt;&gt;</code>) jumps straight to a
+deeply nested value. The difference between them is the <strong>type
+they return</strong>.</p>
+<p><strong>1.1 — Arrow operators</strong></p>
+<p>Run these two queries and compare the result types:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- -&gt; returns JSONB</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;</span> <span class="st">&#39;rating&#39;</span> <span class="kw">AS</span> rating_jsonb</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- -&gt;&gt; returns TEXT</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;&gt;</span> <span class="st">&#39;rating&#39;</span> <span class="kw">AS</span> rating_text</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<p>Look carefully at the column headings in <code>psql</code> — one will
+show <code>jsonb</code>, the other <code>text</code>. This distinction
+matters the moment you try to do arithmetic:</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- This works: cast text to numeric</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>       (details <span class="op">-&gt;&gt;</span> <span class="st">&#39;rating&#39;</span>):<span class="ch">:numeric</span> <span class="kw">AS</span> rating</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> rating <span class="kw">DESC</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>          name           | rating
+-------------------------+--------
+ Lighthouse Bookshop     |    4.9
+ Finch &amp; Sons Barbers    |    4.9
+ Portsmith Vet. Clinic   |    4.8
+ River Bend Bakery       |    4.8
+ Quarter Note Jazz Club  |    4.8
+(5 rows)</code></pre>
+<blockquote>
+<p><strong>Key point:</strong> Use <code>-&gt;</code> when you want to
+keep working with JSONB (e.g., to navigate deeper). Use
+<code>-&gt;&gt;</code> when you need the final value as text for
+comparisons, casting, or display.</p>
+</blockquote>
+<hr />
+<p><strong>1.2 — The path operator <code>#&gt;&gt;</code></strong></p>
+<p>Navigating nested keys with chained <code>-&gt;</code> quickly
+becomes unreadable. The path operator takes an array of keys and returns
+the leaf as text in one step.</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Chained arrows (verbose)</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span> <span class="op">-&gt;</span> <span class="st">&#39;fri&#39;</span> <span class="op">-&gt;&gt;</span> <span class="st">&#39;close&#39;</span> <span class="kw">AS</span> friday_close</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details <span class="op">-&gt;&gt;</span> <span class="st">&#39;category&#39;</span> <span class="op">=</span> <span class="st">&#39;restaurant&#39;</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">8</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Path operator (equivalent, cleaner)</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>       details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,fri,close}&#39;</span> <span class="kw">AS</span> friday_close</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details <span class="op">-&gt;&gt;</span> <span class="st">&#39;category&#39;</span> <span class="op">=</span> <span class="st">&#39;restaurant&#39;</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">8</span>;</span></code></pre></div>
+<p>Both produce the same result. Notice that some rows return
+<code>NULL</code> — those restaurants are closed on Fridays (the
+<code>fri</code> key is JSON <code>null</code>).</p>
+<pre><code>        name         | friday_close 
+---------------------+--------------
+ The Gilded Clam     | 22:30
+ Anchor &amp; Oar Tavern | 01:00
+ Bella Napoli        | 23:00
+ Le Petit Bistro     | 14:30
+ Dragon Palace       | 23:00
+ Spice Garden        | 23:00
+ Sol y Mar           | 23:00
+ Mango Bay Caribbean | 22:30
+(8 rows)</code></pre>
+<hr />
+<h3
+id="exercise-2-filtering-with-containment-and-key-existence">Exercise 2
+— Filtering with Containment and Key Existence</h3>
+<p><strong>2.1 — Containment: <code>@&gt;</code></strong></p>
+<p>The containment operator checks whether the left JSONB document
+contains all the key-value pairs in the right document. It is the most
+common way to filter on JSONB values.</p>
+<p>Find all waterfront businesses:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, neighbourhood</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;waterfront&quot;]}&#39;</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> neighbourhood, name;</span></code></pre></div>
+<pre><code>          name           |  neighbourhood
+-------------------------+------------------
+ Anchor &amp; Oar Tavern     | Harbour District
+ Harbour Inn             | Harbour District
+ Harbour View Theater    | Harbour District
+ Mariners Rest B&amp;B       | Harbour District
+ Portsmith Fish Market   | Harbour District
+ Saltbox Gallery         | Harbour District
+ The Gilded Clam         | Harbour District
+ Tidal Wave Surf Shop    | Harbour District
+ Old Brewery Tap         | Industrial Port
+ The Rusty Anchor        | Industrial Port
+(10 rows)</code></pre>
+<blockquote>
+<p><strong>Why this works:</strong> The <code>@&gt;</code> operator
+checks whether the tags <em>array</em> on the left contains the tags
+array <code>["waterfront"]</code> on the right — array containment is
+supported natively.</p>
+</blockquote>
+<hr />
+<p><strong>2.2 — Key existence: <code>?</code></strong></p>
+<p>The <code>?</code> operator tests whether a key exists in a JSONB
+object (or a value exists in a JSONB array). Unlike <code>@&gt;</code>,
+it does not check the value — only presence.</p>
+<p>Find all businesses that publish social media handles:</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;</span> <span class="st">&#39;social&#39;</span> <span class="kw">AS</span> social_links</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details ? <span class="st">&#39;social&#39;</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<pre><code>          name          |                       social_links                        
+------------------------+-----------------------------------------------------------
+ Bella Napoli           | {&quot;instagram&quot;: &quot;@bellanapoli_portsmith&quot;}
+ Le Petit Bistro        | {&quot;instagram&quot;: &quot;@lepetitbistro&quot;}
+ Quarter Note Jazz Club | {&quot;instagram&quot;: &quot;@quarternote_portsmith&quot;}
+ Spice Garden           | {&quot;instagram&quot;: &quot;@spicegarden_portsmith&quot;}
+ The Gilded Clam        | {&quot;facebook&quot;: &quot;thegildedclam&quot;, &quot;instagram&quot;: &quot;@gildedclam&quot;}
+ The Riverside Vegan    | {&quot;instagram&quot;: &quot;@riverside_vegan&quot;}
+(6 rows)</code></pre>
+<hr />
+<p><strong>2.3 — Any-key and all-key existence: <code>?|</code> and
+<code>?&amp;</code></strong></p>
+<p><code>?|</code> returns true if <em>at least one</em> of the listed
+keys exists. <code>?&amp;</code> returns true only if <em>all</em>
+listed keys exist.</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Businesses that offer either delivery OR takeaway</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details ?| <span class="dt">ARRAY</span>[<span class="st">&#39;delivery&#39;</span>, <span class="st">&#39;takeaway&#39;</span>]</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Businesses that offer BOTH delivery AND takeaway</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details ?&amp; <span class="dt">ARRAY</span>[<span class="st">&#39;delivery&#39;</span>, <span class="st">&#39;takeaway&#39;</span>]</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>Run both and note the difference in result count. The
+<code>?&amp;</code> set is a strict subset of the <code>?|</code>
+set.</p>
+<hr />
+<h3 id="exercise-3-missing-keys-vs.-null-values">Exercise 3 — Missing
+Keys vs. NULL Values</h3>
+<p>JSONB has two distinct ways to represent “no value”: a JSON
+<code>null</code> and a <strong>missing key</strong>. They behave
+differently in queries.</p>
+<p>In our data, a business closed on Monday can be represented two
+ways:</p>
+<ul>
+<li><code>"mon": null</code> — the key exists, the value is JSON
+null</li>
+<li>the <code>mon</code> key is absent entirely</li>
+</ul>
+<p>The seed data uses <code>"mon": null</code> for closures, so we can
+observe this.</p>
+<p><strong>3.1 — The difference matters for <code>?</code></strong></p>
+<div class="sourceCode" id="cb28"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- ? checks key EXISTENCE, not value</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  (details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span>) ? <span class="st">&#39;sun&#39;</span>   <span class="co">-- key exists (even if null)</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>Run it. You should get <strong>43 rows</strong> — every business that
+uses a day-keyed hours object. The five accommodation businesses are
+excluded because their hours look like
+<code>{"reception": "07:00-23:00"}</code> and have no <code>sun</code>
+key.</p>
+<p>Now try what seems like a natural follow-up:</p>
+<div class="sourceCode" id="cb29"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- ⚠ This does NOT do what you might expect</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  (details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span> <span class="op">-&gt;</span> <span class="st">&#39;sun&#39;</span>) <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>Run it. You still get <strong>43 rows</strong> — identical to the
+first query.</p>
+<p><strong>Why?</strong> This is one of JSONB’s most important
+gotchas:</p>
+<blockquote>
+<p><strong>JSONB <code>null</code> is not SQL
+<code>NULL</code>.</strong></p>
+</blockquote>
+<p>When the seed script stores <code>"sun": None</code> in Python,
+<code>json.dumps</code> produces <code>"sun": null</code> — a JSON null
+<em>value</em> under an existing key. When PostgreSQL evaluates
+<code>details -&gt; 'hours' -&gt; 'sun'</code> on such a row, it returns
+the JSONB value <code>null</code>. That is a real value — not the
+absence of a value — so <code>IS NOT NULL</code> evaluates to
+<code>TRUE</code>.</p>
+<p>SQL <code>NULL</code> only appears when the key itself is
+<strong>missing</strong> from the object. That is what happens for the
+five accommodation businesses: <code>details -&gt; 'hours'</code>
+returns <code>{"reception": "..."}</code>, and then
+<code>-&gt; 'sun'</code> on that object finds no such key and returns
+SQL <code>NULL</code>, so <code>IS NOT NULL</code> is
+<code>FALSE</code>.</p>
+<p>To correctly distinguish the three states, use
+<code>jsonb_typeof()</code>:</p>
+<table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 41%" />
+<col style="width: 29%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>State</th>
+<th><code>details -&gt; 'hours' -&gt; 'sun'</code></th>
+<th><code>jsonb_typeof(...)</code></th>
+<th><code>IS NOT NULL</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Key missing (accommodation)</td>
+<td>SQL <code>NULL</code></td>
+<td>SQL <code>NULL</code></td>
+<td><code>FALSE</code></td>
+</tr>
+<tr class="even">
+<td>Key present, closed (<code>null</code>)</td>
+<td>JSONB <code>null</code></td>
+<td><code>'null'</code></td>
+<td><strong><code>TRUE</code></strong> ← gotcha</td>
+</tr>
+<tr class="odd">
+<td>Key present, open (object)</td>
+<td>JSONB object</td>
+<td><code>'object'</code></td>
+<td><code>TRUE</code></td>
+</tr>
+</tbody>
+</table>
+<p>The correct query for “businesses actually open on Sunday”:</p>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  jsonb_typeof(details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span> <span class="op">-&gt;</span> <span class="st">&#39;sun&#39;</span>) <span class="op">=</span> <span class="st">&#39;object&#39;</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>This returns <strong>25 rows</strong> — only the businesses with a
+real hours object for Sunday. <code>jsonb_typeof</code> returns
+<code>'object'</code> only for JSON objects, <code>'null'</code> for
+JSON null, and SQL <code>NULL</code> for a missing key (which then fails
+the <code>=</code> test).</p>
+<blockquote>
+<p><strong>Rule of thumb:</strong> Never use <code>IS NOT NULL</code> to
+test whether a JSONB navigation result is a “real” value. Use
+<code>jsonb_typeof(...)</code> to check the actual JSON type, or
+navigate one level deeper (e.g., check
+<code>details #&gt;&gt; '{hours,sun,open}'</code>) — the
+<code>#&gt;&gt;</code> operator converts JSON null to SQL NULL, so a
+deeper path naturally filters it out.</p>
+</blockquote>
+<hr />
+<p><strong>3.2 — Handling accommodation differently</strong></p>
+<p>Hotels and hostels store hours as a single
+<code>"reception": "HH:MM-HH:MM"</code> string rather than a day-keyed
+object. This means the <code>? 'sun'</code> test returns false for them
+even though they may be open 24/7. Write a query that finds all
+businesses that are either:</p>
+<ul>
+<li>Open on Sunday (day-keyed hours with a non-null <code>sun</code>),
+<strong>or</strong></li>
+<li>An accommodation with 24/7 reception</li>
+</ul>
+<div class="sourceCode" id="cb31"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, neighbourhood,</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>       <span class="cf">CASE</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>           <span class="cf">WHEN</span> jsonb_typeof(details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span> <span class="op">-&gt;</span> <span class="st">&#39;sun&#39;</span>) <span class="op">=</span> <span class="st">&#39;object&#39;</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>               <span class="cf">THEN</span> (details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,sun,open}&#39;</span>) <span class="op">||</span> <span class="st">&#39;–&#39;</span> <span class="op">||</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>                    (details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,sun,close}&#39;</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>           <span class="cf">WHEN</span> details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,reception}&#39;</span> <span class="op">=</span> <span class="st">&#39;24/7&#39;</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>               <span class="cf">THEN</span> <span class="st">&#39;24/7&#39;</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>           <span class="cf">ELSE</span> details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,reception}&#39;</span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>       <span class="cf">END</span> <span class="kw">AS</span> sunday_availability</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  jsonb_typeof(details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span> <span class="op">-&gt;</span> <span class="st">&#39;sun&#39;</span>) <span class="op">=</span> <span class="st">&#39;object&#39;</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>   <span class="kw">OR</span>  (details <span class="op">-&gt;</span> <span class="st">&#39;hours&#39;</span>) ? <span class="st">&#39;reception&#39;</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> neighbourhood, name;</span></code></pre></div>
+<hr />
+<h3 id="exercise-4-gin-indexes">Exercise 4 — GIN Indexes</h3>
+<p>Without an index, every JSONB query is a sequential scan — PostgreSQL
+reads every row and evaluates the expression. For a 48-row toy dataset
+that is unnoticeable, but with millions of rows it becomes a
+bottleneck.</p>
+<p>A <strong>GIN</strong> (Generalised Inverted Index) index over a
+JSONB column indexes every key and value inside every document. It
+accelerates <code>@&gt;</code>, <code>?</code>, <code>?|</code>, and
+<code>?&amp;</code> queries.</p>
+<p><strong>4.1 — Observe the plan before indexing</strong></p>
+<div class="sourceCode" id="cb32"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;waterfront&quot;]}&#39;</span>;</span></code></pre></div>
+<p>With 48 rows you will see <code>Seq Scan</code> (sequential scan,
+i.e. reading every row) — that is expected. On a larger table this would
+say <code>Seq Scan</code> with a high cost estimate.</p>
+<p><strong>4.2 — Create the GIN index</strong></p>
+<div class="sourceCode" id="cb33"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_businesses_details_gin</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> businesses</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> GIN (details);</span></code></pre></div>
+<p><strong>4.3 — Observe the plan after indexing</strong></p>
+<div class="sourceCode" id="cb34"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;waterfront&quot;]}&#39;</span>;</span></code></pre></div>
+<p>On a small table PostgreSQL may still choose a sequential scan (the
+planner knows the table fits in memory). Force it to use the index to
+see the mechanism:</p>
+<div class="sourceCode" id="cb35"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;waterfront&quot;]}&#39;</span>;</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;   <span class="co">-- always restore this</span></span></code></pre></div>
+<p>You should now see
+<code>Bitmap Index Scan on idx_businesses_details_gin</code> in the
+plan. The GIN index will pay for itself in production as the table
+grows.</p>
+<blockquote>
+<p><strong>What GIN indexes:</strong> The default <code>jsonb_ops</code>
+operator class indexes every key and value in the document, supporting
+<code>@&gt;</code>, <code>?</code>, <code>?|</code>,
+<code>?&amp;</code>. A <code>jsonb_path_ops</code> class indexes only
+values (not keys), producing a smaller index that is faster for
+<code>@&gt;</code> but cannot accelerate <code>?</code> queries. Use
+<code>jsonb_path_ops</code> when you only ever query by value
+containment and index size matters.</p>
+</blockquote>
+<div class="sourceCode" id="cb36"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Alternative: value-only index (smaller, faster @&gt;, no ? support)</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_businesses_details_pathops</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> businesses</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> GIN (details jsonb_path_ops);</span></code></pre></div>
+<hr />
+<h3 id="exercise-5-updating-documents-in-place">Exercise 5 — Updating
+Documents in Place</h3>
+<p>JSONB columns are immutable at the document level — you cannot change
+a single key without rewriting the whole value. PostgreSQL gives you two
+tools to do that rewrite concisely.</p>
+<p><strong>5.1 — <code>jsonb_set</code>: replace or add one
+value</strong></p>
+<p>The Lighthouse Bookshop just received a flood of five-star reviews.
+Update its rating to 5.0:</p>
+<div class="sourceCode" id="cb37"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    details <span class="op">=</span> jsonb_set(details, <span class="st">&#39;{rating}&#39;</span>, <span class="st">&#39;5.0&#39;</span>)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Lighthouse Bookshop&#39;</span>;</span></code></pre></div>
+<p>Verify:</p>
+<div class="sourceCode" id="cb38"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, details <span class="op">-&gt;&gt;</span> <span class="st">&#39;rating&#39;</span> <span class="kw">AS</span> rating</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Lighthouse Bookshop&#39;</span>;</span></code></pre></div>
+<p><code>jsonb_set(target, path, new_value)</code> — the path is a text
+array of keys. If the key already exists it is replaced; if it does not
+exist it is added (by default — there is a fourth parameter to suppress
+creation).</p>
+<p><strong>5.2 — <code>jsonb_set</code> on a nested key</strong></p>
+<p>The Gilded Clam is now closing an hour later on Sundays:</p>
+<div class="sourceCode" id="cb39"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    details <span class="op">=</span> jsonb_set(</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>                    details,</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&#39;{hours,sun,close}&#39;</span>,</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&#39;&quot;21:00&quot;&#39;</span>     <span class="co">-- note: a JSON string must be double-quoted</span></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;The Gilded Clam&#39;</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb40"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>       details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,sun,close}&#39;</span> <span class="kw">AS</span> new_sunday_close</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;The Gilded Clam&#39;</span>;</span></code></pre></div>
+<p><strong>5.3 — <code>||</code> merge operator: add or overwrite
+multiple keys at once</strong></p>
+<p>The <code>||</code> operator merges two JSONB objects, with the right
+side winning on conflicts. Use it to add a <code>verified</code> flag
+and update <code>review_count</code> in a single statement:</p>
+<div class="sourceCode" id="cb41"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    details <span class="op">=</span> details <span class="op">||</span> <span class="st">&#39;{&quot;verified&quot;: true, &quot;review_count&quot;: 999}&#39;</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Anchor &amp; Oar Tavern&#39;</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb42"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;&gt;</span> <span class="st">&#39;verified&#39;</span>     <span class="kw">AS</span> verified,</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;&gt;</span> <span class="st">&#39;review_count&#39;</span> <span class="kw">AS</span> reviews</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Anchor &amp; Oar Tavern&#39;</span>;</span></code></pre></div>
+<blockquote>
+<p><strong>Caution:</strong> <code>||</code> does a <em>shallow</em>
+merge. If <code>details</code> contains a nested object like
+<code>hours</code> and you merge another object that also has
+<code>hours</code>, the entire <code>hours</code> value is replaced —
+not deep-merged. Use <code>jsonb_set</code> for targeted nested
+updates.</p>
+</blockquote>
+<hr />
+<h3 id="exercise-6-expanding-arrays-with-jsonb_array_elements">Exercise
+6 — Expanding Arrays with <code>jsonb_array_elements</code></h3>
+<p>The <code>tags</code> key in most business documents is a JSON array.
+To query across tags — for example, to find the most common ones across
+the whole directory — you need to expand the array into individual
+rows.</p>
+<p><strong>6.1 — Expand one business’s tags</strong></p>
+<div class="sourceCode" id="cb43"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>       jsonb_array_elements_text(details <span class="op">-&gt;</span> <span class="st">&#39;tags&#39;</span>) <span class="kw">AS</span> tag</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;The Gilded Clam&#39;</span>;</span></code></pre></div>
+<pre><code>       name       |      tag
+------------------+---------------
+ The Gilded Clam  | waterfront
+ The Gilded Clam  | seafood
+ The Gilded Clam  | romantic
+ The Gilded Clam  | outdoor_seating
+(4 rows)</code></pre>
+<blockquote>
+<p><code>jsonb_array_elements_text</code> is a set-returning function:
+each element of the array becomes its own row. The result has more rows
+than the input.</p>
+</blockquote>
+<p><strong>6.2 — Count tags across all businesses</strong></p>
+<div class="sourceCode" id="cb45"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> tag, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> occurrences</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses,</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>       jsonb_array_elements_text(details <span class="op">-&gt;</span> <span class="st">&#39;tags&#39;</span>) <span class="kw">AS</span> tag</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> tag</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> occurrences <span class="kw">DESC</span></span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">15</span>;</span></code></pre></div>
+<pre><code>       tag        | occurrences 
+------------------+-------------
+ waterfront       |          10
+ takeaway         |           5
+ family_friendly  |           4
+ family_owned     |           4
+ organic          |           3
+ ...
+(15 rows)</code></pre>
+<p>Your exact numbers will differ — this shows the query pattern. The
+comma between <code>businesses</code> and the
+<code>jsonb_array_elements_text(...)</code> call is a <strong>lateral
+join</strong> (PostgreSQL expands the function for each input row
+automatically when used in the <code>FROM</code> clause this way).</p>
+<p><strong>6.3 — Only businesses with multiple specific
+tags</strong></p>
+<p>Find restaurants that are both <code>vegan_options</code> and
+<code>takeaway</code>:</p>
+<div class="sourceCode" id="cb47"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, details <span class="op">-&gt;&gt;</span> <span class="st">&#39;cuisine&#39;</span> <span class="kw">AS</span> cuisine</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;vegan_options&quot;]}&#39;</span></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">AND</span>  details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;tags&quot;: [&quot;takeaway&quot;]}&#39;</span>;</span></code></pre></div>
+<p>Because each <code>@&gt;</code> call is independent, both conditions
+must hold. This is more efficient than expanding the array when the GIN
+index is in place.</p>
+<hr />
+<h3 id="exercise-7-path-queries-with-jsonb_path_query">Exercise 7 — Path
+Queries with <code>jsonb_path_query</code></h3>
+<p>The <code>@?</code> operator and <code>jsonb_path_query()</code>
+function implement <strong>SQL/JSON path language</strong> — a
+mini-query language for navigating and filtering within a JSONB
+document. It is more expressive than chained arrow operators for
+conditional navigation.</p>
+<p><strong>7.1 — Simple path existence</strong></p>
+<p>Find businesses where the social links include Instagram:</p>
+<div class="sourceCode" id="cb48"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @? <span class="st">&#39;$.social.instagram&#39;</span>;</span></code></pre></div>
+<p><code>$.social.instagram</code> means: start at the root
+(<code>$</code>), descend to <code>social</code>, then to
+<code>instagram</code>. <code>@?</code> returns true if the path
+resolves to at least one value.</p>
+<p><strong>7.2 — Filter on a nested value</strong></p>
+<p>Find restaurants with a rating above 4.5:</p>
+<div class="sourceCode" id="cb49"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>       details <span class="op">-&gt;&gt;</span> <span class="st">&#39;rating&#39;</span> <span class="kw">AS</span> rating</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @? <span class="st">&#39;$ ? (@.category == &quot;restaurant&quot; &amp;&amp; @.rating &gt; 4.5)&#39;</span>;</span></code></pre></div>
+<pre><code>         name          | rating
+-----------------------+--------
+ Bella Napoli          | 4.6
+ Le Petit Bistro       | 4.7
+ River Bend Bakery     | 4.8
+ Spice Garden          | 4.6
+ The Gilded Clam       | 4.5
+(5 rows)</code></pre>
+<p>The <code>? (filter)</code> syntax inside a path expression is
+equivalent to a <code>WHERE</code> clause inside the document.</p>
+<p><strong>7.3 — Find businesses open late on Friday</strong></p>
+<p>Businesses that close at or after 21:00 on Friday (using string
+comparison, which works correctly for 24-hour <code>HH:MM</code>
+strings):</p>
+<div class="sourceCode" id="cb51"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>       details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{hours,fri,close}&#39;</span> <span class="kw">AS</span> friday_close</span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @? <span class="st">&#39;$.hours.fri.close ? (@ &gt;= &quot;21:00&quot;)&#39;</span></span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> friday_close <span class="kw">DESC</span>, name;</span></code></pre></div>
+<pre><code>           name           | friday_close
+--------------------------+--------------
+ Bella Napoli             | 23:00
+ Dragon Palace            | 23:00
+ Harbour View Theater     | 23:00
+ The Hungry Scholar       | 23:00
+ Spice Garden             | 23:00
+ Sol y Mar                | 23:00
+ Mango Bay Caribbean      | 22:30
+ The Gilded Clam          | 22:30
+ Thai Orchid              | 22:00
+ The Riverside Vegan      | 22:00
+ Northgate Grocers        | 21:00
+ Lotus Spa &amp; Wellness     | 20:00
+(12 rows)</code></pre>
+<blockquote>
+<p><strong>Limitation to notice:</strong> Businesses that close
+<em>after midnight</em> — Anchor &amp; Oar, The Clocktower Pub, The
+Rusty Anchor, and others — show a <code>close</code> of
+<code>"01:00"</code> or <code>"02:00"</code>. Lexicographically,
+<code>"02:00" &lt; "21:00"</code>, so these businesses are
+<em>excluded</em> from the above results even though they are open very
+late. This is a design trade-off of storing times as plain strings. One
+solution is to store closing times past midnight as
+<code>"25:00"</code>, <code>"26:00"</code>, etc. — an unusual but
+practical convention for 24-hour time arithmetic.</p>
+</blockquote>
+<p><strong>7.4 — Extract values with
+<code>jsonb_path_query</code></strong></p>
+<p><code>@?</code> is a boolean test. <code>jsonb_path_query()</code>
+returns the actual matched values:</p>
+<div class="sourceCode" id="cb53"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>       jsonb_path_query(details, <span class="st">&#39;$.hours.fri.close&#39;</span>) <span class="kw">AS</span> friday_close_json</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  details @? <span class="st">&#39;$.hours.fri&#39;</span></span>
+<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name</span>
+<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">8</span>;</span></code></pre></div>
+<p>The returned values are JSONB (note the quotes around the time
+strings). Use <code>jsonb_path_query_first(...) #&gt;&gt; '{}'</code> to
+extract a single scalar as text without the surrounding quotes.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know">Summary — What You Should Now
+Know</h2>
+<p>You have worked through the core JSONB toolkit. Here is what each
+operator and function you used actually does:</p>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>-&gt; 'key'</code></td>
+<td>Navigate one level; returns <strong>JSONB</strong></td>
+</tr>
+<tr class="even">
+<td><code>-&gt;&gt; 'key'</code></td>
+<td>Navigate one level; returns <strong>text</strong></td>
+</tr>
+<tr class="odd">
+<td><code>#&gt;&gt; '{a,b,c}'</code></td>
+<td>Navigate a path; returns <strong>text</strong>; JSON null becomes
+SQL NULL</td>
+</tr>
+<tr class="even">
+<td><code>@&gt; '{"k":"v"}'</code></td>
+<td>Containment test; accelerated by GIN</td>
+</tr>
+<tr class="odd">
+<td><code>? 'key'</code></td>
+<td>Key exists test (regardless of value); accelerated by GIN</td>
+</tr>
+<tr class="even">
+<td><code>?|</code> / <code>?&amp;</code></td>
+<td>Any-key / all-keys exist; accelerated by GIN</td>
+</tr>
+<tr class="odd">
+<td><code>jsonb_typeof(val)</code></td>
+<td>Returns <code>'object'</code>, <code>'array'</code>,
+<code>'string'</code>, <code>'number'</code>, <code>'boolean'</code>, or
+<code>'null'</code>; SQL NULL for a missing key</td>
+</tr>
+<tr class="even">
+<td><code>jsonb_set(col, path, val)</code></td>
+<td>Replace or insert a nested value</td>
+</tr>
+<tr class="odd">
+<td><code>col \|\| '{"k":"v"}'</code></td>
+<td>Shallow-merge a document</td>
+</tr>
+<tr class="even">
+<td><code>jsonb_array_elements_text(col)</code></td>
+<td>Expand a JSON array into rows</td>
+</tr>
+<tr class="odd">
+<td><code>@? 'path'</code></td>
+<td>SQL/JSON path existence test</td>
+</tr>
+<tr class="even">
+<td><code>jsonb_path_query(col, 'path')</code></td>
+<td>SQL/JSON path — return matched values</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Remember:</strong> JSONB <code>null</code> ≠ SQL
+<code>NULL</code>. Use <code>jsonb_typeof()</code> — not
+<code>IS NOT NULL</code> — when you need to distinguish a missing key
+from a key that exists but holds a JSON null value.</p>
+</blockquote>
+<p><strong>The key design insight</strong> from this chapter is that
+JSONB lets you keep a relational spine — the columns your queries always
+need (<code>id</code>, <code>name</code>, <code>neighbourhood</code>) —
+while storing everything else in a document whose shape can vary row by
+row. The GIN index means you do not pay a query performance penalty for
+that flexibility.</p>
+<p>In the next chapter you will add point geometry to the
+<code>businesses</code> table and use PostGIS to answer spatial
+questions: which businesses are within 500 metres of the harbour, and
+which neighbourhood does each one belong to.</p>
+<hr />
+<em>Going further: PostgreSQL 14+ supports the <code>jsonpath</code>
+type natively. The <code>jsonb_path_query_array</code> and
+<code>jsonb_path_query_first</code> variants are useful for pagination
+and single-value extraction. For write-heavy workloads, profile whether
+<code>JSONB</code> or a computed stored column (Chapter 16) gives better
+<code>INSERT</code>/<code>UPDATE</code> throughput on your
+hardware.</em>
+<div style="page-break-before: always;">
+
+</div>
+</body>
+</html>

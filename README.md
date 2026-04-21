@@ -123,4 +123,4 @@ This work is licensed under
 with an additional restriction prohibiting use for AI or machine learning
 training. See [LICENSE.md](LICENSE.md) for the full terms.
 
-Copyright © [Year] [Your Name].
+Copyright © 2026 Chris Lee.

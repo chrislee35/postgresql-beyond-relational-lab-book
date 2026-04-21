@@ -3,7 +3,7 @@
 ## Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
 ### CC BY-NC-SA 4.0
 
-Copyright © [Year] [Your Name]. All rights reserved.
+Copyright © 2026 Chris Lee. All rights reserved.
 
 This work is licensed under the Creative Commons
 Attribution-NonCommercial-ShareAlike 4.0 International License, with the

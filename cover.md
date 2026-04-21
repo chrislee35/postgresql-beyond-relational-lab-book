@@ -1,7 +1,7 @@
 # The Portsmith Papers
 ## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
-<img src="cover.svg" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
+<img src="imgs/cover.svg" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
 
 ---
 
@@ -36,10 +36,8 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 ### Author
 
-**[Your Name]**  
-[Title / Affiliation]  
-[Contact or website]  
+**Chris Lee**  
 
 ---
 
-*Edition 1.0 — Portsmith, [Year]*
+*Edition 1.0 — Portsmith, 2026*
