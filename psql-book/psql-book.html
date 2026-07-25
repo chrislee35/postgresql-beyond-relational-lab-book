@@ -158,6 +158,61 @@ Queries with <code>jsonb_path_query</code></a></li>
 id="toc-summary-what-you-should-now-know">Summary — What You Should Now
 Know</a></li>
 </ul></li>
+<li><a href="#chapter-2-postgis-geospatial-queries-on-real-geometry"
+id="toc-chapter-2-postgis-geospatial-queries-on-real-geometry">Chapter 2
+— PostGIS: Geospatial Queries on Real Geometry</a>
+<ul>
+<li><a href="#background-1" id="toc-background-1">Background</a></li>
+<li><a href="#the-scenario-1" id="toc-the-scenario-1">The
+Scenario</a></li>
+<li><a href="#exercise-goals-1" id="toc-exercise-goals-1">Exercise
+Goals</a></li>
+<li><a href="#installation-1" id="toc-installation-1">Installation</a>
+<ul>
+<li><a href="#postgis-server-package" id="toc-postgis-server-package">1
+— PostGIS server package</a></li>
+<li><a href="#enable-postgis-in-the-database"
+id="toc-enable-postgis-in-the-database">2 — Enable PostGIS in the
+database</a></li>
+</ul></li>
+<li><a href="#loading-the-data-1" id="toc-loading-the-data-1">Loading
+the Data</a>
+<ul>
+<li><a href="#prerequisites"
+id="toc-prerequisites">Prerequisites</a></li>
+<li><a href="#run-the-chapter-2-seed"
+id="toc-run-the-chapter-2-seed">Run the Chapter 2 seed</a></li>
+<li><a href="#verify-the-load-1" id="toc-verify-the-load-1">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-1" id="toc-exercises-1">Exercises</a>
+<ul>
+<li><a href="#exercise-1-neighbourhood-polygons-and-wkt"
+id="toc-exercise-1-neighbourhood-polygons-and-wkt">Exercise 1 —
+Neighbourhood Polygons and WKT</a></li>
+<li><a href="#exercise-2-proximity-search-with-st_dwithin"
+id="toc-exercise-2-proximity-search-with-st_dwithin">Exercise 2 —
+Proximity Search with <code>ST_DWithin</code></a></li>
+<li><a href="#exercise-3-spatial-joins-with-st_within-and-st_contains"
+id="toc-exercise-3-spatial-joins-with-st_within-and-st_contains">Exercise
+3 — Spatial Joins with <code>ST_Within</code> and
+<code>ST_Contains</code></a></li>
+<li><a href="#exercise-4-computing-area-in-square-kilometres"
+id="toc-exercise-4-computing-area-in-square-kilometres">Exercise 4 —
+Computing Area in Square Kilometres</a></li>
+<li><a
+href="#exercise-5-nearest-park-using-st_distance-and-a-lateral-join"
+id="toc-exercise-5-nearest-park-using-st_distance-and-a-lateral-join">Exercise
+5 — Nearest Park Using <code>ST_Distance</code> and a Lateral
+Join</a></li>
+<li><a href="#exercise-6-gist-indexes-and-spatial-query-plans"
+id="toc-exercise-6-gist-indexes-and-spatial-query-plans">Exercise 6 —
+GIST Indexes and Spatial Query Plans</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-1"
+id="toc-summary-what-you-should-now-know-1">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -1070,6 +1125,823 @@ and single-value extraction. For write-heavy workloads, profile whether
 <code>JSONB</code> or a computed stored column (Chapter 16) gives better
 <code>INSERT</code>/<code>UPDATE</code> throughput on your
 hardware.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-2-postgis-geospatial-queries-on-real-geometry">Chapter 2
+— PostGIS: Geospatial Queries on Real Geometry</h1>
+<blockquote>
+<p><em>“A city is not a list of rows. It is a shape on the
+ground.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-1">Background</h2>
+<p>Every interesting question about a city is ultimately a spatial
+question. Which businesses are near the harbour? Which neighbourhood is
+this address in? How large is the industrial waterfront? Relational
+databases answer these badly when location is stored as a text field or
+a pair of float columns — there is no native concept of “within”,
+“contains”, or “distance”.</p>
+<p>PostGIS is a PostgreSQL extension that adds first-class geometry and
+geography types, plus several hundred spatial functions and operators.
+It turns PostgreSQL into a full spatial database: you can store points,
+lines, and polygons; index them with GIST; and answer proximity,
+containment, and area queries in SQL without an external GIS system.</p>
+<p>This matters in practice far beyond mapping applications. Address
+geocoding, logistics routing, fraud detection (is this login coming from
+the expected region?), real estate valuation, and urban planning all
+reach for spatial queries. PostGIS is the standard tool for all of them
+in the PostgreSQL ecosystem.</p>
+<hr />
+<h2 id="the-scenario-1">The Scenario</h2>
+<p>The Portsmith business directory from Chapter 1 stores each
+business’s neighbourhood as a plain text column. That works for simple
+filtering, but it cannot answer <em>where</em> questions: it cannot find
+businesses near a given coordinate, cannot verify that a business
+address actually falls inside its declared neighbourhood, and cannot
+measure distances.</p>
+<p>This chapter adds a point geometry to every business record, then
+introduces three new spatial tables:</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 18%" />
+<col style="width: 53%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Geometry type</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>neighborhoods</code></td>
+<td><code>POLYGON</code></td>
+<td>Boundary polygons for Portsmith’s six neighbourhoods</td>
+</tr>
+<tr class="even">
+<td><code>parks</code></td>
+<td><code>POLYGON</code></td>
+<td>Six public parks and green spaces</td>
+</tr>
+<tr class="odd">
+<td><code>city_infrastructure</code></td>
+<td><code>LINESTRING</code></td>
+<td>Twelve named road segments</td>
+</tr>
+</tbody>
+</table>
+<p>All coordinates are in WGS-84 (SRID 4326), the same coordinate system
+used by GPS and most web mapping APIs.</p>
+<hr />
+<h2 id="exercise-goals-1">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Store and inspect <code>POLYGON</code> geometry using WKT
+(Well-Known Text) and <code>ST_GeomFromText</code>.</li>
+<li>Run proximity searches with <code>ST_DWithin</code>, and understand
+why the <code>::geography</code> cast matters for distance
+accuracy.</li>
+<li>Perform spatial joins using <code>ST_Within</code> and
+<code>ST_Contains</code>, and explain the difference between them.</li>
+<li>Compute polygon areas in square kilometres using
+<code>ST_Area</code> with the geography type.</li>
+<li>Find the nearest feature for every row using
+<code>ST_Distance</code> and a <code>CROSS JOIN LATERAL</code>.</li>
+<li>Create a GIST spatial index and confirm that PostgreSQL uses
+it.</li>
+</ul>
+<hr />
+<h2 id="installation-1">Installation</h2>
+<h3 id="postgis-server-package">1 — PostGIS server package</h3>
+<p>PostGIS is a separate package from PostgreSQL. On Debian/Ubuntu:</p>
+<div class="sourceCode" id="cb54"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16-postgis-3</span></code></pre></div>
+<h3 id="enable-postgis-in-the-database">2 — Enable PostGIS in the
+database</h3>
+<p>Connect to the <code>portsmith</code> database and enable the
+extension:</p>
+<div class="sourceCode" id="cb55"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith</span></code></pre></div>
+<div class="sourceCode" id="cb56"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> postgis;</span></code></pre></div>
+<p>Verify it loaded:</p>
+<div class="sourceCode" id="cb57"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> postgis_full_version();</span></code></pre></div>
+<p>You should see a long string beginning with
+<code>POSTGIS="3.x.x"</code>. If you see an error about the extension
+not existing, the server package is not installed.</p>
+<hr />
+<h2 id="loading-the-data-1">Loading the Data</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>Chapter 1’s seed script must have been run first — the
+<code>businesses</code> table must exist. If it does not:</p>
+<div class="sourceCode" id="cb58"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py</span></code></pre></div>
+<h3 id="run-the-chapter-2-seed">Run the Chapter 2 seed</h3>
+<div class="sourceCode" id="cb59"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch02_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Enabling PostGIS extension …
+Applying DDL …
+Inserting 6 neighbourhoods …
+Inserting 6 parks …
+Inserting 12 road segments …
+Updating 48 business locations …
+
+Done:
+  businesses with geometry : 48
+  neighbourhoods           : 6
+  parks                    : 6
+  road segments            : 12</code></pre>
+<h3 id="verify-the-load-1">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these four checks.</p>
+<p><strong>Check 1 — businesses now has a geometry column:</strong></p>
+<div class="sourceCode" id="cb61"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>\d businesses</span></code></pre></div>
+<p>You should see a new <code>geom</code> column of type
+<code>geometry(Point,4326)</code>.</p>
+<p><strong>Check 2 — neighbourhood table structure and row
+count:</strong></p>
+<div class="sourceCode" id="cb62"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, population,</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>       ST_AsText(geom) <span class="kw">AS</span> wkt_preview</span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<pre><code>       name         | population |            wkt_preview
+--------------------+------------+------------------------------------
+ Harbour District   |       4200 | POLYGON((-1.805 50.69,...))
+ Industrial Port    |       2100 | POLYGON((-1.77 50.69,...))
+ Northgate          |      18500 | POLYGON((-1.83 50.732,...))
+ Old Town           |       6800 | POLYGON((-1.805 50.71,...))
+ Riverside          |       9300 | POLYGON((-1.773 50.71,...))
+ University Quarter |      11200 | POLYGON((-1.83 50.71,...))
+(6 rows)</code></pre>
+<p><strong>Check 3 — parks and roads:</strong></p>
+<div class="sourceCode" id="cb64"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> parks;</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_infrastructure;</span></code></pre></div>
+<p>Both should return 6 and 12 respectively.</p>
+<p><strong>Check 4 — SRID on all tables:</strong></p>
+<div class="sourceCode" id="cb65"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> f_table_name, f_geometry_column, srid, <span class="kw">type</span></span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   geometry_columns</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  f_table_schema <span class="op">=</span> <span class="st">&#39;public&#39;</span></span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> f_table_name;</span></code></pre></div>
+<pre><code>      f_table_name      | f_geometry_column | srid |    type
+------------------------+-------------------+------+------------
+ businesses             | geom              | 4326 | POINT
+ city_infrastructure    | geom              | 4326 | LINESTRING
+ neighborhoods          | geom              | 4326 | POLYGON
+ parks                  | geom              | 4326 | POLYGON
+(4 rows)</code></pre>
+<p>If all four pass, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-1">Exercises</h2>
+<hr />
+<h3 id="exercise-1-neighbourhood-polygons-and-wkt">Exercise 1 —
+Neighbourhood Polygons and WKT</h3>
+<p>Geometry in PostGIS is often loaded from <strong>Well-Known
+Text</strong> (WKT), a human-readable representation of shapes.
+Understanding WKT lets you read geometry from SQL output, write it in
+queries, and reason about what you stored.</p>
+<p><strong>1.1 — Read a polygon in WKT</strong></p>
+<div class="sourceCode" id="cb67"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, ST_AsText(geom) <span class="kw">AS</span> wkt</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Harbour District&#39;</span>;</span></code></pre></div>
+<pre><code>       name        |                          wkt
+-------------------+------------------------------------------------------
+ Harbour District  | POLYGON((-1.805 50.69,-1.77 50.69,-1.77 50.71,...))</code></pre>
+<p>WKT for a polygon is <code>POLYGON((x1 y1, x2 y2, ...))</code>. In
+geographic coordinates the convention is <em>longitude latitude</em> (x
+then y), matching the X/Y convention in maths. The ring must
+<strong>close</strong> — the last coordinate must equal the first.</p>
+<p><strong>1.2 — Inspect the bounding box</strong></p>
+<p><code>ST_Envelope</code> returns the minimum bounding rectangle for
+any geometry:</p>
+<div class="sourceCode" id="cb69"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>       ST_XMin(ST_Envelope(geom)) <span class="kw">AS</span> west,</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>       ST_XMax(ST_Envelope(geom)) <span class="kw">AS</span> east,</span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a>       ST_YMin(ST_Envelope(geom)) <span class="kw">AS</span> south,</span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a>       ST_YMax(ST_Envelope(geom)) <span class="kw">AS</span> north</span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb69-7"><a href="#cb69-7" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>Use this output to confirm each polygon sits in the right part of the
+coordinate space (longitudes around −1.75 to −1.83, latitudes around
+50.69 to 50.76).</p>
+<p><strong>1.3 — Count vertices</strong></p>
+<div class="sourceCode" id="cb70"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a>       ST_NPoints(geom) <span class="kw">AS</span> vertex_count</span>
+<span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb70-4"><a href="#cb70-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<p>Each neighbourhood polygon has five vertices (four corners plus the
+closing duplicate). A real city boundary imported from an OS/census
+shapefile might have thousands.</p>
+<p><strong>1.4 — Understand the SRID</strong></p>
+<p><code>ST_SRID</code> returns the spatial reference identifier stored
+with the geometry:</p>
+<div class="sourceCode" id="cb71"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, ST_SRID(geom) <span class="kw">AS</span> srid</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">3</span>;</span></code></pre></div>
+<p>SRID 4326 is the WGS-84 system used by GPS. Every geometry in these
+tables carries the same SRID, which means they can be compared and
+joined directly. If SRIDs differ, PostGIS will return an error — a
+deliberate safety check.</p>
+<blockquote>
+<p><strong>The geometry/geography distinction:</strong> In PostGIS,
+<code>geometry</code> stores coordinates in whatever units the SRS
+defines. For SRID 4326 that means degrees. When you ask for a distance
+between two <code>geometry</code> points in 4326, you get a value in
+<em>degrees</em> — nearly useless for human-scale distances. The
+<code>geography</code> type, by contrast, always works on a spheroid and
+returns distances in <em>metres</em>. You can cast any SRID-4326
+geometry to geography with <code>::geography</code> to get metre-based
+calculations. The exercises use this cast throughout.</p>
+</blockquote>
+<hr />
+<h3 id="exercise-2-proximity-search-with-st_dwithin">Exercise 2 —
+Proximity Search with <code>ST_DWithin</code></h3>
+<p><code>ST_DWithin(a, b, distance)</code> returns true when the
+distance between <code>a</code> and <code>b</code> is at most
+<code>distance</code>. With geography inputs the distance is in
+metres.</p>
+<p><strong>2.1 — Find businesses within 500 m of Portsmith
+Pier</strong></p>
+<p>Portsmith’s main pier entrance sits at approximately (−1.785,
+50.700). Find every business within 500 metres of it:</p>
+<div class="sourceCode" id="cb72"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name,</span>
+<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a>       b.neighbourhood,</span>
+<span id="cb72-3"><a href="#cb72-3" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(</span>
+<span id="cb72-4"><a href="#cb72-4" aria-hidden="true" tabindex="-1"></a>           ST_Distance(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb72-5"><a href="#cb72-5" aria-hidden="true" tabindex="-1"></a>                       ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>):<span class="ch">:numeric</span></span>
+<span id="cb72-6"><a href="#cb72-6" aria-hidden="true" tabindex="-1"></a>       ) <span class="kw">AS</span> distance_m</span>
+<span id="cb72-7"><a href="#cb72-7" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb72-8"><a href="#cb72-8" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  ST_DWithin(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb72-9"><a href="#cb72-9" aria-hidden="true" tabindex="-1"></a>                  ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>,</span>
+<span id="cb72-10"><a href="#cb72-10" aria-hidden="true" tabindex="-1"></a>                  <span class="dv">500</span>)</span>
+<span id="cb72-11"><a href="#cb72-11" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> distance_m;</span></code></pre></div>
+<pre><code>          name           |  neighbourhood   | distance_m
+-------------------------+------------------+------------
+ The Gilded Clam         | Harbour District |         70
+ Anchor &amp; Oar Tavern     | Harbour District |        179
+ Tidal Wave Surf Shop    | Harbour District |        307
+ Harbour Inn             | Harbour District |        437
+ Portsmith Fish Market   | Harbour District |        484
+(5 rows)</code></pre>
+<p>All five results are in the Harbour District — exactly what you would
+expect for a search centred on the pier.</p>
+<p><strong>2.2 — Why <code>::geography</code> matters</strong></p>
+<p>Try the same query without the cast. Note that
+<code>ST_Point(...)</code> without an explicit SRID gets SRID 0, which
+PostGIS refuses to compare against SRID-4326 geometry — so you must use
+<code>ST_SetSRID</code>:</p>
+<div class="sourceCode" id="cb74"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name,</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(ST_Distance(b.geom,</span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a>                         ST_SetSRID(ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>), <span class="dv">4326</span>)):<span class="ch">:numeric</span>,</span>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a>             <span class="dv">6</span>)                <span class="kw">AS</span> distance_degrees</span>
+<span id="cb74-5"><a href="#cb74-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb74-6"><a href="#cb74-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  ST_DWithin(b.geom,</span>
+<span id="cb74-7"><a href="#cb74-7" aria-hidden="true" tabindex="-1"></a>                  ST_SetSRID(ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>), <span class="dv">4326</span>),</span>
+<span id="cb74-8"><a href="#cb74-8" aria-hidden="true" tabindex="-1"></a>                  <span class="dv">500</span>)</span>
+<span id="cb74-9"><a href="#cb74-9" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> distance_degrees;</span></code></pre></div>
+<p>The <code>WHERE</code> clause now has a threshold of <code>500</code>
+— but in <em>degrees</em>. One degree of latitude is about 111 km, so
+this matches businesses within roughly 55,000 km: all 48 of them, from
+the whole city. The <code>distance_degrees</code> values in the output
+are tiny fractions like <code>0.001000</code>, not useful numbers.</p>
+<pre><code> rows returned: 48  (the entire city, not 5)</code></pre>
+<blockquote>
+<p><strong>Rule:</strong> For any distance query on SRID-4326 data,
+always cast to <code>::geography</code> in <code>ST_DWithin</code> and
+<code>ST_Distance</code>. The cast has negligible performance cost at
+the scales used in city-level data.</p>
+</blockquote>
+<p><strong>2.3 — Try different radii</strong></p>
+<p>How many businesses fall within 1 km of the pier? 2 km?</p>
+<div class="sourceCode" id="cb76"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> radius_m,</span>
+<span id="cb76-2"><a href="#cb76-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> business_count</span>
+<span id="cb76-3"><a href="#cb76-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   (<span class="kw">VALUES</span> (<span class="dv">500</span>), (<span class="dv">1000</span>), (<span class="dv">2000</span>)) <span class="kw">AS</span> radii(radius_m)</span>
+<span id="cb76-4"><a href="#cb76-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CROSS</span> <span class="kw">JOIN</span> LATERAL (</span>
+<span id="cb76-5"><a href="#cb76-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="dv">1</span></span>
+<span id="cb76-6"><a href="#cb76-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   businesses b</span>
+<span id="cb76-7"><a href="#cb76-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  ST_DWithin(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb76-8"><a href="#cb76-8" aria-hidden="true" tabindex="-1"></a>                      ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>,</span>
+<span id="cb76-9"><a href="#cb76-9" aria-hidden="true" tabindex="-1"></a>                      radius_m)</span>
+<span id="cb76-10"><a href="#cb76-10" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> matches</span>
+<span id="cb76-11"><a href="#cb76-11" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> radius_m</span>
+<span id="cb76-12"><a href="#cb76-12" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> radius_m;</span></code></pre></div>
+<pre><code> radius_m | business_count
+----------+----------------
+      500 |              5
+     1000 |              8
+     2000 |             17
+(3 rows)</code></pre>
+<p>The pier sits in the southern Harbour District. Doubling the radius
+to 2 km pulls in more of the central neighbourhoods, but the northern
+Northgate businesses are nearly 5 km away — a reminder that Portsmith
+stretches a significant distance north from the waterfront.</p>
+<hr />
+<h3
+id="exercise-3-spatial-joins-with-st_within-and-st_contains">Exercise 3
+— Spatial Joins with <code>ST_Within</code> and
+<code>ST_Contains</code></h3>
+<p>A <strong>spatial join</strong> links rows from two tables based on a
+geometric relationship rather than a key match. The most common are
+containment tests: does point A fall inside polygon B?</p>
+<p><strong>3.1 — Which neighbourhood is each business in?</strong></p>
+<div class="sourceCode" id="cb78"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb78-1"><a href="#cb78-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name,</span>
+<span id="cb78-2"><a href="#cb78-2" aria-hidden="true" tabindex="-1"></a>       b.neighbourhood          <span class="kw">AS</span> declared_neighbourhood,</span>
+<span id="cb78-3"><a href="#cb78-3" aria-hidden="true" tabindex="-1"></a>       n.name                   <span class="kw">AS</span> postgis_neighbourhood</span>
+<span id="cb78-4"><a href="#cb78-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses  b</span>
+<span id="cb78-5"><a href="#cb78-5" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   neighborhoods n <span class="kw">ON</span> ST_Within(b.geom, n.geom)</span>
+<span id="cb78-6"><a href="#cb78-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> n.name, b.name;</span></code></pre></div>
+<p><code>ST_Within(a, b)</code> returns true when geometry
+<code>a</code> lies completely inside geometry <code>b</code>. The query
+should return all 48 businesses, each matched to its neighbourhood.</p>
+<p>Confirm the declared <code>neighbourhood</code> column always matches
+<code>postgis_neighbourhood</code>:</p>
+<div class="sourceCode" id="cb79"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> mismatches</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses  b</span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   neighborhoods n <span class="kw">ON</span> ST_Within(b.geom, n.geom)</span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  b.neighbourhood <span class="op">&lt;&gt;</span> n.name;</span></code></pre></div>
+<pre><code> mismatches
+------------
+          0
+(1 row)</code></pre>
+<p>Zero mismatches: the text column from Chapter 1 and the geometry are
+consistent.</p>
+<p><strong>3.2 — <code>ST_Contains</code> is the inverse</strong></p>
+<p><code>ST_Contains(a, b)</code> returns true when polygon
+<code>a</code> contains geometry <code>b</code> — it is the mirror of
+<code>ST_Within</code>. These two queries produce identical results:</p>
+<div class="sourceCode" id="cb81"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Point inside polygon</span></span>
+<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name <span class="kw">FROM</span> businesses b</span>
+<span id="cb81-3"><a href="#cb81-3" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   neighborhoods n <span class="kw">ON</span> ST_Within(b.geom, n.geom)</span>
+<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  n.name <span class="op">=</span> <span class="st">&#39;Old Town&#39;</span></span>
+<span id="cb81-5"><a href="#cb81-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> b.name;</span>
+<span id="cb81-6"><a href="#cb81-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb81-7"><a href="#cb81-7" aria-hidden="true" tabindex="-1"></a><span class="co">-- Polygon contains point</span></span>
+<span id="cb81-8"><a href="#cb81-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name <span class="kw">FROM</span> businesses b</span>
+<span id="cb81-9"><a href="#cb81-9" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   neighborhoods n <span class="kw">ON</span> ST_Contains(n.geom, b.geom)</span>
+<span id="cb81-10"><a href="#cb81-10" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  n.name <span class="op">=</span> <span class="st">&#39;Old Town&#39;</span></span>
+<span id="cb81-11"><a href="#cb81-11" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> b.name;</span></code></pre></div>
+<pre><code>          name
+--------------------------
+ Bella Napoli
+ Finch &amp; Sons Barbers
+ Le Petit Bistro
+ Old Town Hardware
+ Portsmith Accountancy Ltd.
+ Portsmith Arms Hotel
+ Portsmith Legal Group
+ Portsmith Tailors
+ The Clocktower Pub
+(9 rows)</code></pre>
+<p>Both return the same 9 Old Town businesses.</p>
+<blockquote>
+<p><strong>The subtle difference:</strong>
+<code>ST_Contains(A, B)</code> requires that no point of B lies on the
+boundary of A. A point sitting exactly <em>on</em> a polygon edge would
+fail <code>ST_Contains</code> but pass <code>ST_Covers</code>. In
+practice, coordinates rarely land precisely on a boundary, so the two
+functions behave identically for most point-in-polygon work. Reach for
+<code>ST_Covers</code> if you need to include boundary-touching cases
+explicitly.</p>
+</blockquote>
+<p><strong>3.3 — Check for gaps: businesses in no
+neighbourhood</strong></p>
+<p>This query finds any businesses whose geometry falls outside every
+neighbourhood polygon — useful for catching data quality problems:</p>
+<div class="sourceCode" id="cb83"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name, b.neighbourhood</span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">NOT</span> <span class="kw">EXISTS</span> (</span>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="dv">1</span></span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   neighborhoods n</span>
+<span id="cb83-6"><a href="#cb83-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  ST_Within(b.geom, n.geom)</span>
+<span id="cb83-7"><a href="#cb83-7" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<pre><code> name | neighbourhood
+------+---------------
+(0 rows)</code></pre>
+<p>All 48 businesses are inside a neighbourhood polygon.</p>
+<hr />
+<h3 id="exercise-4-computing-area-in-square-kilometres">Exercise 4 —
+Computing Area in Square Kilometres</h3>
+<p><code>ST_Area</code> returns the area of a polygon. Called on
+<code>geometry</code> (degrees), it returns a value in square degrees —
+meaningless. Called on <code>geography</code>, it returns square
+metres.</p>
+<p><strong>4.1 — Incorrect: area in square degrees</strong></p>
+<div class="sourceCode" id="cb85"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(ST_Area(geom):<span class="ch">:numeric</span>, <span class="dv">6</span>) <span class="kw">AS</span> area_sq_degrees</span>
+<span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> area_sq_degrees <span class="kw">DESC</span>;</span></code></pre></div>
+<p>The numbers look tiny (around <code>0.0007</code>). They are
+geometrically correct but impossible to interpret as real-world area
+because degrees are not uniform units.</p>
+<p><strong>4.2 — Correct: area in square metres, then
+kilometres</strong></p>
+<div class="sourceCode" id="cb86"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>((ST_Area(geom:<span class="ch">:geography</span>) <span class="op">/</span> <span class="fl">1e6</span>):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> area_km2</span>
+<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> area_km2 <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code>        name        | area_km2
+--------------------+----------
+ Northgate          |    17.59
+ Old Town           |     5.53
+ Harbour District   |     5.50
+ University Quarter |     4.32
+ Riverside          |     3.98
+ Industrial Port    |     3.14
+(6 rows)</code></pre>
+<p>Northgate is by far the largest neighbourhood — it spans the entire
+northern width of the city. Industrial Port is the smallest, a tight
+strip of dockside land. Old Town and Harbour District are almost
+identical in area despite having very different characters.</p>
+<blockquote>
+<p><strong>Why the numbers differ slightly from manual
+estimates:</strong> <code>ST_Area</code> on geography uses the WGS-84
+spheroid, which accounts for the fact that the Earth is not a perfect
+sphere. At latitude 50.7° the correction is small (under 0.3%) but
+present.</p>
+</blockquote>
+<p><strong>4.3 — Population density</strong></p>
+<p>Combine the computed area with the <code>population</code>
+column:</p>
+<div class="sourceCode" id="cb88"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb88-1"><a href="#cb88-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
+<span id="cb88-2"><a href="#cb88-2" aria-hidden="true" tabindex="-1"></a>       population,</span>
+<span id="cb88-3"><a href="#cb88-3" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>((ST_Area(geom:<span class="ch">:geography</span>) <span class="op">/</span> <span class="fl">1e6</span>):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> area_km2,</span>
+<span id="cb88-4"><a href="#cb88-4" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(</span>
+<span id="cb88-5"><a href="#cb88-5" aria-hidden="true" tabindex="-1"></a>           (population <span class="op">/</span> (ST_Area(geom:<span class="ch">:geography</span>) <span class="op">/</span> <span class="fl">1e6</span>)):<span class="ch">:numeric</span></span>
+<span id="cb88-6"><a href="#cb88-6" aria-hidden="true" tabindex="-1"></a>       ) <span class="kw">AS</span> pop_per_km2</span>
+<span id="cb88-7"><a href="#cb88-7" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   neighborhoods</span>
+<span id="cb88-8"><a href="#cb88-8" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> pop_per_km2 <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code>        name        | population | area_km2 | pop_per_km2
+--------------------+------------+----------+-------------
+ University Quarter |      11200 |     4.32 |        2592
+ Riverside          |       9300 |     3.98 |        2340
+ Old Town           |       6800 |     5.53 |        1230
+ Northgate          |      18500 |    17.59 |        1052
+ Harbour District   |       4200 |     5.50 |         763
+ Industrial Port    |       2100 |     3.14 |         668
+(6 rows)</code></pre>
+<p>The University Quarter and Riverside are the most densely populated
+neighbourhoods — student housing and riverside apartments pack a lot of
+people into compact areas. The Industrial Port is the least dense
+despite its small size; much of it is warehouse and dock rather than
+residential.</p>
+<hr />
+<h3
+id="exercise-5-nearest-park-using-st_distance-and-a-lateral-join">Exercise
+5 — Nearest Park Using <code>ST_Distance</code> and a Lateral Join</h3>
+<p>Finding the nearest feature from another table requires a
+<strong>lateral join</strong> — a subquery that can reference columns
+from the outer query row by row.</p>
+<p><strong>5.1 — Distance from one business to one park</strong></p>
+<p><code>ST_Distance</code> between two geography values returns
+metres:</p>
+<div class="sourceCode" id="cb90"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name                          <span class="kw">AS</span> business,</span>
+<span id="cb90-2"><a href="#cb90-2" aria-hidden="true" tabindex="-1"></a>       p.name                          <span class="kw">AS</span> park,</span>
+<span id="cb90-3"><a href="#cb90-3" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(ST_Distance(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb90-4"><a href="#cb90-4" aria-hidden="true" tabindex="-1"></a>                         p.geom:<span class="ch">:geography</span>):<span class="ch">:numeric</span>) <span class="kw">AS</span> distance_m</span>
+<span id="cb90-5"><a href="#cb90-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b,</span>
+<span id="cb90-6"><a href="#cb90-6" aria-hidden="true" tabindex="-1"></a>       parks p</span>
+<span id="cb90-7"><a href="#cb90-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  b.name <span class="op">=</span> <span class="st">&#39;The Gilded Clam&#39;</span></span>
+<span id="cb90-8"><a href="#cb90-8" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> distance_m;</span></code></pre></div>
+<pre><code>     business     |            park             | distance_m
+------------------+-----------------------------+------------
+ The Gilded Clam  | Harbourside Park            |        682
+ The Gilded Clam  | Dockside Green              |       1315
+ The Gilded Clam  | Market Square Gardens       |       2143
+ The Gilded Clam  | Riverside Walk Park         |       2899
+ The Gilded Clam  | University Grounds          |       3060
+ The Gilded Clam  | Northgate Recreation Ground |       5006
+(6 rows)</code></pre>
+<p>The nearest park to The Gilded Clam is Harbourside Park, 682 m away.
+The <code>ST_Distance</code> to a polygon returns the distance from the
+point to the nearest point on the polygon’s boundary — zero when the
+point is inside the polygon.</p>
+<p><strong>5.2 — Nearest park for a single business (lateral
+pattern)</strong></p>
+<p>The canonical pattern for “nearest one thing” is
+<code>ORDER BY ... LIMIT 1</code> inside a lateral subquery:</p>
+<div class="sourceCode" id="cb92"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name,</span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>       nearest.park_name,</span>
+<span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a>       nearest.distance_m</span>
+<span id="cb92-4"><a href="#cb92-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb92-5"><a href="#cb92-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CROSS</span> <span class="kw">JOIN</span> LATERAL (</span>
+<span id="cb92-6"><a href="#cb92-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> p.name                                               <span class="kw">AS</span> park_name,</span>
+<span id="cb92-7"><a href="#cb92-7" aria-hidden="true" tabindex="-1"></a>           <span class="fu">ROUND</span>(ST_Distance(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb92-8"><a href="#cb92-8" aria-hidden="true" tabindex="-1"></a>                             p.geom:<span class="ch">:geography</span>):<span class="ch">:numeric</span>)      <span class="kw">AS</span> distance_m</span>
+<span id="cb92-9"><a href="#cb92-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   parks p</span>
+<span id="cb92-10"><a href="#cb92-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span>  <span class="kw">BY</span> b.geom:<span class="ch">:geography</span> <span class="op">&lt;-&gt;</span> p.geom:<span class="ch">:geography</span></span>
+<span id="cb92-11"><a href="#cb92-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span></span>
+<span id="cb92-12"><a href="#cb92-12" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> nearest</span>
+<span id="cb92-13"><a href="#cb92-13" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  b.name <span class="op">=</span> <span class="st">&#39;Quarter Note Jazz Club&#39;</span>;</span></code></pre></div>
+<pre><code>         name          |    park_name       | distance_m
+-----------------------+--------------------+------------
+ Quarter Note Jazz Club | University Grounds |        233
+(1 row)</code></pre>
+<p>The <code>&lt;-&gt;</code> operator is the KNN (k-nearest-neighbour)
+distance operator. When used in an <code>ORDER BY</code> clause inside a
+lateral join, PostGIS can accelerate it with the GIST index (which you
+will create in Exercise 6). Using <code>&lt;-&gt;</code> in
+<code>ORDER BY</code> is preferred over
+<code>ORDER BY ST_Distance(...)</code> for this reason.</p>
+<p><strong>5.3 — Nearest park for every business</strong></p>
+<p>Remove the <code>WHERE</code> filter to run across all 48
+businesses:</p>
+<div class="sourceCode" id="cb94"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name                          <span class="kw">AS</span> business,</span>
+<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a>       b.neighbourhood,</span>
+<span id="cb94-3"><a href="#cb94-3" aria-hidden="true" tabindex="-1"></a>       nearest.park_name,</span>
+<span id="cb94-4"><a href="#cb94-4" aria-hidden="true" tabindex="-1"></a>       nearest.distance_m</span>
+<span id="cb94-5"><a href="#cb94-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb94-6"><a href="#cb94-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CROSS</span> <span class="kw">JOIN</span> LATERAL (</span>
+<span id="cb94-7"><a href="#cb94-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> p.name                                               <span class="kw">AS</span> park_name,</span>
+<span id="cb94-8"><a href="#cb94-8" aria-hidden="true" tabindex="-1"></a>           <span class="fu">ROUND</span>(ST_Distance(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb94-9"><a href="#cb94-9" aria-hidden="true" tabindex="-1"></a>                             p.geom:<span class="ch">:geography</span>):<span class="ch">:numeric</span>)      <span class="kw">AS</span> distance_m</span>
+<span id="cb94-10"><a href="#cb94-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   parks p</span>
+<span id="cb94-11"><a href="#cb94-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span>  <span class="kw">BY</span> b.geom:<span class="ch">:geography</span> <span class="op">&lt;-&gt;</span> p.geom:<span class="ch">:geography</span></span>
+<span id="cb94-12"><a href="#cb94-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span></span>
+<span id="cb94-13"><a href="#cb94-13" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> nearest</span>
+<span id="cb94-14"><a href="#cb94-14" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> b.neighbourhood, b.name;</span></code></pre></div>
+<p>Scan the results. You should see a clean pattern: each
+neighbourhood’s businesses point to the park in that same neighbourhood.
+Notice that three Riverside businesses (Portsmith Pharmacy, Portsmith
+Veterinary Clinic, Riverside Cinema) and University Bookshop all show
+<code>distance_m = 0</code> — their coordinates fall <em>inside</em> the
+park polygon. <code>ST_Distance</code> to a polygon returns zero when
+the point is contained within it.</p>
+<p><strong>5.4 — Aggregate: average walking distance to a park, by
+neighbourhood</strong></p>
+<div class="sourceCode" id="cb95"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.neighbourhood,</span>
+<span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">ROUND</span>(<span class="fu">AVG</span>(nearest.distance_m):<span class="ch">:numeric</span>) <span class="kw">AS</span> avg_distance_m</span>
+<span id="cb95-3"><a href="#cb95-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb95-4"><a href="#cb95-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CROSS</span> <span class="kw">JOIN</span> LATERAL (</span>
+<span id="cb95-5"><a href="#cb95-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="fu">ROUND</span>(ST_Distance(b.geom:<span class="ch">:geography</span>,</span>
+<span id="cb95-6"><a href="#cb95-6" aria-hidden="true" tabindex="-1"></a>                             p.geom:<span class="ch">:geography</span>):<span class="ch">:numeric</span>) <span class="kw">AS</span> distance_m</span>
+<span id="cb95-7"><a href="#cb95-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   parks p</span>
+<span id="cb95-8"><a href="#cb95-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span>  <span class="kw">BY</span> b.geom:<span class="ch">:geography</span> <span class="op">&lt;-&gt;</span> p.geom:<span class="ch">:geography</span></span>
+<span id="cb95-9"><a href="#cb95-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span></span>
+<span id="cb95-10"><a href="#cb95-10" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> nearest</span>
+<span id="cb95-11"><a href="#cb95-11" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> b.neighbourhood</span>
+<span id="cb95-12"><a href="#cb95-12" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> avg_distance_m;</span></code></pre></div>
+<p>This gives a rough “walkability to green space” metric per
+neighbourhood. Old Town ranks first — Market Square Gardens sits
+centrally within the neighbourhood. Northgate comes last despite having
+the largest park, because the park is in the far north of the district
+while businesses cluster near the southern edge.</p>
+<hr />
+<h3 id="exercise-6-gist-indexes-and-spatial-query-plans">Exercise 6 —
+GIST Indexes and Spatial Query Plans</h3>
+<p>Without an index, every spatial query is a sequential scan:
+PostgreSQL reads every row, applies the geometry function, and discards
+non-matching rows. For a 48-row dataset that is instant, but at 48
+million rows it is not.</p>
+<p>PostGIS spatial queries are accelerated by <strong>GIST</strong>
+(Generalised Search Tree) indexes. A GIST index on a geometry column
+builds a tree of bounding boxes, allowing the planner to quickly
+eliminate large portions of the table.</p>
+<p><strong>6.1 — Observe the plan before indexing</strong></p>
+<div class="sourceCode" id="cb96"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  ST_DWithin(geom:<span class="ch">:geography</span>,</span>
+<span id="cb96-5"><a href="#cb96-5" aria-hidden="true" tabindex="-1"></a>                  ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>,</span>
+<span id="cb96-6"><a href="#cb96-6" aria-hidden="true" tabindex="-1"></a>                  <span class="dv">500</span>);</span></code></pre></div>
+<p>On the 48-row <code>businesses</code> table you will see something
+like:</p>
+<pre><code>Seq Scan on businesses  (cost=0.00..4.60 rows=1 width=...) ...
+  Filter: (st_dwithin(...))
+  Rows Removed by Filter: 43</code></pre>
+<p>A sequential scan is expected on a tiny table — the planner knows the
+overhead of an index lookup exceeds the cost of reading all 48 rows.</p>
+<p><strong>6.2 — Create GIST indexes on the geometry
+columns</strong></p>
+<div class="sourceCode" id="cb98"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_businesses_geom</span>
+<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> businesses <span class="kw">USING</span> GIST (geom);</span>
+<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_neighborhoods_geom</span>
+<span id="cb98-5"><a href="#cb98-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> neighborhoods <span class="kw">USING</span> GIST (geom);</span>
+<span id="cb98-6"><a href="#cb98-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-7"><a href="#cb98-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_parks_geom</span>
+<span id="cb98-8"><a href="#cb98-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> parks <span class="kw">USING</span> GIST (geom);</span>
+<span id="cb98-9"><a href="#cb98-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-10"><a href="#cb98-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_infrastructure_geom</span>
+<span id="cb98-11"><a href="#cb98-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> city_infrastructure <span class="kw">USING</span> GIST (geom);</span></code></pre></div>
+<p><strong>6.3 — The geometry/geography index split</strong></p>
+<p>With <code>enable_seqscan</code> off, verify which plan the proximity
+query uses:</p>
+<div class="sourceCode" id="cb99"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb99-3"><a href="#cb99-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb99-4"><a href="#cb99-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb99-5"><a href="#cb99-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb99-6"><a href="#cb99-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  ST_DWithin(geom:<span class="ch">:geography</span>,</span>
+<span id="cb99-7"><a href="#cb99-7" aria-hidden="true" tabindex="-1"></a>                  ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>,</span>
+<span id="cb99-8"><a href="#cb99-8" aria-hidden="true" tabindex="-1"></a>                  <span class="dv">500</span>);</span>
+<span id="cb99-9"><a href="#cb99-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb99-10"><a href="#cb99-10" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;</span></code></pre></div>
+<p>You will see — perhaps surprisingly — that the planner <em>still</em>
+uses a sequential scan, even though <code>idx_businesses_geom</code>
+exists:</p>
+<pre><code>Seq Scan on businesses  (cost=10000000000.00...) ...
+  Filter: st_dwithin((geom)::geography, ...)</code></pre>
+<p><strong>Why?</strong> The GIST index was built on <code>geom</code>
+(type <code>geometry</code>). The query filters on
+<code>geom::geography</code> (type <code>geography</code>). These are
+different types — the index is not usable for geography operations.</p>
+<p>To accelerate geography-based distance queries you need a
+<strong>functional index</strong> on the cast:</p>
+<div class="sourceCode" id="cb101"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_businesses_geom_geography</span>
+<span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> businesses <span class="kw">USING</span> GIST (<span class="fu">CAST</span>(geom <span class="kw">AS</span> geography));</span></code></pre></div>
+<p>Now with <code>enable_seqscan</code> off:</p>
+<div class="sourceCode" id="cb102"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name</span>
+<span id="cb102-5"><a href="#cb102-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb102-6"><a href="#cb102-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  ST_DWithin(geom:<span class="ch">:geography</span>,</span>
+<span id="cb102-7"><a href="#cb102-7" aria-hidden="true" tabindex="-1"></a>                  ST_Point(<span class="op">-</span><span class="fl">1.785</span>, <span class="fl">50.700</span>):<span class="ch">:geography</span>,</span>
+<span id="cb102-8"><a href="#cb102-8" aria-hidden="true" tabindex="-1"></a>                  <span class="dv">500</span>);</span>
+<span id="cb102-9"><a href="#cb102-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb102-10"><a href="#cb102-10" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;</span></code></pre></div>
+<pre><code>Index Scan using idx_businesses_geom_geography on businesses
+  Index Cond: ((geom)::geography &amp;&amp;
+               _st_expand(&#39;...&#39;, &#39;500&#39;))
+  Filter: st_dwithin((geom)::geography, ...)
+  Rows Removed by Filter: 2</code></pre>
+<p>The index is now used. The index condition uses
+<code>&amp;&amp;</code> (bounding-box overlap on the spheroid) to
+quickly discard most rows, then <code>st_dwithin</code> rechecks the
+exact distance for the survivors.</p>
+<p><strong>6.4 — Verify the spatial join plan</strong></p>
+<p>The containment join uses geometry-to-geometry operations, so
+<code>idx_businesses_geom</code> (the plain geometry index) <em>is</em>
+used there:</p>
+<div class="sourceCode" id="cb104"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name, n.name <span class="kw">AS</span> neighbourhood</span>
+<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses b</span>
+<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   neighborhoods n <span class="kw">ON</span> ST_Within(b.geom, n.geom);</span>
+<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb104-8"><a href="#cb104-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;</span></code></pre></div>
+<pre><code>Nested Loop ...
+  -&gt;  Seq Scan on neighborhoods n  (6 rows — tiny table)
+  -&gt;  Index Scan using idx_businesses_geom on businesses b
+        Index Cond: (geom @ n.geom)
+        Filter: st_within(geom, n.geom)</code></pre>
+<p>For each neighbourhood polygon, <code>idx_businesses_geom</code> is
+used to find businesses whose bounding box falls inside the
+neighbourhood’s bounding box (<code>geom @ n.geom</code>), then
+<code>st_within</code> rechecks the exact containment.</p>
+<blockquote>
+<p><strong>The index rule:</strong> A GIST index on
+<code>geom geometry</code> accelerates geometry-to-geometry operations
+(<code>ST_Within</code>, <code>ST_Contains</code>,
+<code>ST_Intersects</code>, <code>&amp;&amp;</code>). A GIST index on
+<code>CAST(geom AS geography)</code> accelerates geography operations
+(<code>ST_DWithin(...::geography, ...)</code>, <code>&lt;-&gt;</code> on
+geography). If you query both ways, create both indexes — they coexist
+happily on the same table.</p>
+</blockquote>
+<hr />
+<h2 id="summary-what-you-should-now-know-1">Summary — What You Should
+Now Know</h2>
+<p>You have worked through the core PostGIS toolkit for points,
+polygons, and linear features. Here is a reference for everything
+used:</p>
+<table>
+<colgroup>
+<col style="width: 61%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function / operator</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ST_GeomFromText(wkt, srid)</code></td>
+<td>Parse WKT into a geometry with the given SRID</td>
+</tr>
+<tr class="even">
+<td><code>ST_AsText(geom)</code></td>
+<td>Format geometry as WKT for display</td>
+</tr>
+<tr class="odd">
+<td><code>ST_SetSRID(ST_MakePoint(lon, lat), srid)</code></td>
+<td>Construct a point geometry</td>
+</tr>
+<tr class="even">
+<td><code>ST_Point(lon, lat)::geography</code></td>
+<td>Construct a point and cast to geography</td>
+</tr>
+<tr class="odd">
+<td><code>geom::geography</code></td>
+<td>Cast a 4326 geometry to geography (distances now in metres)</td>
+</tr>
+<tr class="even">
+<td><code>ST_SRID(geom)</code></td>
+<td>Return the SRID stored with a geometry</td>
+</tr>
+<tr class="odd">
+<td><code>ST_NPoints(geom)</code></td>
+<td>Count vertices in a geometry</td>
+</tr>
+<tr class="even">
+<td><code>ST_Envelope(geom)</code></td>
+<td>Return the bounding-box rectangle</td>
+</tr>
+<tr class="odd">
+<td><code>ST_XMin/XMax/YMin/YMax(geom)</code></td>
+<td>Extract bounding-box extents</td>
+</tr>
+<tr class="even">
+<td><code>ST_DWithin(a, b, d)</code></td>
+<td>True when the distance between a and b is ≤ d</td>
+</tr>
+<tr class="odd">
+<td><code>ST_Distance(a, b)</code></td>
+<td>Distance between two geometries (metres for geography)</td>
+</tr>
+<tr class="even">
+<td><code>a::geography &lt;-&gt; b::geography</code></td>
+<td>KNN distance operator; use in ORDER BY for index acceleration</td>
+</tr>
+<tr class="odd">
+<td><code>ST_Within(a, b)</code></td>
+<td>True when a lies completely inside b</td>
+</tr>
+<tr class="even">
+<td><code>ST_Contains(a, b)</code></td>
+<td>True when a contains b (inverse of ST_Within)</td>
+</tr>
+<tr class="odd">
+<td><code>ST_Area(geom::geography)</code></td>
+<td>Area in square metres on the spheroid</td>
+</tr>
+<tr class="even">
+<td><code>CROSS JOIN LATERAL (... LIMIT 1)</code></td>
+<td>Nearest-neighbour join pattern</td>
+</tr>
+<tr class="odd">
+<td><code>USING GIST (geom)</code></td>
+<td>Create a GIST spatial index</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Geometry vs geography in one sentence:</strong> Use
+<code>geometry</code> for storage and when working with projected
+coordinate systems where units are already metres or feet. Cast to
+<code>geography</code> any time you need distance, area, or proximity
+results in real-world units from SRID-4326 data.</p>
+</blockquote>
+<p>The coordinates added in this chapter will carry forward. Chapter 12
+extends the <code>city_infrastructure</code> road network into a graph
+and uses a recursive CTE to find the shortest path between two
+intersections.</p>
+<hr />
+<em>Going further: PostGIS supports many more geometry types —
+<code>MULTIPOLYGON</code> for areas with holes,
+<code>GEOMETRYCOLLECTION</code> for mixed types, and 3D geometries with
+a Z coordinate for elevation data. For routing specifically,
+<code>pgRouting</code> builds on PostGIS to provide Dijkstra, A*, and
+turn-restriction-aware shortest-path algorithms over road network
+graphs. For importing real boundary data, <code>shp2pgsql</code>
+converts ESRI Shapefiles directly into PostGIS-compatible
+<code>INSERT</code> statements, and <code>ogr2ogr</code> handles
+GeoJSON, KML, GeoPackage, and dozens of other formats.</em>
 <div style="page-break-before: always;">
 
 </div>
