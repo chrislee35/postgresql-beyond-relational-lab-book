@@ -86,7 +86,7 @@
     code span.vs { color: #4070a0; } /* VerbatimString */
     code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
   </style>
-  <link rel="stylesheet" href="css/nlp-book.css" />
+  <link rel="stylesheet" href="css/book.css" />
 </head>
 <body>
 <header id="title-block-header">
@@ -211,6 +211,50 @@ GIST Indexes and Spatial Query Plans</a></li>
 </ul></li>
 <li><a href="#summary-what-you-should-now-know-1"
 id="toc-summary-what-you-should-now-know-1">Summary — What You Should
+Now Know</a></li>
+</ul></li>
+<li><a href="#chapter-3-job-queues-for-update-skip-locked"
+id="toc-chapter-3-job-queues-for-update-skip-locked">Chapter 3 — Job
+Queues: <code>FOR UPDATE SKIP LOCKED</code></a>
+<ul>
+<li><a href="#background-2" id="toc-background-2">Background</a></li>
+<li><a href="#the-scenario-2" id="toc-the-scenario-2">The
+Scenario</a></li>
+<li><a href="#exercise-goals-2" id="toc-exercise-goals-2">Exercise
+Goals</a></li>
+<li><a href="#installation-2"
+id="toc-installation-2">Installation</a></li>
+<li><a href="#loading-the-data-2" id="toc-loading-the-data-2">Loading
+the Data</a>
+<ul>
+<li><a href="#run-the-seed-script-1" id="toc-run-the-seed-script-1">Run
+the seed script</a></li>
+<li><a href="#verify-the-load-2" id="toc-verify-the-load-2">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-2" id="toc-exercises-2">Exercises</a>
+<ul>
+<li><a href="#exercise-1-designing-the-queue-schema"
+id="toc-exercise-1-designing-the-queue-schema">Exercise 1 — Designing
+the Queue Schema</a></li>
+<li><a href="#exercise-2-the-atomic-claim-query"
+id="toc-exercise-2-the-atomic-claim-query">Exercise 2 — The Atomic Claim
+Query</a></li>
+<li><a href="#exercise-3-simulating-concurrent-workers"
+id="toc-exercise-3-simulating-concurrent-workers">Exercise 3 —
+Simulating Concurrent Workers</a></li>
+<li><a href="#exercise-4-heartbeat-and-stalled-job-recovery"
+id="toc-exercise-4-heartbeat-and-stalled-job-recovery">Exercise 4 —
+Heartbeat and Stalled-Job Recovery</a></li>
+<li><a href="#exercise-5-dead-lettering-exhausted-jobs"
+id="toc-exercise-5-dead-lettering-exhausted-jobs">Exercise 5 —
+Dead-Lettering Exhausted Jobs</a></li>
+<li><a href="#exercise-6-benchmarking-claim-throughput-with-pgbench"
+id="toc-exercise-6-benchmarking-claim-throughput-with-pgbench">Exercise
+6 — Benchmarking Claim Throughput with <code>pgbench</code></a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-2"
+id="toc-summary-what-you-should-now-know-2">Summary — What You Should
 Now Know</a></li>
 </ul></li>
 </ul>
@@ -1542,8 +1586,8 @@ class="sourceCode sql"><code class="sourceCode sql"><span id="cb83-1"><a href="#
 Computing Area in Square Kilometres</h3>
 <p><code>ST_Area</code> returns the area of a polygon. Called on
 <code>geometry</code> (degrees), it returns a value in square degrees —
-meaningless. Called on <code>geography</code>, it returns square
-metres.</p>
+meaningless to most people. Called on <code>geography</code>, it returns
+square metres.</p>
 <p><strong>4.1 — Incorrect: area in square degrees</strong></p>
 <div class="sourceCode" id="cb85"><pre
 class="sourceCode sql"><code class="sourceCode sql"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name,</span>
@@ -1942,6 +1986,799 @@ graphs. For importing real boundary data, <code>shp2pgsql</code>
 converts ESRI Shapefiles directly into PostGIS-compatible
 <code>INSERT</code> statements, and <code>ogr2ogr</code> handles
 GeoJSON, KML, GeoPackage, and dozens of other formats.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-3-job-queues-for-update-skip-locked">Chapter 3 — Job
+Queues: <code>FOR UPDATE SKIP LOCKED</code></h1>
+<blockquote>
+<p><em>“A queue is just a table that everyone is racing to
+read.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-2">Background</h2>
+<p>Sooner or later almost every application needs a queue: a list of
+work items that a pool of workers processes one at a time, safely,
+without two workers ever grabbing the same item. The reflexive answer is
+to reach for a message broker — Redis, RabbitMQ, SQS, Kafka. Those tools
+earn their keep at serious scale. But if your data already lives in
+PostgreSQL, running a second system just to hand out rows to workers is
+often unnecessary complexity: another service to deploy, monitor, and
+keep consistent with the database.</p>
+<p>PostgreSQL can do this job itself. The
+<code>FOR UPDATE SKIP LOCKED</code> row-locking clause, combined with an
+ordinary table, gives you an atomic “claim the next item and don’t let
+anyone else touch it” primitive — the same guarantee a dedicated queue
+product sells you, built out of two SQL keywords. This chapter builds a
+job queue from scratch: the schema, the atomic claim query, concurrent
+worker behaviour, stalled-job recovery, and a dead-letter path for jobs
+that keep failing.</p>
+<p>This is not a toy exercise. This exact pattern — a status column, a
+claim query, a heartbeat, a dead-letter table — is what libraries like
+<a href="https://riverqueue.com/"><code>river</code></a>, <a
+href="https://oban.hexdocs.pm/Oban.html"><code>oban</code></a> (Elixir),
+and countless in-house job runners implement on top of PostgreSQL in
+production.</p>
+<hr />
+<h2 id="the-scenario-2">The Scenario</h2>
+<p>Portsmith’s permitting office processes a steady stream of permit
+applications: building work, business licenses, public events, signage,
+and demolitions. Each application needs to move through a review
+pipeline, and the office wants that processing to happen asynchronously
+and reliably — work should never be lost, never double-processed, and a
+crashed reviewer process shouldn’t leave an application stuck in limbo
+forever.</p>
+<p>The <code>jobs</code> table models this as a queue. Every row is one
+permit application awaiting review. A <code>status</code> column tracks
+its life cycle, a <code>priority</code> column lets safety-critical work
+(demolitions) jump ahead of routine work (sign permits), and a retry
+counter with a companion <code>dead_letter_jobs</code> table handles
+applications whose processing keeps failing.</p>
+<table>
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 80%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>status</code></td>
+<td><code>queued</code> → <code>in_progress</code> →
+<code>completed</code> (or back to <code>queued</code>, or
+dead-lettered)</td>
+</tr>
+<tr class="even">
+<td><code>priority</code></td>
+<td>1 (most urgent — demolitions) to 5 (least urgent — sign
+permits)</td>
+</tr>
+<tr class="odd">
+<td><code>payload</code></td>
+<td>JSONB — the permit application details</td>
+</tr>
+<tr class="even">
+<td><code>attempts</code> / <code>max_attempts</code></td>
+<td>Retry bookkeeping</td>
+</tr>
+<tr class="odd">
+<td><code>claimed_by</code> / <code>claimed_at</code></td>
+<td>Which worker has the job, and since when</td>
+</tr>
+<tr class="even">
+<td><code>heartbeat_at</code></td>
+<td>Updated periodically by the worker while it holds the job</td>
+</tr>
+</tbody>
+</table>
+<p>No extensions are required for this chapter — everything here is
+built on core PostgreSQL locking semantics.</p>
+<hr />
+<h2 id="exercise-goals-2">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Design a queue table schema, including a partial index tuned for the
+claim query’s access pattern.</li>
+<li>Write the atomic
+<code>UPDATE ... FROM (SELECT ... FOR UPDATE SKIP LOCKED)</code> claim
+query, and explain why naive two-step approaches race.</li>
+<li>Observe, with two concurrent <code>psql</code> sessions, that
+<code>SKIP LOCKED</code> lets workers proceed past rows another worker
+is holding — and contrast that with the blocking behaviour of plain
+<code>FOR UPDATE</code>.</li>
+<li>Implement a heartbeat/timeout mechanism that reclaims jobs abandoned
+by a crashed worker.</li>
+<li>Route jobs that exhaust their retries into a dead-letter table.</li>
+<li>Benchmark claim throughput at different concurrency levels with
+<code>pgbench</code>.</li>
+</ul>
+<hr />
+<h2 id="installation-2">Installation</h2>
+<p>This chapter needs nothing beyond what Chapter 1 already set up:
+PostgreSQL 16 and a Python 3.12 virtual environment with
+<code>psycopg</code>. If you skipped Chapter 1, see its Installation
+section. You will also use <code>pgbench</code> for Exercise 6, which
+ships with the standard PostgreSQL client tools
+(<code>postgresql-client-16</code> on Debian/Ubuntu).</p>
+<hr />
+<h2 id="loading-the-data-2">Loading the Data</h2>
+<h3 id="run-the-seed-script-1">Run the seed script</h3>
+<p>From the <code>book/</code> directory, with the virtual environment
+active:</p>
+<div class="sourceCode" id="cb106"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 45 jobs …
+Done — 45 rows in jobs, all queued.</code></pre>
+<p>The seed script is self-contained — it does not depend on Chapter 1
+or 2’s data.</p>
+<h3 id="verify-the-load-2">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these checks.</p>
+<p><strong>Check 1 — table structure:</strong></p>
+<div class="sourceCode" id="cb108"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a>\d jobs</span></code></pre></div>
+<pre><code>                                        Table &quot;public.jobs&quot;
+    Column    |           Type           | Collation | Nullable |             Default
+--------------+--------------------------+-----------+----------+----------------------------------
+ id           | bigint                   |           | not null | nextval(&#39;jobs_id_seq&#39;::regclass)
+ job_type     | text                     |           | not null |
+ payload      | jsonb                    |           | not null |
+ status       | text                     |           | not null | &#39;queued&#39;::text
+ priority     | smallint                 |           | not null | 5
+ attempts     | integer                  |           | not null | 0
+ max_attempts | integer                  |           | not null | 3
+ created_at   | timestamp with time zone |           | not null | clock_timestamp()
+ claimed_at   | timestamp with time zone |           |          |
+ claimed_by   | text                     |           |          |
+ heartbeat_at | timestamp with time zone |           |          |
+ completed_at | timestamp with time zone |           |          |
+ last_error   | text                     |           |          |
+Indexes:
+    &quot;jobs_pkey&quot; PRIMARY KEY, btree (id)
+    &quot;idx_jobs_claim_order&quot; btree (priority, created_at, id) WHERE status = &#39;queued&#39;::text
+    &quot;idx_jobs_status&quot; btree (status)
+Check constraints:
+    &quot;jobs_status_check&quot; CHECK (status = ANY (ARRAY[&#39;queued&#39;::text, &#39;in_progress&#39;::text, &#39;completed&#39;::text, &#39;failed&#39;::text]))</code></pre>
+<p><strong>Check 2 — job counts by type and priority:</strong></p>
+<div class="sourceCode" id="cb110"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> job_type, priority, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> jobs</span>
+<span id="cb110-2"><a href="#cb110-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   jobs</span>
+<span id="cb110-3"><a href="#cb110-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> job_type, priority</span>
+<span id="cb110-4"><a href="#cb110-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> priority;</span></code></pre></div>
+<pre><code>     job_type      | priority | jobs
+-------------------+----------+------
+ demolition_permit |        1 |    4
+ business_license  |        2 |   12
+ building_permit   |        3 |   15
+ event_permit      |        4 |    8
+ sign_permit       |        5 |    6
+(5 rows)</code></pre>
+<p><strong>Check 3 — everything starts queued:</strong></p>
+<div class="sourceCode" id="cb112"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> status, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs <span class="kw">GROUP</span> <span class="kw">BY</span> status;</span></code></pre></div>
+<pre><code> status | count
+--------+-------
+ queued |    45
+(1 row)</code></pre>
+<p>If all three match, proceed to the exercises.</p>
+<blockquote>
+<p><strong>Note:</strong> If you re-run <code>ch03_seed.py</code> at any
+point during the exercises to reset to a clean state, it drops and
+recreates both <code>jobs</code> and <code>dead_letter_jobs</code>.</p>
+</blockquote>
+<hr />
+<h2 id="exercises-2">Exercises</h2>
+<hr />
+<h3 id="exercise-1-designing-the-queue-schema">Exercise 1 — Designing
+the Queue Schema</h3>
+<p><strong>1.1 — Why a partial index</strong></p>
+<p>The claim query (which you’ll write in Exercise 2) only ever looks at
+rows where <code>status = 'queued'</code>, ordered by
+<code>priority</code> then <code>created_at</code>. As the queue runs,
+the vast majority of rows will end up <code>completed</code> — a normal
+B-tree index on <code>(priority, created_at, id)</code> would faithfully
+index every one of those settled rows even though the claim query never
+looks at them.</p>
+<p><code>idx_jobs_claim_order</code> is a <strong>partial index</strong>
+— it only indexes rows matching
+<code>WHERE status = 'queued'</code>:</p>
+<div class="sourceCode" id="cb114"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_jobs_claim_order</span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> jobs (priority, created_at, <span class="kw">id</span>)</span>
+<span id="cb114-3"><a href="#cb114-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span>;</span></code></pre></div>
+<p>This keeps the index small regardless of how many historical jobs
+pile up in <code>completed</code> or <code>failed</code> state, because
+settled rows are never in it.</p>
+<p><strong>1.2 — Why <code>id</code> is part of the sort key, not just
+<code>created_at</code></strong></p>
+<p>You might expect <code>ORDER BY priority, created_at</code> to be
+enough — oldest job in the highest-priority bucket goes first. But
+timestamps are not always unique. If two jobs are inserted in the same
+transaction, both can get an identical <code>created_at</code> (more on
+this below), and <code>ORDER BY</code> over tied values has no defined
+order. Appending the primary key, <code>id</code>, as a final tiebreaker
+guarantees a deterministic order even when timestamps collide:</p>
+<div class="sourceCode" id="cb115"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb115-1"><a href="#cb115-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority <span class="kw">ASC</span>, created_at <span class="kw">ASC</span>, <span class="kw">id</span> <span class="kw">ASC</span></span></code></pre></div>
+<blockquote>
+<p><strong>A gotcha worth knowing:</strong> <code>now()</code> returns
+the <strong>transaction’s</strong> start time, not the current
+wall-clock time — every call to <code>now()</code> inside the same
+transaction returns the same value. The seed script originally used
+<code>created_at TIMESTAMPTZ DEFAULT now()</code>, and because all 45
+rows were inserted in one transaction, every single row ended up with an
+<em>identical</em> <code>created_at</code>. The fix is
+<code>clock_timestamp()</code>, which returns the actual current time at
+the moment it’s evaluated, differing row to row even within one
+transaction. <code>jobs.created_at</code> uses
+<code>clock_timestamp()</code> for exactly this reason. This is the same
+family of surprise as the JSONB <code>null</code> vs. SQL
+<code>NULL</code> gotcha from Chapter 1: a function name that looks
+interchangeable with another is not.</p>
+</blockquote>
+<p><strong>1.3 — Confirm the index is used</strong></p>
+<div class="sourceCode" id="cb116"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb116-1"><a href="#cb116-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb116-2"><a href="#cb116-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span></span>
+<span id="cb116-3"><a href="#cb116-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   jobs</span>
+<span id="cb116-4"><a href="#cb116-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb116-5"><a href="#cb116-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> priority <span class="kw">ASC</span>, created_at <span class="kw">ASC</span>, <span class="kw">id</span> <span class="kw">ASC</span></span>
+<span id="cb116-6"><a href="#cb116-6" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
+<span id="cb116-7"><a href="#cb116-7" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> Limit  (cost=0.14..6.17 rows=1 width=24) (actual time=0.022..0.022 rows=1 loops=1)
+   Buffers: shared hit=3
+   -&gt;  LockRows  (cost=0.14..12.20 rows=2 width=24) (actual time=0.021..0.021 rows=1 loops=1)
+         Buffers: shared hit=3
+         -&gt;  Index Scan using idx_jobs_claim_order on jobs  (cost=0.14..12.18 rows=2 width=24) (actual time=0.010..0.010 rows=1 loops=1)
+               Filter: (status = &#39;queued&#39;::text)
+               Buffers: shared hit=2</code></pre>
+<p>Now drop the index and run the identical query again inside a
+transaction you roll back (so the drop doesn’t stick):</p>
+<div class="sourceCode" id="cb118"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> idx_jobs_claim_order;</span>
+<span id="cb118-3"><a href="#cb118-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb118-5"><a href="#cb118-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span></span>
+<span id="cb118-6"><a href="#cb118-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   jobs</span>
+<span id="cb118-7"><a href="#cb118-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb118-8"><a href="#cb118-8" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> priority <span class="kw">ASC</span>, created_at <span class="kw">ASC</span>, <span class="kw">id</span> <span class="kw">ASC</span></span>
+<span id="cb118-9"><a href="#cb118-9" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
+<span id="cb118-10"><a href="#cb118-10" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">1</span>;</span>
+<span id="cb118-11"><a href="#cb118-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb118-12"><a href="#cb118-12" aria-hidden="true" tabindex="-1"></a><span class="kw">ROLLBACK</span>;</span></code></pre></div>
+<pre><code> Limit  (cost=9.51..9.53 rows=1 width=24) (actual time=0.071..0.072 rows=1 loops=1)
+   -&gt;  LockRows  (cost=9.51..9.54 rows=2 width=24) (actual time=0.070..0.071 rows=1 loops=1)
+         -&gt;  Sort  (cost=9.51..9.52 rows=2 width=24) (actual time=0.067..0.068 rows=1 loops=1)
+               Sort Key: priority, created_at, id
+               Sort Method: quicksort  Memory: 27kB
+               -&gt;  Bitmap Heap Scan on jobs  (cost=4.16..9.50 rows=2 width=24) (actual time=0.018..0.027 rows=45 loops=1)
+                     Recheck Cond: (status = &#39;queued&#39;::text)
+                     -&gt;  Bitmap Index Scan on idx_jobs_status  (cost=0.00..4.16 rows=2 width=0) (actual time=0.013..0.013 rows=45 loops=1)
+                           Index Cond: (status = &#39;queued&#39;::text)</code></pre>
+<p>Without <code>idx_jobs_claim_order</code>, PostgreSQL still finds the
+queued rows (via <code>idx_jobs_status</code>), but it must then
+<strong>sort all of them</strong> to find the one with the lowest
+<code>(priority, created_at, id)</code> — an extra <code>Sort</code>
+node. With the tailored partial index, the rows are already stored in
+claim order, so PostgreSQL walks the index and stops at the first match.
+On a 45-row table the difference is invisible; on a busy production
+queue with a deep backlog, eliminating the sort on every single claim
+matters a great deal.</p>
+<hr />
+<h3 id="exercise-2-the-atomic-claim-query">Exercise 2 — The Atomic Claim
+Query</h3>
+<p><strong>2.1 — Why a naive two-step claim races</strong></p>
+<p>The tempting first approach is to <code>SELECT</code> a candidate
+row, then <code>UPDATE</code> it in a second statement:</p>
+<div class="sourceCode" id="cb120"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- ⚠ Do not do this — it has a race condition</span></span>
+<span id="cb120-2"><a href="#cb120-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span> <span class="kw">LIMIT</span> <span class="dv">1</span>;</span>
+<span id="cb120-3"><a href="#cb120-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- ... application reads id = 7 ...</span></span>
+<span id="cb120-4"><a href="#cb120-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">7</span>;</span></code></pre></div>
+<p>Between the <code>SELECT</code> and the <code>UPDATE</code>, nothing
+stops a second worker from running the exact same <code>SELECT</code>,
+reading the same <code>id = 7</code>, and also issuing the
+<code>UPDATE</code>. Both workers now believe they own job 7. This is a
+classic <strong>check-then-act race condition</strong> — the gap between
+reading and acting is exactly where two workers can interleave.</p>
+<p><strong>2.2 — <code>FOR UPDATE</code> closes the gap, but
+blocks</strong></p>
+<p>Locking the row as part of the <code>SELECT</code> closes the
+race:</p>
+<div class="sourceCode" id="cb121"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb121-1"><a href="#cb121-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb121-2"><a href="#cb121-2" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">LIMIT</span> <span class="dv">1</span>;</span></code></pre></div>
+<p>Now a second worker running the same query, in a separate
+transaction, <strong>blocks</strong> until the first worker’s
+transaction commits or rolls back — correct, but it means every worker
+but one sits idle waiting for a lock instead of moving on to a different
+job. Section 3.1 demonstrates this.</p>
+<p><strong>2.3 — <code>SKIP LOCKED</code> lets workers move past each
+other</strong></p>
+<p>Adding <code>SKIP LOCKED</code> tells PostgreSQL: if the next
+candidate row is already locked by another transaction, don’t wait for
+it — skip it and consider the row after it.</p>
+<div class="sourceCode" id="cb122"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb122-1"><a href="#cb122-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb122-2"><a href="#cb122-2" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span> <span class="kw">LIMIT</span> <span class="dv">1</span>;</span></code></pre></div>
+<p>This is the piece that makes PostgreSQL usable as a concurrent queue:
+N workers can run this query at the same instant and each will walk away
+with a <em>different</em> row, with no blocking and no
+double-claims.</p>
+<p><strong>2.4 — The full atomic claim: lock, update, and return in one
+statement</strong></p>
+<p>Locking the row is only half the job — you still need to mark it
+<code>in_progress</code> before releasing the lock, and you want the
+whole thing to happen as a single round trip. Combine the
+<code>SELECT ... FOR UPDATE SKIP LOCKED</code> with the
+<code>UPDATE</code> using a CTE:</p>
+<div class="sourceCode" id="cb123"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb123-1"><a href="#cb123-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> next_job <span class="kw">AS</span> (</span>
+<span id="cb123-2"><a href="#cb123-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span></span>
+<span id="cb123-3"><a href="#cb123-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   jobs</span>
+<span id="cb123-4"><a href="#cb123-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb123-5"><a href="#cb123-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span>  <span class="kw">BY</span> priority <span class="kw">ASC</span>, created_at <span class="kw">ASC</span>, <span class="kw">id</span> <span class="kw">ASC</span></span>
+<span id="cb123-6"><a href="#cb123-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
+<span id="cb123-7"><a href="#cb123-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span></span>
+<span id="cb123-8"><a href="#cb123-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb123-9"><a href="#cb123-9" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb123-10"><a href="#cb123-10" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status       <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>,</span>
+<span id="cb123-11"><a href="#cb123-11" aria-hidden="true" tabindex="-1"></a>       claimed_at   <span class="op">=</span> now(),</span>
+<span id="cb123-12"><a href="#cb123-12" aria-hidden="true" tabindex="-1"></a>       claimed_by   <span class="op">=</span> <span class="st">&#39;demo-worker&#39;</span>,</span>
+<span id="cb123-13"><a href="#cb123-13" aria-hidden="true" tabindex="-1"></a>       heartbeat_at <span class="op">=</span> now(),</span>
+<span id="cb123-14"><a href="#cb123-14" aria-hidden="true" tabindex="-1"></a>       attempts     <span class="op">=</span> attempts <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb123-15"><a href="#cb123-15" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   next_job</span>
+<span id="cb123-16"><a href="#cb123-16" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  jobs.<span class="kw">id</span> <span class="op">=</span> next_job.<span class="kw">id</span></span>
+<span id="cb123-17"><a href="#cb123-17" aria-hidden="true" tabindex="-1"></a><span class="kw">RETURNING</span> jobs.<span class="kw">id</span>, jobs.job_type, jobs.payload <span class="op">-&gt;&gt;</span> <span class="st">&#39;application_id&#39;</span> <span class="kw">AS</span> application_id,</span>
+<span id="cb123-18"><a href="#cb123-18" aria-hidden="true" tabindex="-1"></a>          jobs.priority, jobs.attempts, jobs.status;</span></code></pre></div>
+<pre><code> id |     job_type      | application_id | priority | attempts |   status
+----+-------------------+----------------+----------+----------+-------------
+  1 | demolition_permit | DP-2024-0001   |        1 |        1 | in_progress
+(1 row)</code></pre>
+<p>This single statement is the entire claim operation: find the best
+candidate, skip anything locked, mark it claimed, and hand back its data
+— atomically, with no window for a race. This is exactly the query
+<code>data/ch03_worker.py</code> runs (see <code>CLAIM_SQL</code>). Run
+it again and the demolition permit at <code>id = 2</code> comes back
+next — <code>id = 1</code> is now <code>in_progress</code>, so it’s no
+longer a candidate.</p>
+<blockquote>
+<p>Roll this back if you ran it directly in <code>psql</code> and want
+to keep the queue clean for later exercises: wrap it in
+<code>BEGIN; ... ROLLBACK;</code>.</p>
+</blockquote>
+<hr />
+<h3 id="exercise-3-simulating-concurrent-workers">Exercise 3 —
+Simulating Concurrent Workers</h3>
+<p><strong>3.1 — <code>SKIP LOCKED</code> vs. plain
+<code>FOR UPDATE</code>, in two <code>psql</code> sessions</strong></p>
+<p>Open two terminals with <code>psql portsmith</code> in each. In
+<strong>Session A</strong>, start a transaction, claim 5 rows, and hold
+the transaction open (don’t commit yet):</p>
+<div class="sourceCode" id="cb125"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb125-1"><a href="#cb125-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Session A</span></span>
+<span id="cb125-2"><a href="#cb125-2" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb125-3"><a href="#cb125-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb125-4"><a href="#cb125-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb125-5"><a href="#cb125-5" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span> <span class="kw">LIMIT</span> <span class="dv">5</span>;</span></code></pre></div>
+<pre><code> id |     job_type
+----+-------------------
+  1 | demolition_permit
+  2 | demolition_permit
+  3 | demolition_permit
+  4 | demolition_permit
+  5 | business_license
+(5 rows)</code></pre>
+<p>Leave that transaction open. In <strong>Session B</strong>, run the
+identical query:</p>
+<div class="sourceCode" id="cb127"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb127-1"><a href="#cb127-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Session B (Session A is still open, holding locks on ids 1-5)</span></span>
+<span id="cb127-2"><a href="#cb127-2" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb127-3"><a href="#cb127-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb127-4"><a href="#cb127-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb127-5"><a href="#cb127-5" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span> <span class="kw">LIMIT</span> <span class="dv">5</span>;</span></code></pre></div>
+<pre><code> id |    job_type
+----+------------------
+  6 | business_license
+  7 | business_license
+  8 | business_license
+  9 | business_license
+ 10 | business_license
+(5 rows)</code></pre>
+<p>Session B returns immediately with a <strong>different</strong> set
+of rows — it silently skipped <code>1</code>–<code>5</code> because they
+were locked, and moved on to the next five unlocked candidates. Commit
+or roll back both sessions to release the locks:</p>
+<div class="sourceCode" id="cb129"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb129-1"><a href="#cb129-1" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;   <span class="co">-- run in both sessions</span></span></code></pre></div>
+<p><strong>3.2 — Now try it with plain <code>FOR UPDATE</code> (no
+<code>SKIP LOCKED</code>)</strong></p>
+<p>Repeat the same two-session experiment, but drop
+<code>SKIP LOCKED</code>:</p>
+<div class="sourceCode" id="cb130"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb130-1"><a href="#cb130-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Session A</span></span>
+<span id="cb130-2"><a href="#cb130-2" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb130-3"><a href="#cb130-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb130-4"><a href="#cb130-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb130-5"><a href="#cb130-5" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">LIMIT</span> <span class="dv">5</span>;</span>
+<span id="cb130-6"><a href="#cb130-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- (leave this transaction open)</span></span></code></pre></div>
+<div class="sourceCode" id="cb131"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb131-1"><a href="#cb131-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Session B — this will hang</span></span>
+<span id="cb131-2"><a href="#cb131-2" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb131-3"><a href="#cb131-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb131-4"><a href="#cb131-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority, created_at, <span class="kw">id</span></span>
+<span id="cb131-5"><a href="#cb131-5" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">LIMIT</span> <span class="dv">5</span>;</span></code></pre></div>
+<p>Session B does not return. It is blocked, waiting for Session A’s row
+locks to be released. Only once Session A runs <code>COMMIT</code> (or
+<code>ROLLBACK</code>) does Session B’s query complete — and when it
+does, it returns the <em>same</em> five rows Session A had, now that
+they’re unlocked again:</p>
+<pre><code>-- (Session B, after Session A commits)
+ id |     job_type
+----+-------------------
+  1 | demolition_permit
+  2 | demolition_permit
+  3 | demolition_permit
+  4 | demolition_permit
+  5 | business_license
+(5 rows)</code></pre>
+<p>This is the difference in one sentence: <strong>plain
+<code>FOR UPDATE</code> serializes workers through the lock;
+<code>SKIP LOCKED</code> lets them fan out across the table.</strong>
+For a job queue, you always want the latter — a blocked worker is a
+wasted worker.</p>
+<p><strong>3.3 — Real concurrent workers with
+<code>ch03_worker.py</code></strong></p>
+<p>Reset the data (<code>python data/ch03_seed.py</code>) if you ran the
+manual claim in Exercise 2.4 without rolling it back. Then launch two
+workers in the background, each capped to 10 jobs so they finish
+quickly:</p>
+<div class="sourceCode" id="cb133"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb133-1"><a href="#cb133-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_worker.py <span class="at">--worker-id</span> w1 <span class="at">--max-jobs</span> 10 <span class="at">--fail-rate</span> 0 <span class="kw">&amp;</span></span>
+<span id="cb133-2"><a href="#cb133-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_worker.py <span class="at">--worker-id</span> w2 <span class="at">--max-jobs</span> 10 <span class="at">--fail-rate</span> 0 <span class="kw">&amp;</span></span>
+<span id="cb133-3"><a href="#cb133-3" aria-hidden="true" tabindex="-1"></a><span class="bu">wait</span></span></code></pre></div>
+<p>Each prints a running log as it claims and completes jobs, e.g.:</p>
+<pre><code>[w1] claimed job 2 (demolition_permit, attempt 1/3): DP-2024-0002 — processing for 0.09s
+[w1] job 2 completed
+[w2] claimed job 1 (demolition_permit, attempt 1/3): DP-2024-0001 — processing for 0.12s
+[w2] job 1 completed</code></pre>
+<p>Once both finish, confirm the split was clean — 20 jobs completed
+total, no job claimed by both workers:</p>
+<div class="sourceCode" id="cb135"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb135-1"><a href="#cb135-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> claimed_by, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;completed&#39;</span></span>
+<span id="cb135-2"><a href="#cb135-2" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span> <span class="kw">BY</span> claimed_by <span class="kw">ORDER</span> <span class="kw">BY</span> claimed_by;</span></code></pre></div>
+<pre><code> claimed_by | count
+------------+-------
+ w1         |    10
+ w2         |    10
+(2 rows)</code></pre>
+<div class="sourceCode" id="cb137"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> status, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs <span class="kw">GROUP</span> <span class="kw">BY</span> status;</span></code></pre></div>
+<pre><code>  status   | count
+-----------+-------
+ completed |    20
+ queued    |    25
+(2 rows)</code></pre>
+<p>10 + 10 = 20, matching exactly the <code>--max-jobs 10</code> cap on
+each worker — no overlaps, no double-processing, no lost jobs.</p>
+<hr />
+<h3 id="exercise-4-heartbeat-and-stalled-job-recovery">Exercise 4 —
+Heartbeat and Stalled-Job Recovery</h3>
+<p>Claiming a job is only half the reliability story. What happens if
+the worker that claimed a job crashes, gets OOM-killed, or loses its
+network connection halfway through? The row is stuck at
+<code>status = 'in_progress'</code> forever unless something notices and
+puts it back.</p>
+<p><strong>4.1 — The heartbeat column</strong></p>
+<p><code>heartbeat_at</code> exists for exactly this. A well-behaved
+worker updates it periodically while it holds a job (see the
+<code>while</code> loop in <code>process_job()</code> in
+<code>ch03_worker.py</code>, which sends a heartbeat roughly every 2
+seconds during simulated processing). If a job has been
+<code>in_progress</code> for a long time <em>and</em> its heartbeat has
+gone stale, that’s a strong signal the worker holding it is dead — a
+live worker would have updated it.</p>
+<p><strong>4.2 — Simulate a crashed worker</strong></p>
+<p>Pick any queued job and manually walk it through what a real claim
+would do, then simulate a crash by never sending a heartbeat again:</p>
+<div class="sourceCode" id="cb139"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb139-1"><a href="#cb139-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb139-2"><a href="#cb139-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>, claimed_at <span class="op">=</span> now(),</span>
+<span id="cb139-3"><a href="#cb139-3" aria-hidden="true" tabindex="-1"></a>       claimed_by <span class="op">=</span> <span class="st">&#39;worker-crashed&#39;</span>, heartbeat_at <span class="op">=</span> now(),</span>
+<span id="cb139-4"><a href="#cb139-4" aria-hidden="true" tabindex="-1"></a>       attempts <span class="op">=</span> attempts <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb139-5"><a href="#cb139-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span>
+<span id="cb139-6"><a href="#cb139-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb139-7"><a href="#cb139-7" aria-hidden="true" tabindex="-1"></a><span class="co">-- Simulate 5 minutes of silence from the &quot;crashed&quot; worker</span></span>
+<span id="cb139-8"><a href="#cb139-8" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> heartbeat_at <span class="op">=</span> now() <span class="op">-</span> <span class="dt">interval</span> <span class="st">&#39;5 minutes&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span></code></pre></div>
+<p><strong>4.3 — Run the reclaim sweep</strong></p>
+<div class="sourceCode" id="cb140"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_reclaim.py <span class="at">--timeout</span> 30</span></code></pre></div>
+<pre><code>Connecting to: dbname=portsmith
+  job 21 (building_permit) stalled — requeued (attempt 1)
+
+Done: 1 requeued, 0 dead-lettered.</code></pre>
+<p>The sweep looks for <code>in_progress</code> rows whose
+<code>heartbeat_at</code> is older than <code>--timeout</code> seconds
+(<code>FIND_STALLED_SQL</code> in <code>ch03_reclaim.py</code>), and
+since this job’s <code>attempts</code> (1) is still below
+<code>max_attempts</code> (3), it goes back to <code>queued</code>:</p>
+<div class="sourceCode" id="cb142"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb142-1"><a href="#cb142-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, status, attempts, claimed_by, heartbeat_at, last_error</span>
+<span id="cb142-2"><a href="#cb142-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   jobs <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span></code></pre></div>
+<pre><code> id | status | attempts | claimed_by | heartbeat_at |                     last_error
+----+--------+----------+------------+--------------+----------------------------------------------------
+ 21 | queued |        1 |            |              | stalled: no heartbeat since ... (last claimed by worker-crashed)</code></pre>
+<p>Notice <code>attempts</code> stayed at <code>1</code> — the reclaim
+did not reset it. The attempt the crashed worker used is still counted;
+the job doesn’t get a free retry just because the worker that lost it
+never got to report failure honestly.</p>
+<p><strong>4.4 — Why the timeout, not an outright deadline</strong></p>
+<p>A fixed timeout on the <em>last heartbeat</em> (rather than on total
+processing time) lets jobs run arbitrarily long as long as they keep
+proving they’re alive. A 10-minute report-generation job with a
+30-second heartbeat interval will never be mistaken for stalled, while a
+worker that dies mid-task is detected within one missed heartbeat
+window. Run <code>ch03_reclaim.py</code> again immediately — it
+correctly finds nothing to do, since the reclaimed job now has a fresh
+<code>queued</code> state and no stale <code>in_progress</code> row
+exists:</p>
+<pre><code>No jobs stalled beyond 30s — nothing to do.</code></pre>
+<hr />
+<h3 id="exercise-5-dead-lettering-exhausted-jobs">Exercise 5 —
+Dead-Lettering Exhausted Jobs</h3>
+<p>Some jobs will never succeed no matter how many times you retry them
+— a malformed application, a permanently invalid address, a bug that
+only triggers on one particular payload. Retrying forever wastes worker
+time and can mask a real problem. Once a job has used its last attempt,
+it belongs in <code>dead_letter_jobs</code>: out of the active queue,
+but preserved for a human to inspect.</p>
+<p><strong>5.1 — The <code>dead_letter_jobs</code> schema</strong></p>
+<div class="sourceCode" id="cb145"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb145-1"><a href="#cb145-1" aria-hidden="true" tabindex="-1"></a>\d dead_letter_jobs</span></code></pre></div>
+<pre><code>                     Table &quot;public.dead_letter_jobs&quot;
+    Column    |           Type           | Collation | Nullable | Default
+--------------+--------------------------+-----------+----------+---------
+ id           | bigint                   |           | not null |
+ job_type     | text                     |           | not null |
+ payload      | jsonb                    |           | not null |
+ priority     | smallint                 |           | not null |
+ attempts     | integer                  |           | not null |
+ max_attempts | integer                  |           | not null |
+ created_at   | timestamp with time zone |           | not null |
+ last_error   | text                     |           |          |
+ failed_at    | timestamp with time zone |           | not null | now()</code></pre>
+<p>It mirrors <code>jobs</code> but adds <code>failed_at</code> and
+drops the in-flight columns (<code>status</code>,
+<code>claimed_by</code>, <code>heartbeat_at</code>) that no longer mean
+anything once a job is out of the active queue.</p>
+<p><strong>5.2 — Push a job past its retry limit</strong></p>
+<p>Continuing with job 21 from Exercise 4 (now back to
+<code>queued</code> with <code>attempts = 1</code>), fast-forward it to
+its last attempt and let it stall again:</p>
+<div class="sourceCode" id="cb147"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb147-1"><a href="#cb147-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb147-2"><a href="#cb147-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>, claimed_at <span class="op">=</span> now(),</span>
+<span id="cb147-3"><a href="#cb147-3" aria-hidden="true" tabindex="-1"></a>       claimed_by <span class="op">=</span> <span class="st">&#39;worker-crashed-2&#39;</span>, heartbeat_at <span class="op">=</span> now() <span class="op">-</span> <span class="dt">interval</span> <span class="st">&#39;5 minutes&#39;</span>,</span>
+<span id="cb147-4"><a href="#cb147-4" aria-hidden="true" tabindex="-1"></a>       attempts <span class="op">=</span> max_attempts</span>
+<span id="cb147-5"><a href="#cb147-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb148"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb148-1"><a href="#cb148-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_reclaim.py <span class="at">--timeout</span> 30</span></code></pre></div>
+<pre><code>Connecting to: dbname=portsmith
+  job 21 (building_permit) exhausted retries — dead-lettered
+
+Done: 0 requeued, 1 dead-lettered.</code></pre>
+<p>This time <code>attempts</code> (3) is no longer less than
+<code>max_attempts</code> (3), so the sweep’s
+<code>DEAD_LETTER_SQL</code> runs instead: it <code>DELETE</code>s the
+row from <code>jobs</code> and <code>INSERT</code>s it into
+<code>dead_letter_jobs</code> in one CTE, so the row is never visible in
+neither-place or both-places, even under concurrent access.</p>
+<div class="sourceCode" id="cb150"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb150-1"><a href="#cb150-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span></code></pre></div>
+<pre><code> id
+----
+(0 rows)</code></pre>
+<div class="sourceCode" id="cb152"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb152-1"><a href="#cb152-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type, payload <span class="op">-&gt;&gt;</span> <span class="st">&#39;application_id&#39;</span> <span class="kw">AS</span> application_id,</span>
+<span id="cb152-2"><a href="#cb152-2" aria-hidden="true" tabindex="-1"></a>       attempts, max_attempts, last_error, failed_at</span>
+<span id="cb152-3"><a href="#cb152-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   dead_letter_jobs <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">21</span>;</span></code></pre></div>
+<pre><code> id |    job_type     | application_id | attempts | max_attempts |                     last_error                     |          failed_at
+----+-----------------+----------------+----------+--------------+-----------------------------------------------------+-------------------------------
+ 21 | building_permit | BP-2024-0005   |        3 |            3 | stalled: no heartbeat since ... (last claimed ...)  | 2026-07-12 22:15:45.613583-04
+(1 row)</code></pre>
+<p>The exact same dead-lettering logic runs inline inside
+<code>ch03_worker.py</code> when a job fails organically (not via a
+stall) on its last attempt — see <code>DEAD_LETTER_SQL</code> in that
+script. Whether a job dies from an explicit failure or from going
+silent, it ends up in the same place, with a record of why.</p>
+<hr />
+<h3 id="exercise-6-benchmarking-claim-throughput-with-pgbench">Exercise
+6 — Benchmarking Claim Throughput with <code>pgbench</code></h3>
+<p><strong>6.1 — A benchmark script that doesn’t drain the
+queue</strong></p>
+<p><code>pgbench</code> repeatedly runs a SQL script against the
+database for a fixed duration, from any number of concurrent client
+connections — exactly the tool for measuring how the claim query holds
+up under contention. The catch: if the script just claims a job and
+leaves it claimed, 45 rows disappear from the pool in well under a
+second and every worker after that finds nothing to do.
+<code>data/ch03_claim_bench.sql</code> works around this by claiming a
+job and then <strong>immediately releasing it back to
+<code>queued</code></strong> in the same transaction:</p>
+<div class="sourceCode" id="cb154"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb154-2"><a href="#cb154-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb154-3"><a href="#cb154-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> next_job <span class="kw">AS</span> (</span>
+<span id="cb154-4"><a href="#cb154-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span></span>
+<span id="cb154-5"><a href="#cb154-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   jobs</span>
+<span id="cb154-6"><a href="#cb154-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb154-7"><a href="#cb154-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span>  <span class="kw">BY</span> priority <span class="kw">ASC</span>, created_at <span class="kw">ASC</span>, <span class="kw">id</span> <span class="kw">ASC</span></span>
+<span id="cb154-8"><a href="#cb154-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
+<span id="cb154-9"><a href="#cb154-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span></span>
+<span id="cb154-10"><a href="#cb154-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb154-11"><a href="#cb154-11" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb154-12"><a href="#cb154-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status       <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>,</span>
+<span id="cb154-13"><a href="#cb154-13" aria-hidden="true" tabindex="-1"></a>       claimed_at   <span class="op">=</span> now(),</span>
+<span id="cb154-14"><a href="#cb154-14" aria-hidden="true" tabindex="-1"></a>       claimed_by   <span class="op">=</span> <span class="st">&#39;bench-&#39;</span> <span class="op">||</span> <span class="ch">:client_id</span>,</span>
+<span id="cb154-15"><a href="#cb154-15" aria-hidden="true" tabindex="-1"></a>       heartbeat_at <span class="op">=</span> now()</span>
+<span id="cb154-16"><a href="#cb154-16" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   next_job</span>
+<span id="cb154-17"><a href="#cb154-17" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  jobs.<span class="kw">id</span> <span class="op">=</span> next_job.<span class="kw">id</span></span>
+<span id="cb154-18"><a href="#cb154-18" aria-hidden="true" tabindex="-1"></a><span class="kw">RETURNING</span> jobs.<span class="kw">id</span> <span class="kw">AS</span> claimed_id \gset</span>
+<span id="cb154-19"><a href="#cb154-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb154-20"><a href="#cb154-20" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb154-21"><a href="#cb154-21" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status <span class="op">=</span> <span class="st">&#39;queued&#39;</span>, claimed_at <span class="op">=</span> <span class="kw">NULL</span>, claimed_by <span class="op">=</span> <span class="kw">NULL</span>, heartbeat_at <span class="op">=</span> <span class="kw">NULL</span></span>
+<span id="cb154-22"><a href="#cb154-22" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> <span class="ch">:claimed_id</span>;</span>
+<span id="cb154-23"><a href="#cb154-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb154-24"><a href="#cb154-24" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p><code>:client_id</code> is a <code>pgbench</code> built-in variable —
+the number of the simulated client running this script.
+<code>\gset</code> captures the claimed row’s <code>id</code> into a
+<code>pgbench</code> variable (<code>:claimed_id</code>) so the release
+step can target it. This keeps the pool at a constant 45 claimable rows
+for the whole benchmark run, so throughput reflects lock contention
+rather than the queue running dry.</p>
+<p><strong>6.2 — Run at increasing concurrency</strong></p>
+<div class="sourceCode" id="cb155"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb155-1"><a href="#cb155-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pgbench</span> <span class="at">-n</span> <span class="at">-c</span> 1  <span class="at">-j</span> 1  <span class="at">-T</span> 5 <span class="at">-f</span> data/ch03_claim_bench.sql portsmith</span>
+<span id="cb155-2"><a href="#cb155-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pgbench</span> <span class="at">-n</span> <span class="at">-c</span> 4  <span class="at">-j</span> 4  <span class="at">-T</span> 5 <span class="at">-f</span> data/ch03_claim_bench.sql portsmith</span>
+<span id="cb155-3"><a href="#cb155-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pgbench</span> <span class="at">-n</span> <span class="at">-c</span> 16 <span class="at">-j</span> 16 <span class="at">-T</span> 5 <span class="at">-f</span> data/ch03_claim_bench.sql portsmith</span></code></pre></div>
+<p><code>-c</code> is the number of simulated concurrent workers
+(clients), <code>-j</code> the number of <code>pgbench</code> threads
+driving them, and <code>-T 5</code> runs each test for 5 seconds.
+Results on the machine used to write this chapter:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Clients (<code>-c</code>)</th>
+<th>tps</th>
+<th>Avg. latency</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>799</td>
+<td>1.25 ms</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>1,202</td>
+<td>3.33 ms</td>
+</tr>
+<tr class="odd">
+<td>16</td>
+<td>2,570</td>
+<td>6.23 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Your numbers will differ with your hardware — the shape of the result
+is what matters. Throughput climbs with concurrency because
+<code>SKIP LOCKED</code> lets additional workers keep finding unlocked
+rows to claim instead of queueing up behind each other; latency per
+transaction also climbs because more workers are contending for the same
+45-row table and for CPU. Try dropping <code>idx_jobs_claim_order</code>
+(inside a <code>BEGIN; ... ROLLBACK;</code> block, as in Exercise 1.3)
+and rerunning the <code>-c 16</code> case — you should see tps fall,
+since every claim now pays for a <code>Sort</code> over all queued rows
+instead of an index walk.</p>
+<p><strong>6.3 — Where this stops being enough</strong></p>
+<p><code>pgbench</code> here is exercising claim contention on 45 rows —
+a stand-in for “the working set the claim query actually scans.” A real
+permitting-office queue might hold a very different shape of data
+(thousands of queued rows, heavy skew toward one <code>priority</code>
+bucket), and the honest way to benchmark your own workload is to seed a
+table that resembles it, not a 45-row toy. Chapter 20
+(<code>pg_stat_statements</code> and Query Performance) picks this
+thread back up: rather than a synthetic benchmark, it measures and fixes
+real slow queries observed in production traffic.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-2">Summary — What You Should
+Now Know</h2>
+<p>You built a working, concurrency-safe job queue entirely out of core
+PostgreSQL features. Here is a reference for the pieces:</p>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>FOR UPDATE</code></td>
+<td>Locks selected rows; other transactions selecting the same rows
+<strong>block</strong> until released</td>
+</tr>
+<tr class="even">
+<td><code>FOR UPDATE SKIP LOCKED</code></td>
+<td>Locks selected rows; other transactions <strong>skip</strong>
+already-locked rows instead of blocking</td>
+</tr>
+<tr class="odd">
+<td><code>WITH next_job AS (... FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE ... FROM next_job</code></td>
+<td>The atomic claim pattern: find, lock, and mark a row in one round
+trip</td>
+</tr>
+<tr class="even">
+<td>Partial index <code>WHERE status = 'queued'</code></td>
+<td>Keeps the claim-path index small regardless of how many settled rows
+accumulate</td>
+</tr>
+<tr class="odd">
+<td><code>clock_timestamp()</code> vs. <code>now()</code></td>
+<td><code>now()</code> freezes at transaction start;
+<code>clock_timestamp()</code> reflects real wall-clock time on every
+call</td>
+</tr>
+<tr class="even">
+<td><code>heartbeat_at</code> + timeout sweep</td>
+<td>Detects and recovers jobs abandoned by a crashed worker</td>
+</tr>
+<tr class="odd">
+<td><code>dead_letter_jobs</code></td>
+<td>Removes permanently-failing jobs from the active queue while
+preserving them for inspection</td>
+</tr>
+<tr class="even">
+<td><code>pgbench -f script.sql</code></td>
+<td>Benchmarks a custom SQL workload at a chosen concurrency level</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that a
+reliable queue is not one clever query — it’s the combination of an
+atomic claim, a way to detect workers that go silent, and a place for
+work that genuinely cannot succeed. PostgreSQL’s row-locking primitives
+give you the first two almost for free; the dead-letter table is just a
+normal table.</p>
+<p>The <code>jobs</code> table you built here is reused directly in
+later chapters: Chapter 13 adds a trigger that fires <code>NOTIFY</code>
+on status changes so listeners can react to queue activity in real time,
+Chapter 14 uses advisory locks alongside it for leader-election
+patterns, and Chapter 19 schedules the reclaim sweep you wrote by hand
+in Exercise 4 to run automatically with <code>pg_cron</code>.</p>
+<hr />
+<em>Going further: the pattern in this chapter — status column, atomic
+claim, heartbeat, dead-letter — is exactly what PostgreSQL-backed
+job-queue libraries like <code>river</code> (Go) and <code>oban</code>
+(Elixir) implement, with more polish around scheduling, uniqueness
+constraints, and observability. If you outgrow a single-database queue —
+cross-database work distribution, guaranteed ordering at very high
+throughput, or consumer groups — that’s the point at which a dedicated
+broker starts to earn its operational cost. For most applications below
+that scale, the table you just built is enough.</em>
 <div style="page-break-before: always;">
 
 </div>

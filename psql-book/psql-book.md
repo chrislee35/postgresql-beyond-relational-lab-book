@@ -1854,8 +1854,8 @@ concurrent worker behaviour, stalled-job recovery, and a dead-letter path
 for jobs that keep failing.
 
 This is not a toy exercise. This exact pattern — a status column, a claim
-query, a heartbeat, a dead-letter table — is what libraries like `river`,
-`oban` (Elixir), and countless in-house job runners implement on top of
+query, a heartbeat, a dead-letter table — is what libraries like [`river`](https://riverqueue.com/),
+[`oban`](https://oban.hexdocs.pm/Oban.html) (Elixir), and countless in-house job runners implement on top of
 PostgreSQL in production.
 
 ---

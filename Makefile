@@ -33,7 +33,7 @@ $(OUTPUT).md: $(INPUT) | $(OUTDIR)
 html: $(OUTPUT).md
 	pandoc $(OUTPUT).md -o $(OUTPUT).html \
 		--metadata title=$(TITLE) \
-		--css css/nlp-book.css \
+		--css css/book.css \
 		--toc \
 		--standalone
 
