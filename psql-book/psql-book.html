@@ -257,6 +257,101 @@ id="toc-exercise-6-benchmarking-claim-throughput-with-pgbench">Exercise
 id="toc-summary-what-you-should-now-know-2">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-4-full-text-search-tsvector-stopwords-and-ranking"
+id="toc-chapter-4-full-text-search-tsvector-stopwords-and-ranking">Chapter
+4 — Full-Text Search: <code>tsvector</code>, Stopwords, and Ranking</a>
+<ul>
+<li><a href="#background-3" id="toc-background-3">Background</a></li>
+<li><a href="#the-scenario-3" id="toc-the-scenario-3">The
+Scenario</a></li>
+<li><a href="#exercise-goals-3" id="toc-exercise-goals-3">Exercise
+Goals</a></li>
+<li><a href="#installation-3"
+id="toc-installation-3">Installation</a></li>
+<li><a href="#loading-the-data-3" id="toc-loading-the-data-3">Loading
+the Data</a>
+<ul>
+<li><a href="#run-the-seed-script-2" id="toc-run-the-seed-script-2">Run
+the seed script</a></li>
+<li><a href="#verify-the-load-3" id="toc-verify-the-load-3">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-3" id="toc-exercises-3">Exercises</a>
+<ul>
+<li><a href="#exercise-1-converting-text-to-tsvector"
+id="toc-exercise-1-converting-text-to-tsvector">Exercise 1 — Converting
+Text to <code>tsvector</code></a></li>
+<li><a href="#exercise-2-what-stopword-removal-actually-throws-away"
+id="toc-exercise-2-what-stopword-removal-actually-throws-away">Exercise
+2 — What Stopword Removal Actually Throws Away</a></li>
+<li><a href="#exercise-3-a-maintained-column-and-a-gin-index"
+id="toc-exercise-3-a-maintained-column-and-a-gin-index">Exercise 3 — A
+Maintained Column and a GIN Index</a></li>
+<li><a href="#exercise-4-to_tsquery-vs.-plainto_tsquery"
+id="toc-exercise-4-to_tsquery-vs.-plainto_tsquery">Exercise 4 —
+<code>to_tsquery</code> vs. <code>plainto_tsquery</code></a></li>
+<li><a
+href="#exercise-5-ranking-with-ts_rank-and-ts_rank_cd-and-ts_headline-snippets"
+id="toc-exercise-5-ranking-with-ts_rank-and-ts_rank_cd-and-ts_headline-snippets">Exercise
+5 — Ranking with <code>ts_rank</code> and <code>ts_rank_cd</code>, and
+<code>ts_headline</code> Snippets</a></li>
+<li><a
+href="#exercise-6-a-custom-text-search-configuration-for-domain-stopwords"
+id="toc-exercise-6-a-custom-text-search-configuration-for-domain-stopwords">Exercise
+6 — A Custom Text Search Configuration for Domain Stopwords</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-3"
+id="toc-summary-what-you-should-now-know-3">Summary — What You Should
+Now Know</a></li>
+</ul></li>
+<li><a href="#chapter-5-fuzzy-matching-pg_trgm"
+id="toc-chapter-5-fuzzy-matching-pg_trgm">Chapter 5 — Fuzzy Matching:
+<code>pg_trgm</code></a>
+<ul>
+<li><a href="#background-4" id="toc-background-4">Background</a></li>
+<li><a href="#the-scenario-4" id="toc-the-scenario-4">The
+Scenario</a></li>
+<li><a href="#exercise-goals-4" id="toc-exercise-goals-4">Exercise
+Goals</a></li>
+<li><a href="#installation-4"
+id="toc-installation-4">Installation</a></li>
+<li><a href="#loading-the-data-4" id="toc-loading-the-data-4">Loading
+the Data</a>
+<ul>
+<li><a href="#prerequisites-1"
+id="toc-prerequisites-1">Prerequisites</a></li>
+<li><a href="#run-the-chapter-5-seed"
+id="toc-run-the-chapter-5-seed">Run the Chapter 5 seed</a></li>
+<li><a href="#verify-the-load-4" id="toc-verify-the-load-4">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-4" id="toc-exercises-4">Exercises</a>
+<ul>
+<li><a href="#exercise-1-what-a-trigram-is-and-similarity"
+id="toc-exercise-1-what-a-trigram-is-and-similarity">Exercise 1 — What a
+Trigram Is, and <code>similarity()</code></a></li>
+<li><a href="#exercise-2-the-operator-and-why-one-threshold-isnt-enough"
+id="toc-exercise-2-the-operator-and-why-one-threshold-isnt-enough">Exercise
+2 — The <code>%</code> Operator, and Why One Threshold Isn’t
+Enough</a></li>
+<li><a href="#exercise-3-word_similarity-for-partial-matches"
+id="toc-exercise-3-word_similarity-for-partial-matches">Exercise 3 —
+<code>word_similarity()</code> for Partial Matches</a></li>
+<li><a href="#exercise-4-gin-trigram-indexes"
+id="toc-exercise-4-gin-trigram-indexes">Exercise 4 — GIN Trigram
+Indexes</a></li>
+<li><a href="#exercise-5-a-did-you-mean-query-with-gist"
+id="toc-exercise-5-a-did-you-mean-query-with-gist">Exercise 5 — A “Did
+You Mean?” Query with GiST</a></li>
+<li><a
+href="#exercise-6-trigram-matching-vs.-full-text-search-head-to-head"
+id="toc-exercise-6-trigram-matching-vs.-full-text-search-head-to-head">Exercise
+6 — Trigram Matching vs. Full-Text Search, Head to Head</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-4"
+id="toc-summary-what-you-should-now-know-4">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -2779,6 +2874,1505 @@ cross-database work distribution, guaranteed ordering at very high
 throughput, or consumer groups — that’s the point at which a dedicated
 broker starts to earn its operational cost. For most applications below
 that scale, the table you just built is enough.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1
+id="chapter-4-full-text-search-tsvector-stopwords-and-ranking">Chapter 4
+— Full-Text Search: <code>tsvector</code>, Stopwords, and Ranking</h1>
+<blockquote>
+<p><em>“Grep finds characters. Full-text search finds meaning — or at
+least gets a lot closer.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-3">Background</h2>
+<p><code>LIKE '%harbour%'</code> finds the literal substring “harbour”.
+It will not find “Harbour”, “harbours”, or a document about “the harbor”
+(different spelling) unless you handle every variation yourself, and it
+cannot tell you whether a match in the title is more relevant than a
+match buried in paragraph six. As soon as an application needs to search
+prose — meeting minutes, support tickets, product descriptions, articles
+— substring matching stops being enough. The usual reflex is to reach
+for Elasticsearch or a similar dedicated search engine.</p>
+<p>PostgreSQL has had a full-text search engine built in since version
+8.3. It tokenizes text into words, reduces those words to normalized
+root forms (<em>stemming</em>), discards low-information words like
+“the” and “of” (<em>stopwords</em>), and stores the result in a
+specialized <code>tsvector</code> type that a GIN index can search in
+milliseconds. A companion <code>tsquery</code> type lets you express
+boolean and phrase searches, and a family of ranking functions score how
+well each match fits the query. None of this requires an extension — it
+is core PostgreSQL, the same engine
+<code>websearch_to_tsquery</code>-powered search boxes on production
+sites are built on.</p>
+<p>This chapter builds a search feature over a small document archive:
+how text becomes a <code>tsvector</code>, what stopword removal actually
+throws away, how to keep the vector in sync as rows change, how query
+syntax differs between a developer-facing boolean query language and a
+plain-text search box, and how to rank and highlight results. The final
+exercise customizes the stopword list itself — because in a
+<em>city</em> government’s document archive, the words “city” and
+“council” appear so often they stop being useful signals, exactly the
+kind of domain-specific tuning full-text search is designed to
+support.</p>
+<hr />
+<h2 id="the-scenario-3">The Scenario</h2>
+<p>Portsmith’s city clerk publishes an archive of public records:
+council meeting minutes, zoning ordinances, and public notices.
+Residents need to search this archive by keyword — “what happened with
+the Riverside dog park?”, “which ordinances mention Canal Road?” — and
+get back the most relevant documents first, with a highlighted snippet
+showing why each one matched.</p>
+<p>The <code>city_documents</code> table holds all three document types
+in one place, with a <code>body</code> column of plain prose text and a
+few relational columns for filtering:</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 79%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>doc_type</code></td>
+<td><code>council_minutes</code>, <code>zoning_ordinance</code>, or
+<code>public_notice</code></td>
+</tr>
+<tr class="even">
+<td><code>department</code></td>
+<td>Which city department published it (City Council, Public Works,
+…)</td>
+</tr>
+<tr class="odd">
+<td><code>title</code></td>
+<td>Short document title</td>
+</tr>
+<tr class="even">
+<td><code>body</code></td>
+<td>Full plain-text document body — the field full-text search runs
+over</td>
+</tr>
+<tr class="odd">
+<td><code>published_date</code></td>
+<td>When the document was published</td>
+</tr>
+</tbody>
+</table>
+<p>The documents share recurring topics on purpose — the Riverside dog
+park, the Harbour District waterfront rezoning, the Canal Road bike lane
+— so that searches in the exercises return more than one hit, and
+ranking has something real to sort between. No extensions are required
+for this chapter: <code>tsvector</code>, <code>tsquery</code>, and every
+function used below are core PostgreSQL.</p>
+<hr />
+<h2 id="exercise-goals-3">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Convert text to a <code>tsvector</code> and read the lexeme:position
+notation it produces.</li>
+<li>Explain exactly what stopword removal and stemming do to a document,
+using <code>ts_debug</code> to see PostgreSQL’s tokenizer classify each
+word.</li>
+<li>Maintain a <code>tsvector</code> column automatically with a
+trigger, and index it with GIN for sub-millisecond searches.</li>
+<li>Write boolean queries with <code>to_tsquery</code> and understand
+why <code>plainto_tsquery</code> is the safer choice for a plain search
+box.</li>
+<li>Rank results with <code>ts_rank</code> and <code>ts_rank_cd</code>,
+and generate highlighted snippets with <code>ts_headline</code>.</li>
+<li>Build a custom text search configuration that treats domain-specific
+words as stopwords, and see it change real search results.</li>
+</ul>
+<hr />
+<h2 id="installation-3">Installation</h2>
+<p>This chapter needs nothing beyond what Chapter 1 already set up:
+PostgreSQL 16 and a Python 3.12 virtual environment with
+<code>psycopg</code>. If you skipped Chapter 1, see its Installation
+section. Full-text search is core PostgreSQL — there is no extension to
+enable.</p>
+<hr />
+<h2 id="loading-the-data-3">Loading the Data</h2>
+<h3 id="run-the-seed-script-2">Run the seed script</h3>
+<p>From the <code>book/</code> directory, with the virtual environment
+active:</p>
+<div class="sourceCode" id="cb156"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb156-1"><a href="#cb156-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch04_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 30 documents …
+Done — 30 rows in city_documents.</code></pre>
+<p>The seed script is self-contained — it does not depend on any earlier
+chapter’s data. Note that it deliberately does <strong>not</strong>
+create a <code>tsvector</code> column or index; you build both by hand
+in Exercise 3, which is the point of the chapter.</p>
+<h3 id="verify-the-load-3">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these checks.</p>
+<p><strong>Check 1 — table structure:</strong></p>
+<div class="sourceCode" id="cb158"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb158-1"><a href="#cb158-1" aria-hidden="true" tabindex="-1"></a>\d city_documents</span></code></pre></div>
+<pre><code>                                Table &quot;public.city_documents&quot;
+     Column     |  Type   | Collation | Nullable |                  Default
+----------------+---------+-----------+----------+--------------------------------------------
+ id             | integer |           | not null | nextval(&#39;city_documents_id_seq&#39;::regclass)
+ doc_type       | text    |           | not null |
+ department     | text    |           | not null |
+ title          | text    |           | not null |
+ body           | text    |           | not null |
+ published_date | date    |           | not null |
+Indexes:
+    &quot;city_documents_pkey&quot; PRIMARY KEY, btree (id)
+    &quot;idx_city_documents_doc_type&quot; btree (doc_type)
+    &quot;idx_city_documents_published_date&quot; btree (published_date)
+Check constraints:
+    &quot;city_documents_doc_type_check&quot; CHECK (doc_type = ANY (ARRAY[&#39;council_minutes&#39;::text, &#39;zoning_ordinance&#39;::text, &#39;public_notice&#39;::text]))</code></pre>
+<p><strong>Check 2 — counts by document type:</strong></p>
+<div class="sourceCode" id="cb160"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb160-1"><a href="#cb160-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> doc_type, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> documents</span>
+<span id="cb160-2"><a href="#cb160-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb160-3"><a href="#cb160-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> doc_type</span>
+<span id="cb160-4"><a href="#cb160-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> doc_type;</span></code></pre></div>
+<pre><code>     doc_type     | documents
+------------------+-----------
+ council_minutes  |        10
+ public_notice    |        10
+ zoning_ordinance |        10
+(3 rows)</code></pre>
+<p><strong>Check 3 — counts by department:</strong></p>
+<div class="sourceCode" id="cb162"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb162-1"><a href="#cb162-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> department, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> documents</span>
+<span id="cb162-2"><a href="#cb162-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb162-3"><a href="#cb162-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> department</span>
+<span id="cb162-4"><a href="#cb162-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> department;</span></code></pre></div>
+<pre><code>     department     | documents
+--------------------+-----------
+ City Council       |         9
+ Finance            |         1
+ Parks &amp; Recreation |         3
+ Planning &amp; Zoning  |        12
+ Public Works       |         5
+(5 rows)</code></pre>
+<p>If all three match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-3">Exercises</h2>
+<hr />
+<h3 id="exercise-1-converting-text-to-tsvector">Exercise 1 — Converting
+Text to <code>tsvector</code></h3>
+<p><strong>1.1 — A basic conversion</strong></p>
+<p><code>to_tsvector</code> is the function that turns plain text into
+PostgreSQL’s searchable representation. Try it on one document’s
+body:</p>
+<div class="sourceCode" id="cb164"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb164-1"><a href="#cb164-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> title <span class="kw">FROM</span> city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>               title
+------------------------------------
+ Council Minutes — Harbour District Waterfront Renovation Budget</code></pre>
+<div class="sourceCode" id="cb166"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb166-1"><a href="#cb166-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>) <span class="kw">FROM</span> city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>&#39;along&#39;:38 &#39;approv&#39;:67 &#39;begin&#39;:79 &#39;boardwalk&#39;:34 &#39;bond&#39;:53 &#39;budget&#39;:10 &#39;citi&#39;:3
+&#39;construct&#39;:76 &#39;conven&#39;:5 &#39;council&#39;:4,41,61 &#39;cover&#39;:28 &#39;debat&#39;:56 &#39;director&#39;:18
+&#39;discuss&#39;:43 &#39;district&#39;:14 &#39;expect&#39;:77 &#39;fall&#39;:82 &#39;first&#39;:69 &#39;fund&#39;:44,74
+&#39;grant&#39;:50 &#39;harbour&#39;:13,40,72 &#39;includ&#39;:46 &#39;infrastructur&#39;:49 &#39;light&#39;:36
+&#39;measur&#39;:54 &#39;member&#39;:42 &#39;new&#39;:32 &#39;one&#39;:65 &#39;pedestrian&#39;:33 &#39;phase&#39;:26,70
+&#39;plan&#39;:27 &#39;portsmith&#39;:2 &#39;present&#39;:22 &#39;propos&#39;:9 &#39;public&#39;:20 &#39;renov&#39;:16,73
+&#39;repair&#39;:30 &#39;review&#39;:7 &#39;seawal&#39;:29 &#39;six&#39;:63 &#39;sourc&#39;:45 &#39;state&#39;:48
+&#39;three&#39;:25 &#39;three-phas&#39;:24 &#39;timelin&#39;:59 &#39;upgrad&#39;:37 &#39;vote&#39;:62
+&#39;waterfront&#39;:15 &#39;work&#39;:21</code></pre>
+<p><strong>1.2 — Reading the format</strong></p>
+<p>Each entry is <code>'lexeme':position,position,…</code>. A
+<strong>lexeme</strong> is a normalized word form, not the literal text
+— notice <code>'vote':62</code> even though the source text says
+“voted”, <code>'approv':67</code> for “approve”, and
+<code>'renov':16,73</code> for both “renovation” (position 16) and
+“renovation” again later (position 73, from “harbour
+<strong>renovation</strong> funding”). PostgreSQL stems words to their
+root so that a search for “vote” also matches documents containing
+“voted”, “votes”, or “voting” — you don’t have to enumerate every
+inflection yourself.</p>
+<p>The <strong>positions</strong> are the word’s ordinal location in the
+original text (1st word, 2nd word, …). They exist for two reasons:
+<code>ts_rank</code> uses them to compute how spread out or clustered a
+document’s matches are, and phrase search (<code>&lt;-&gt;</code>, used
+in Exercise 4) uses them to require words to appear adjacent to each
+other, not just anywhere in the document.</p>
+<p><strong>1.3 — Case and punctuation are already handled</strong></p>
+<p>Note that “Council” (capitalized, position 4) and “council”
+(lowercase, positions 41 and 61) both collapsed into the single lexeme
+<code>'council'</code> with three positions — <code>to_tsvector</code>
+lowercases everything and strips punctuation as part of tokenization,
+before stemming ever runs.</p>
+<hr />
+<h3 id="exercise-2-what-stopword-removal-actually-throws-away">Exercise
+2 — What Stopword Removal Actually Throws Away</h3>
+<p><strong>2.1 — Compare <code>simple</code> and <code>english</code>
+configurations</strong></p>
+<p>PostgreSQL ships several <strong>text search configurations</strong>
+— named bundles of tokenizer + dictionary rules. <code>simple</code>
+lowercases and tokenizes but does <em>no</em> stemming and drops
+<em>no</em> stopwords; <code>english</code> does both. Run the same body
+through each and count the resulting lexemes:</p>
+<div class="sourceCode" id="cb168"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb168-1"><a href="#cb168-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> array_length(regexp_split_to_array(<span class="kw">body</span>, <span class="st">&#39;\s+&#39;</span>), <span class="dv">1</span>) <span class="kw">AS</span> raw_words</span>
+<span id="cb168-2"><a href="#cb168-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> raw_words
+-----------
+        80</code></pre>
+<div class="sourceCode" id="cb170"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb170-1"><a href="#cb170-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> array_length(tsvector_to_array(to_tsvector(<span class="st">&#39;simple&#39;</span>, <span class="kw">body</span>)), <span class="dv">1</span>) <span class="kw">AS</span> lexemes_simple,</span>
+<span id="cb170-2"><a href="#cb170-2" aria-hidden="true" tabindex="-1"></a>       array_length(tsvector_to_array(to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>)), <span class="dv">1</span>) <span class="kw">AS</span> lexemes_english</span>
+<span id="cb170-3"><a href="#cb170-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> lexemes_simple | lexemes_english
+-----------------+------------------
+              59 |               49</code></pre>
+<p>80 raw whitespace-separated words collapse to 59 distinct lexemes
+under <code>simple</code> (repeated words like “the” and “council” count
+once each, but nothing is removed or stemmed) and to 49 under
+<code>english</code> — ten fewer, because <code>english</code>
+additionally discards stopwords like “the”, “a”, “of”, “to”, “in”, and
+“and” entirely. They carry no search-relevant meaning on their own, and
+indexing them would only bloat the index with entries that match nearly
+every document.</p>
+<p><strong>2.2 — Watch the tokenizer classify each word with
+<code>ts_debug</code></strong></p>
+<p><code>ts_debug</code> is the diagnostic function for seeing exactly
+what a configuration does to a piece of text, word by word — useful
+whenever a search isn’t matching what you expect and you need to know
+why. Run it on a short sentence:</p>
+<div class="sourceCode" id="cb172"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb172-1"><a href="#cb172-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> alias, token, dictionaries, lexemes</span>
+<span id="cb172-2"><a href="#cb172-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   ts_debug(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;The council voted to approve the budget for the harbour renovation.&#39;</span>)</span>
+<span id="cb172-3"><a href="#cb172-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  alias <span class="op">&lt;&gt;</span> <span class="st">&#39;blank&#39;</span>;</span></code></pre></div>
+<pre><code>   alias   |   token    |  dictionaries  |  lexemes
+-----------+------------+----------------+-----------
+ asciiword | The        | {english_stem} | {}
+ asciiword | council    | {english_stem} | {council}
+ asciiword | voted      | {english_stem} | {vote}
+ asciiword | to         | {english_stem} | {}
+ asciiword | approve    | {english_stem} | {approv}
+ asciiword | the        | {english_stem} | {}
+ asciiword | budget     | {english_stem} | {budget}
+ asciiword | for        | {english_stem} | {}
+ asciiword | the        | {english_stem} | {}
+ asciiword | harbour    | {english_stem} | {harbour}
+ asciiword | renovation | {english_stem} | {renov}</code></pre>
+<p>Every token gets classified (<code>asciiword</code> here — a plain
+word) and routed to the <code>english_stem</code> dictionary. Content
+words come back with a stemmed lexeme; stopwords (“The”, “to”, “the”,
+“for”, “the”) come back with an <strong>empty</strong>
+<code>lexemes</code> array — recognized, looked up, and explicitly
+discarded. That empty array is the entire mechanism: a word is a
+stopword precisely when its dictionary entry maps it to nothing.</p>
+<p><strong>2.3 — When you’d reach for <code>simple</code>
+instead</strong></p>
+<p><code>english</code> is the right default for prose.
+<code>simple</code> is useful for columns where stemming would be
+actively wrong — product SKUs, tag lists, or anything where “waterfront”
+and “waterfronts” should <em>not</em> be treated as the same token.
+<code>city_documents.body</code> is prose, so the rest of this chapter
+uses <code>english</code>.</p>
+<hr />
+<h3 id="exercise-3-a-maintained-column-and-a-gin-index">Exercise 3 — A
+Maintained Column and a GIN Index</h3>
+<p>Computing <code>to_tsvector(body)</code> at query time works, but it
+means recomputing the same tokenization on every single search, over
+every row, every time. The standard pattern is to store the vector in
+its own column, keep it current as rows change, and index it.</p>
+<p><strong>3.1 — Add the column and backfill it</strong></p>
+<div class="sourceCode" id="cb174"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb174-1"><a href="#cb174-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> city_documents <span class="kw">ADD</span> <span class="kw">COLUMN</span> search_vector tsvector;</span>
+<span id="cb174-2"><a href="#cb174-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb174-3"><a href="#cb174-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> city_documents</span>
+<span id="cb174-4"><a href="#cb174-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    search_vector <span class="op">=</span> to_tsvector(<span class="st">&#39;english&#39;</span>, title <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span> <span class="kw">body</span>);</span></code></pre></div>
+<p>Indexing <code>title</code> alongside <code>body</code> means a
+search for a word that only appears in the title (not repeated in the
+body text) still matches.</p>
+<p><strong>3.2 — Keep it current with a trigger</strong></p>
+<p>A column populated once goes stale the moment anyone edits
+<code>title</code> or <code>body</code>. A <code>BEFORE</code> trigger
+recomputes it on every write:</p>
+<div class="sourceCode" id="cb175"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb175-1"><a href="#cb175-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FUNCTION</span> city_documents_search_vector_update() RETURNS <span class="kw">trigger</span> <span class="kw">AS</span> $$</span>
+<span id="cb175-2"><a href="#cb175-2" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb175-3"><a href="#cb175-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">NEW</span>.search_vector <span class="op">:=</span> to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">NEW</span>.title <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span> <span class="kw">NEW</span>.<span class="kw">body</span>);</span>
+<span id="cb175-4"><a href="#cb175-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">NEW</span>;</span>
+<span id="cb175-5"><a href="#cb175-5" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb175-6"><a href="#cb175-6" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span>
+<span id="cb175-7"><a href="#cb175-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb175-8"><a href="#cb175-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TRIGGER</span> trg_city_documents_search_vector</span>
+<span id="cb175-9"><a href="#cb175-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">BEFORE</span> <span class="kw">INSERT</span> <span class="kw">OR</span> <span class="kw">UPDATE</span> <span class="kw">OF</span> title, <span class="kw">body</span> <span class="kw">ON</span> city_documents</span>
+<span id="cb175-10"><a href="#cb175-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">EACH</span> <span class="kw">ROW</span></span>
+<span id="cb175-11"><a href="#cb175-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">EXECUTE</span> <span class="kw">FUNCTION</span> city_documents_search_vector_update();</span></code></pre></div>
+<p><code>OF title, body</code> scopes the trigger so it only fires when
+one of the two source columns actually changes — an <code>UPDATE</code>
+that only touches <code>published_date</code> doesn’t pay for a needless
+re-tokenization.</p>
+<blockquote>
+<p><strong>Note — the manual way vs. the modern way:</strong> This
+trigger pattern is how every PostgreSQL version has supported derived
+<code>tsvector</code> columns, and it’s still exactly right when the
+derived value depends on more than one column, as it does here
+(<code>title</code> <strong>and</strong> <code>body</code>). PostgreSQL
+12 added <strong>generated columns</strong>
+(<code>GENERATED ALWAYS AS (...) STORED</code>), which handle the common
+case — a <code>tsvector</code> derived from a single column — with less
+boilerplate and no trigger function to maintain by hand. Chapter 16
+revisits this exact table and replaces this trigger with a generated
+column once <code>body</code> alone is the source. Both approaches
+produce an identical <code>tsvector</code>; the trigger is simply the
+general-purpose tool that works whenever the derivation is more than one
+column deep.</p>
+</blockquote>
+<p><strong>3.3 — Index it with GIN</strong></p>
+<div class="sourceCode" id="cb176"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb176-1"><a href="#cb176-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_documents_search_vector</span>
+<span id="cb176-2"><a href="#cb176-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> city_documents <span class="kw">USING</span> GIN (search_vector);</span></code></pre></div>
+<div class="sourceCode" id="cb177"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb177-1"><a href="#cb177-1" aria-hidden="true" tabindex="-1"></a>\d city_documents</span></code></pre></div>
+<pre><code>                                Table &quot;public.city_documents&quot;
+     Column     |   Type   | Collation | Nullable |                  Default
+----------------+----------+-----------+----------+--------------------------------------------
+ id             | integer  |           | not null | nextval(&#39;city_documents_id_seq&#39;::regclass)
+ doc_type       | text     |           | not null |
+ department     | text     |           | not null |
+ title          | text     |           | not null |
+ body           | text     |           | not null |
+ published_date | date     |           | not null |
+ search_vector  | tsvector |           |          |
+Indexes:
+    &quot;city_documents_pkey&quot; PRIMARY KEY, btree (id)
+    &quot;idx_city_documents_doc_type&quot; btree (doc_type)
+    &quot;idx_city_documents_published_date&quot; btree (published_date)
+    &quot;idx_city_documents_search_vector&quot; gin (search_vector)
+Check constraints:
+    &quot;city_documents_doc_type_check&quot; CHECK (doc_type = ANY (ARRAY[&#39;council_minutes&#39;::text, &#39;zoning_ordinance&#39;::text, &#39;public_notice&#39;::text]))
+Triggers:
+    trg_city_documents_search_vector BEFORE INSERT OR UPDATE OF title, body ON city_documents FOR EACH ROW EXECUTE FUNCTION city_documents_search_vector_update()</code></pre>
+<p><strong>3.4 — Confirm the index is used</strong></p>
+<p>The <code>@@</code> operator tests whether a <code>tsvector</code>
+matches a <code>tsquery</code>:</p>
+<div class="sourceCode" id="cb179"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb179-1"><a href="#cb179-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb179-2"><a href="#cb179-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb179-3"><a href="#cb179-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb179-4"><a href="#cb179-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>);</span></code></pre></div>
+<pre><code>                                               QUERY PLAN
+---------------------------------------------------------------------------------------------------------
+ Seq Scan on city_documents  (cost=0.00..8.38 rows=1 width=36) (actual time=0.025..0.047 rows=5 loops=1)
+   Filter: (search_vector @@ &#39;&#39;&#39;harbour&#39;&#39; &amp; &#39;&#39;waterfront&#39;&#39;&#39;::tsquery)
+   Rows Removed by Filter: 25
+   Buffers: shared hit=8</code></pre>
+<p>On 30 rows the planner reasonably decides a sequential scan is
+cheaper than an index lookup — same behaviour you saw with the JSONB GIN
+index in Chapter 1. Force the index to confirm it works, exactly as in
+that chapter:</p>
+<div class="sourceCode" id="cb181"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb181-1"><a href="#cb181-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb181-2"><a href="#cb181-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb181-3"><a href="#cb181-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb181-4"><a href="#cb181-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb181-5"><a href="#cb181-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb181-6"><a href="#cb181-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>);</span>
+<span id="cb181-7"><a href="#cb181-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb181-8"><a href="#cb181-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;   <span class="co">-- always restore this</span></span></code></pre></div>
+<pre><code>                                                                Query Plan
+------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on city_documents  (cost=12.98..16.99 rows=1 width=36) (actual time=0.024..0.033 rows=5 loops=1)
+   Recheck Cond: (search_vector @@ &#39;&#39;&#39;harbour&#39;&#39; &amp; &#39;&#39;waterfront&#39;&#39;&#39;::tsquery)
+   Heap Blocks: exact=5
+   Buffers: shared hit=10
+   -&gt;  Bitmap Index Scan on idx_city_documents_search_vector  (cost=0.00..12.98 rows=1 width=0) (actual time=0.014..0.014 rows=5 loops=1)
+         Index Cond: (search_vector @@ &#39;&#39;&#39;harbour&#39;&#39; &amp; &#39;&#39;waterfront&#39;&#39;&#39;::tsquery)
+         Buffers: shared hit=5</code></pre>
+<p><code>Bitmap Index Scan on idx_city_documents_search_vector</code>
+confirms the GIN index is doing the work. This is what makes full-text
+search viable at scale: instead of tokenizing every row’s text on every
+query, PostgreSQL looks up each query lexeme directly in the index.</p>
+<hr />
+<h3 id="exercise-4-to_tsquery-vs.-plainto_tsquery">Exercise 4 —
+<code>to_tsquery</code> vs. <code>plainto_tsquery</code></h3>
+<p><strong>4.1 — <code>to_tsquery</code>: a boolean query
+language</strong></p>
+<p><code>to_tsquery</code> expects an expression using explicit
+operators: <code>&amp;</code> (AND), <code>|</code> (OR), <code>!</code>
+(NOT), and <code>&lt;-&gt;</code> (phrase — “immediately followed
+by”):</p>
+<div class="sourceCode" id="cb183"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb183-1"><a href="#cb183-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb183-2"><a href="#cb183-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb183-3"><a href="#cb183-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>)</span>
+<span id="cb183-4"><a href="#cb183-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                                 title
+----+--------------------------------------------------------------------------
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget
+  8 | Council Minutes — Harbour District Food Truck Permits
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning
+ 30 | Public Notice — Annual Fireworks Display and Street Closures
+(5 rows)</code></pre>
+<p><code>!</code> excludes a term. This finds documents about flooding
+that are <em>not</em> about the flood-mitigation infrastructure program
+specifically:</p>
+<div class="sourceCode" id="cb185"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb185-1"><a href="#cb185-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb185-2"><a href="#cb185-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb185-3"><a href="#cb185-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;flood &amp; !mitigation&#39;</span>)</span>
+<span id="cb185-4"><a href="#cb185-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                        title
+----+--------------------------------------------------------
+  5 | Council Minutes — Riverside Road Resurfacing Program
+(1 row)</code></pre>
+<p>That single hit mentions “flooding” (which stems to
+<code>flood</code>) while discussing drainage damage, but never says
+“mitigation” — exactly what the query asked for.</p>
+<p><strong>4.2 — <code>to_tsquery</code> has no forgiveness for plain
+text</strong></p>
+<p>Feed it a raw phrase with no operator between the words, and it
+errors instead of guessing what you meant:</p>
+<div class="sourceCode" id="cb187"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb187-1"><a href="#cb187-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb187-2"><a href="#cb187-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb187-3"><a href="#cb187-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;flood mitigation&#39;</span>);</span></code></pre></div>
+<pre><code>ERROR:  syntax error in tsquery: &quot;flood mitigation&quot;</code></pre>
+<p>This is <code>to_tsquery</code>’s defining trade-off: it is a precise
+query language for code that constructs queries deliberately, and it is
+the wrong function to hand raw user input from a search box — a user
+typing “flood mitigation” with no operators will get an error page
+instead of results.</p>
+<p><strong>4.3 — <code>plainto_tsquery</code>: safe for a search
+box</strong></p>
+<p><code>plainto_tsquery</code> takes plain text, tokenizes and stems it
+exactly like <code>to_tsvector</code> does, drops stopwords, and
+<strong>ANDs</strong> everything that survives. Feed it the same two
+words that made <code>to_tsquery</code> error out in 4.2, but typed the
+way an actual user would type them — with a stray “the” in front:</p>
+<div class="sourceCode" id="cb189"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb189-1"><a href="#cb189-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;the flood mitigation&#39;</span>);</span></code></pre></div>
+<pre><code>  plainto_tsquery
+--------------------
+ &#39;flood&#39; &amp; &#39;mitig&#39;</code></pre>
+<p>“the” never makes it into the query — <code>plainto_tsquery</code>
+drops it as a stopword, exactly the way <code>to_tsvector</code> would
+drop it from a document, and ANDs together whatever content words are
+left. Run it against the table:</p>
+<div class="sourceCode" id="cb191"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb191-1"><a href="#cb191-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb191-2"><a href="#cb191-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb191-3"><a href="#cb191-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;the flood mitigation&#39;</span>)</span>
+<span id="cb191-4"><a href="#cb191-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                                 title
+----+------------------------------------------------------------------------
+ 10 | Council Minutes — Special Session on Flood Mitigation Infrastructure
+ 25 | Public Notice — City Council Special Session on Flood Mitigation
+(2 rows)</code></pre>
+<p>No error this time, and no operators to get wrong —
+<code>plainto_tsquery</code> took a sentence fragment with a stopword in
+it and produced exactly the query 4.2 had to write by hand. The
+trade-off runs the other way from <code>to_tsquery</code>: you get
+safety and stopword handling for free, but you lose the ability to
+express OR, NOT, or phrase search — <code>plainto_tsquery</code> always
+ANDs every surviving word together.</p>
+<p><strong>4.4 — <code>|</code> for OR searches</strong></p>
+<div class="sourceCode" id="cb193"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb193-1"><a href="#cb193-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;dog | bike&#39;</span>);</span></code></pre></div>
+<pre><code>   to_tsquery
+----------------
+ &#39;dog&#39; | &#39;bike&#39;</code></pre>
+<div class="sourceCode" id="cb195"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb195-1"><a href="#cb195-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title</span>
+<span id="cb195-2"><a href="#cb195-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb195-3"><a href="#cb195-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;dog | bike&#39;</span>)</span>
+<span id="cb195-4"><a href="#cb195-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                               title
+----+---------------------------------------------------------------------
+  5 | Council Minutes — Riverside Road Resurfacing Program
+  6 | Council Minutes — Riverside Dog Park Funding
+  9 | Council Minutes — Canal Road Bike Lane Expansion
+ 15 | Zoning Ordinance — Reduced Parking Minimums Near Transit Corridors
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+ 28 | Public Notice — Canal Road Bike Lane Construction Schedule
+ 30 | Public Notice — Annual Fireworks Display and Street Closures
+(7 rows)</code></pre>
+<p>Document 5 (road resurfacing) and 15 (parking minimums) show up
+because each mentions “bike” in passing — the resurfacing minutes note
+the work being coordinated with “the planned Canal Road bike lane
+construction,” and the parking ordinance references “the city’s ongoing
+bike lane expansion.” <code>OR</code> genuinely means <em>either</em>,
+which is exactly why it’s useful and why it returns more, looser matches
+than <code>AND</code>.</p>
+<hr />
+<h3
+id="exercise-5-ranking-with-ts_rank-and-ts_rank_cd-and-ts_headline-snippets">Exercise
+5 — Ranking with <code>ts_rank</code> and <code>ts_rank_cd</code>, and
+<code>ts_headline</code> Snippets</h3>
+<p><code>@@</code> tells you whether a document matches — it says
+nothing about <em>how well</em>. A user searching a 30-document archive
+can eyeball every hit, but a user searching 30,000 documents needs the
+best matches first.</p>
+<p><strong>5.1 — <code>ts_rank</code>: weight by term
+frequency</strong></p>
+<div class="sourceCode" id="cb197"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb197-1"><a href="#cb197-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title, <span class="fu">round</span>(ts_rank(search_vector, <span class="kw">query</span>):<span class="ch">:numeric</span>, <span class="dv">4</span>) <span class="kw">AS</span> <span class="fu">rank</span></span>
+<span id="cb197-2"><a href="#cb197-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents, to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>) <span class="kw">AS</span> <span class="kw">query</span></span>
+<span id="cb197-3"><a href="#cb197-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ <span class="kw">query</span></span>
+<span id="cb197-4"><a href="#cb197-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="fu">rank</span> <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code> id |                                 title                                  |  rank
+----+------------------------------------------------------------------------+--------
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance         | 0.1986
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget        | 0.1959
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning | 0.1895
+  8 | Council Minutes — Harbour District Food Truck Permits                  | 0.0999
+ 30 | Public Notice — Annual Fireworks Display and Street Closures           | 0.0992
+(5 rows)</code></pre>
+<p><code>ts_rank</code> scores primarily on how often the query terms
+appear relative to the document’s overall length — it does not care
+where in the document they appear or how close together they are.
+Documents 12, 1, and 22 rank highest because “harbour” and “waterfront”
+are central, repeated themes in short documents; 8 and 30 rank lower
+because each mentions the harbour only in passing within a longer
+document about something else.</p>
+<p><strong>5.2 — <code>ts_rank_cd</code>: weight by proximity too
+(“cover density”)</strong></p>
+<div class="sourceCode" id="cb199"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb199-1"><a href="#cb199-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title,</span>
+<span id="cb199-2"><a href="#cb199-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(ts_rank(search_vector, <span class="kw">query</span>):<span class="ch">:numeric</span>, <span class="dv">4</span>) <span class="kw">AS</span> <span class="fu">rank</span>,</span>
+<span id="cb199-3"><a href="#cb199-3" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(ts_rank_cd(search_vector, <span class="kw">query</span>):<span class="ch">:numeric</span>, <span class="dv">4</span>) <span class="kw">AS</span> rank_cd</span>
+<span id="cb199-4"><a href="#cb199-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents, to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>) <span class="kw">AS</span> <span class="kw">query</span></span>
+<span id="cb199-5"><a href="#cb199-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ <span class="kw">query</span></span>
+<span id="cb199-6"><a href="#cb199-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> rank_cd <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code> id |                                 title                                  |  rank  | rank_cd
+----+------------------------------------------------------------------------+--------+---------
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget        | 0.1959 |  0.1107
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning | 0.1895 |  0.1053
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance         | 0.1986 |  0.0700
+ 30 | Public Notice — Annual Fireworks Display and Street Closures           | 0.0992 |  0.0545
+  8 | Council Minutes — Harbour District Food Truck Permits                  | 0.0999 |  0.0542
+(5 rows)</code></pre>
+<p>The order changes: document 12 had the <em>highest</em>
+<code>ts_rank</code> but drops to third under <code>ts_rank_cd</code>.
+<code>ts_rank_cd</code> additionally rewards matched terms that cluster
+close together in the text (“cover density”) — in documents 1 and 22,
+“harbour” and “waterfront” appear right next to each other (“Harbour
+District <strong>Waterfront</strong> Renovation…”); in document 12 they
+occur further apart. Neither function is universally “more correct” —
+<code>ts_rank</code> is the standard choice; <code>ts_rank_cd</code> is
+worth trying when word proximity itself signals relevance, as it often
+does for short phrase-like queries.</p>
+<p><strong>5.3 — Highlighted snippets with
+<code>ts_headline</code></strong></p>
+<p>A ranked list of titles is useful; showing <em>why</em> a document
+matched, with the query terms highlighted in context, is what users
+actually expect from a search results page:</p>
+<div class="sourceCode" id="cb201"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb201-1"><a href="#cb201-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> ts_headline(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>, to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbour &amp; waterfront&#39;</span>),</span>
+<span id="cb201-2"><a href="#cb201-2" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&#39;StartSel=**, StopSel=**, MaxWords=25, MinWords=10&#39;</span>)</span>
+<span id="cb201-3"><a href="#cb201-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb201-4"><a href="#cb201-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> **Harbour** District **waterfront** renovation. The Director of Public Works presented</code></pre>
+<p><code>ts_headline</code> re-scans the original text (not the
+<code>tsvector</code>) looking for the query terms, extracts a window
+around the best-matching fragment bounded by
+<code>MinWords</code>/<code>MaxWords</code>, and wraps each match in
+<code>StartSel</code>/ <code>StopSel</code> markers — <code>**…**</code>
+here, but in a web application you’d use
+<code>&lt;mark&gt;…&lt;/mark&gt;</code> or similar. This is genuinely
+expensive compared to a <code>tsvector</code> lookup (it re-tokenizes
+the source text on every call), so use it only on the page of results
+you’re actually displaying, never inside a <code>WHERE</code>
+clause.</p>
+<hr />
+<h3
+id="exercise-6-a-custom-text-search-configuration-for-domain-stopwords">Exercise
+6 — A Custom Text Search Configuration for Domain Stopwords</h3>
+<p><strong>6.1 — The problem: some “content” words carry no information
+here</strong></p>
+<p>This is a city document archive. The words “Portsmith”, “city”, and
+“council” appear constantly — they are structurally present in almost
+every record, the way “the” is present in almost every English sentence.
+Standard <code>english</code> stopword removal has no way to know that,
+because it is tuned for general English, not this specific corpus:</p>
+<div class="sourceCode" id="cb203"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb203-1"><a href="#cb203-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_documents</span>
+<span id="cb203-2"><a href="#cb203-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;city &amp; council&#39;</span>);</span></code></pre></div>
+<pre><code> count
+-------
+     8</code></pre>
+<p>Eight of thirty documents — over a quarter of the entire archive —
+“match” a query on words that describe almost nothing about what makes
+any one of them relevant. Left alone, these words dilute ranking scores
+and inflate plain-text queries with noise terms the searcher didn’t mean
+to require.</p>
+<p><strong>6.2 — Build a stopword file that extends the standard
+list</strong></p>
+<p>A text search configuration’s stopword list is a plain text file, one
+word per line, that PostgreSQL reads from its <code>tsearch_data</code>
+directory. Start from the existing <code>english.stop</code> file so you
+keep every standard English stopword, then append the domain-specific
+ones:</p>
+<div class="sourceCode" id="cb205"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb205-1"><a href="#cb205-1" aria-hidden="true" tabindex="-1"></a><span class="va">PG_SHAREDIR</span><span class="op">=</span><span class="va">$(</span><span class="ex">pg_config</span> <span class="at">--sharedir</span><span class="va">)</span></span>
+<span id="cb205-2"><a href="#cb205-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> bash <span class="at">-c</span> <span class="st">&quot;cat &#39;</span><span class="va">$PG_SHAREDIR</span><span class="st">/tsearch_data/english.stop&#39; &gt; &#39;</span><span class="va">$PG_SHAREDIR</span><span class="st">/tsearch_data/portsmith_english.stop&#39;&quot;</span></span>
+<span id="cb205-3"><a href="#cb205-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> bash <span class="at">-c</span> <span class="st">&quot;printf &#39;portsmith\ncity\ncouncil\n&#39; &gt;&gt; &#39;</span><span class="va">$PG_SHAREDIR</span><span class="st">/tsearch_data/portsmith_english.stop&#39;&quot;</span></span></code></pre></div>
+<blockquote>
+<p>Placing files here requires root, since <code>tsearch_data</code>
+lives under PostgreSQL’s shared install directory rather than anything
+database-owned. If your platform’s PostgreSQL package stores it
+elsewhere, <code>pg_config --sharedir</code> will always point at the
+right location.</p>
+</blockquote>
+<p><strong>6.3 — Wire the file into a dictionary and a
+configuration</strong></p>
+<p>A stopword file alone does nothing — it has to be attached to a
+<strong>text search dictionary</strong>, and that dictionary mapped into
+a <strong>text search configuration</strong> that queries can actually
+reference:</p>
+<div class="sourceCode" id="cb206"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb206-1"><a href="#cb206-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEXT SEARCH <span class="kw">DICTIONARY</span> portsmith_stem (</span>
+<span id="cb206-2"><a href="#cb206-2" aria-hidden="true" tabindex="-1"></a>    TEMPLATE <span class="op">=</span> snowball,</span>
+<span id="cb206-3"><a href="#cb206-3" aria-hidden="true" tabindex="-1"></a>    LANGUAGE <span class="op">=</span> english,</span>
+<span id="cb206-4"><a href="#cb206-4" aria-hidden="true" tabindex="-1"></a>    STOPWORDS <span class="op">=</span> portsmith_english</span>
+<span id="cb206-5"><a href="#cb206-5" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb206-6"><a href="#cb206-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb206-7"><a href="#cb206-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEXT SEARCH CONFIGURATION <span class="kw">public</span>.portsmith_english (<span class="kw">COPY</span> <span class="op">=</span> pg_catalog.english);</span>
+<span id="cb206-8"><a href="#cb206-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb206-9"><a href="#cb206-9" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> TEXT SEARCH CONFIGURATION portsmith_english</span>
+<span id="cb206-10"><a href="#cb206-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ALTER</span> MAPPING <span class="cf">FOR</span> asciiword, asciihword, hword_asciipart, word, hword, hword_part</span>
+<span id="cb206-11"><a href="#cb206-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WITH</span> portsmith_stem;</span></code></pre></div>
+<p><code>TEMPLATE = snowball</code> reuses PostgreSQL’s standard English
+stemming algorithm — only the stopword list changes, not the stemming
+rules. <code>COPY = pg_catalog.english</code> starts the new
+configuration as an exact clone of <code>english</code> (same tokenizer,
+same handling of numbers, emails, URLs, …), and the
+<code>ALTER MAPPING</code> line is the one substitution: word tokens now
+route through <code>portsmith_stem</code> instead of the stock
+<code>english_stem</code> dictionary.</p>
+<p><strong>6.4 — Confirm the noise words are gone</strong></p>
+<div class="sourceCode" id="cb207"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb207-1"><a href="#cb207-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_tsvector(<span class="st">&#39;portsmith_english&#39;</span>, <span class="kw">body</span>) <span class="kw">FROM</span> city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">25</span>;</span></code></pre></div>
+<pre><code>&#39;affect&#39;:37 &#39;area&#39;:27 &#39;attend&#39;:44 &#39;basin&#39;:59 &#39;comment&#39;:47 &#39;conven&#39;:11 &#39;develop&#39;:61
+&#39;discuss&#39;:16 &#39;drain&#39;:56 &#39;encourag&#39;:42 &#39;engin&#39;:53 &#39;flood&#39;:17,40,68 &#39;given&#39;:4
+&#39;herebi&#39;:3 &#39;infrastructur&#39;:19 &#39;last&#39;:65 &#39;mitig&#39;:18 &#39;northgat&#39;:24 &#39;notic&#39;:1
+&#39;open&#39;:31 &#39;present&#39;:50 &#39;propos&#39;:60 &#39;provid&#39;:46 &#39;public&#39;:34 &#39;resid&#39;:36
+&#39;respons&#39;:63 &#39;retain&#39;:25 &#39;retent&#39;:58 &#39;riversid&#39;:21 &#39;session&#39;:14,29 &#39;special&#39;:13
+&#39;spring&#39;:39 &#39;staff&#39;:48 &#39;storm&#39;:55 &#39;wall&#39;:26 &#39;year&#39;:66</code></pre>
+<p>Compare to <code>to_tsvector('english', body)</code> on the same row,
+which still carries <code>'citi':8,52</code>, <code>'council':9</code>,
+and <code>'portsmith':7</code> — three entries present under
+<code>english</code> and absent under <code>portsmith_english</code>.
+Everything else is untouched, because only the stopword list
+changed.</p>
+<p><strong>6.5 — Watch a noise-only query collapse to
+nothing</strong></p>
+<div class="sourceCode" id="cb209"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb209-1"><a href="#cb209-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_tsquery(<span class="st">&#39;portsmith_english&#39;</span>, <span class="st">&#39;city &amp; council&#39;</span>);</span></code></pre></div>
+<pre><code>NOTICE:  text-search query contains only stop words or doesn&#39;t contain lexemes, ignored
+ to_tsquery
+------------
+
+(1 row)</code></pre>
+<p>Under <code>portsmith_english</code>, “city” and “council” are
+<em>both</em> stopwords, so a query built from nothing else has nothing
+left to search for — PostgreSQL says so explicitly instead of silently
+matching everything (or nothing) for an unclear reason.</p>
+<p><strong>6.6 — See it fix a real plain-text search</strong></p>
+<p>This is the exercise’s payoff: a resident searching for “Portsmith
+dog park council” — a completely natural way to phrase it — under
+<code>english</code>:</p>
+<div class="sourceCode" id="cb211"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb211-1"><a href="#cb211-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;Portsmith dog park council&#39;</span>);</span></code></pre></div>
+<pre><code>             plainto_tsquery
+-------------------------------------------
+ &#39;portsmith&#39; &amp; &#39;dog&#39; &amp; &#39;park&#39; &amp; &#39;council&#39;</code></pre>
+<div class="sourceCode" id="cb213"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb213-1"><a href="#cb213-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title <span class="kw">FROM</span> city_documents</span>
+<span id="cb213-2"><a href="#cb213-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;Portsmith dog park council&#39;</span>)</span>
+<span id="cb213-3"><a href="#cb213-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                          title
+----+-----------------------------------------------------------
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+(1 row)</code></pre>
+<p>Only one hit. The council minutes that actually approved funding for
+the same dog park (document 6) never happens to use the literal word
+“Portsmith,” so requiring it as an AND term silently excludes the single
+most relevant record. Under <code>portsmith_english</code>:</p>
+<div class="sourceCode" id="cb215"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb215-1"><a href="#cb215-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> plainto_tsquery(<span class="st">&#39;portsmith_english&#39;</span>, <span class="st">&#39;Portsmith dog park council&#39;</span>);</span></code></pre></div>
+<pre><code> plainto_tsquery
+-----------------
+ &#39;dog&#39; &amp; &#39;park&#39;</code></pre>
+<div class="sourceCode" id="cb217"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb217-1"><a href="#cb217-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title <span class="kw">FROM</span> city_documents</span>
+<span id="cb217-2"><a href="#cb217-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ plainto_tsquery(<span class="st">&#39;portsmith_english&#39;</span>, <span class="st">&#39;Portsmith dog park council&#39;</span>)</span>
+<span id="cb217-3"><a href="#cb217-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |                          title
+----+-----------------------------------------------------------
+  6 | Council Minutes — Riverside Dog Park Funding
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+(2 rows)</code></pre>
+<p>Stripped down to the two words that actually distinguish this search
+— <code>dog</code> and <code>park</code> — both relevant documents come
+back. This is the concrete argument for a custom configuration: it is
+not a cosmetic tweak, it changes which documents a real user actually
+finds.</p>
+<blockquote>
+<p><strong>Note:</strong> the <code>search_vector</code> column built in
+Exercise 3 was populated with the stock <code>english</code>
+configuration, so it still contains <code>'citi'</code>,
+<code>'council'</code>, and <code>'portsmith'</code> lexemes. The
+comparisons above work because <code>@@</code> only needs the
+<em>query’s</em> surviving lexemes to be a subset of the document’s —
+extra lexemes in the document that the query no longer asks for are
+simply irrelevant. To fully adopt <code>portsmith_english</code> as the
+table’s search configuration going forward, you would update the trigger
+from Exercise 3 to call <code>to_tsvector('portsmith_english', …)</code>
+and rebuild <code>search_vector</code> for existing rows.</p>
+</blockquote>
+<hr />
+<h2 id="summary-what-you-should-now-know-3">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>to_tsvector(config, text)</code></td>
+<td>Tokenizes, lowercases, stems, and removes stopwords, producing a
+searchable <code>lexeme:position</code> vector</td>
+</tr>
+<tr class="even">
+<td><code>to_tsquery(config, expr)</code></td>
+<td>Parses a boolean query language (<code>&amp;</code>,
+<code>\|</code>, <code>!</code>, <code>&lt;-&gt;</code>); errors on
+plain text with no operators</td>
+</tr>
+<tr class="odd">
+<td><code>plainto_tsquery(config, text)</code></td>
+<td>Tokenizes plain text the same way as <code>to_tsvector</code>, then
+ANDs every surviving lexeme — safe for a search box</td>
+</tr>
+<tr class="even">
+<td><code>@@</code></td>
+<td>Tests whether a <code>tsvector</code> matches a
+<code>tsquery</code></td>
+</tr>
+<tr class="odd">
+<td><code>ts_debug(config, text)</code></td>
+<td>Shows exactly how each token was classified and which lexeme (if
+any) it produced — the tool for “why didn’t this match?”</td>
+</tr>
+<tr class="even">
+<td>GIN index on a <code>tsvector</code> column</td>
+<td>Turns <code>@@</code> from a sequential scan into an index
+lookup</td>
+</tr>
+<tr class="odd">
+<td><code>ts_rank</code> / <code>ts_rank_cd</code></td>
+<td>Score match quality by term frequency, or by term frequency
+<strong>and</strong> proximity (“cover density”)</td>
+</tr>
+<tr class="even">
+<td><code>ts_headline(config, text, query, options)</code></td>
+<td>Re-scans the source text and returns a highlighted snippet —
+expensive; use only on displayed results</td>
+</tr>
+<tr class="odd">
+<td><code>CREATE TEXT SEARCH DICTIONARY ... (STOPWORDS = ...)</code> +
+<code>CREATE TEXT SEARCH CONFIGURATION</code></td>
+<td>Build a custom configuration with domain-specific stopwords</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+full-text search is not one function call — it’s a pipeline (tokenize →
+stem → filter stopwords) that you can inspect at every stage with
+<code>ts_debug</code>, store the output of with a maintained column and
+a GIN index, query against with two very different trade-offs
+(<code>to_tsquery</code> for precision, <code>plainto_tsquery</code> for
+safety), and tune for your specific corpus by swapping the stopword list
+— exactly the kind of tuning a generic search engine bolted on top of
+your database can’t do without shipping your schema knowledge to it.</p>
+<p>The <code>city_documents</code> table you built here is reused
+directly in later chapters: Chapter 6 (<code>pgvector</code>) adds
+embeddings to the same table for semantic search and builds a hybrid
+search combining <code>ts_rank</code> with cosine distance, and Chapter
+16 (Generated Columns) replaces the hand-written trigger from Exercise 3
+with a <code>GENERATED ALWAYS AS (...) STORED</code> column.</p>
+<hr />
+<em>Going further: <code>websearch_to_tsquery</code> (PostgreSQL 11+) is
+worth knowing about even though this chapter didn’t use it — it accepts
+the same quoted-phrase and <code>-exclude</code> syntax as a typical web
+search box (e.g. <code>"flood mitigation" -infrastructure</code>) while
+remaining as forgiving as <code>plainto_tsquery</code>, making it the
+best default for a real user-facing search field. For very large
+document sets, look into PostgreSQL’s built-in support for weighted
+vectors (<code>setweight()</code>, ranking title matches above body
+matches) and consider whether a dedicated search engine becomes
+worthwhile once ranking quality and query latency requirements outgrow
+what a GIN index over a single table can deliver — the honest answer,
+for most applications, is later than you’d expect.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-5-fuzzy-matching-pg_trgm">Chapter 5 — Fuzzy Matching:
+<code>pg_trgm</code></h1>
+<blockquote>
+<p><em>“Every registry that outlives a year of real data entry ends up
+with the same person in it twice, spelled two different ways.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-4">Background</h2>
+<p>Full-text search, from the last chapter, is built for a specific kind
+of imprecision: the same <em>word</em>, inflected differently (“vote”,
+“voted”, “voting”). It does nothing for a different, equally common kind
+of imprecision — the same word, <strong>spelled</strong> differently.
+“Portsmith” typed as “Portsmith” versus “Portsmyth”. “McAllister” versus
+“MacAllister”. A resident registry filled in by hand, twice, by two
+different clerks, on two different days. Stemming cannot fix a typo,
+because a typo isn’t a grammatical variant of the correct word — it’s a
+different string that a human reader recognizes as “close enough” and a
+computer, by default, does not.</p>
+<p><code>pg_trgm</code> is PostgreSQL’s answer: it breaks strings into
+overlapping three-character sequences (<strong>trigrams</strong>) and
+measures how many trigrams two strings share. Two spellings of the same
+name share most of their trigrams even when several letters differ; two
+unrelated strings usually share almost none. That single idea —
+measured, thresholded, and indexed — is enough to power “did you mean?”
+search boxes, deduplicate messy records, and accelerate substring
+<code>LIKE</code> queries that would otherwise force a sequential
+scan.</p>
+<p>This chapter builds a small deduplication and search tool around that
+idea: what a trigram actually is, how <code>similarity()</code> scores a
+pair of strings, how to turn that into an index instead of an O(n²)
+scan, and — the harder, more honest part — where trigram matching’s
+judgment calls are, because no similarity threshold gets every case
+right.</p>
+<hr />
+<h2 id="the-scenario-4">The Scenario</h2>
+<p>Portsmith’s resident registry has been filled in over years by
+different staff at different counters, and it shows: the same person
+appears twice under two spellings of their name often enough that nobody
+trusts a raw <code>COUNT(*)</code> on it anymore. Separately, the city’s
+311 line fields phone searches for local businesses, and callers rarely
+spell a business name correctly on the first try.</p>
+<p>Two tables model this:</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 79%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>residents</code></td>
+<td>Synthetic residents, including intentional near-duplicate entries —
+the same person, typed twice, with a typo, transposition, or variant
+spelling the second time</td>
+</tr>
+<tr class="even">
+<td><code>business_names</code></td>
+<td>A flat <code>(business_id, name)</code> lookup extending the
+<code>businesses</code> table from Chapter 1, used for “did you mean?”
+search</td>
+</tr>
+</tbody>
+</table>
+<p><code>residents</code> includes a <code>true_duplicate_of</code>
+column that a real registry would <strong>not</strong> have — you would
+not know in advance which rows are duplicates; that is the entire
+problem fuzzy matching exists to solve. It’s here purely so the
+exercises can check whether your queries found the right answers. The
+dataset also includes two pairs that are deliberately <em>not</em>
+marked as duplicates, on purpose — more on those in Exercise 2.</p>
+<hr />
+<h2 id="exercise-goals-4">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Explain what a trigram is and compute <code>similarity()</code>
+between two strings by hand for a short example.</li>
+<li>Use the <code>%</code> operator to find near-matches at a
+configurable similarity threshold, and explain why no single threshold
+is perfectly correct.</li>
+<li>Use <code>word_similarity()</code> to find a short query as a strong
+partial match inside a longer string, and explain how it differs from
+<code>similarity()</code>.</li>
+<li>Create a GIN trigram index and confirm it accelerates both
+<code>%</code> and <code>LIKE '%term%'</code> queries that would
+otherwise force a sequential scan.</li>
+<li>Build a “did you mean?” query using a GiST trigram index and
+<code>ORDER BY   ... &lt;-&gt;</code>, and explain why GiST — not GIN —
+is the right index for that access pattern.</li>
+<li>Compare trigram matching against full-text search on the same kind
+of short, keyword-style query, and know which one to reach for.</li>
+</ul>
+<hr />
+<h2 id="installation-4">Installation</h2>
+<p><code>pg_trgm</code> ships as part of the standard
+<code>postgresql-16</code> package on Debian/Ubuntu — unlike PostGIS in
+Chapter 2, there is no separate package to install. Enable it in the
+database:</p>
+<div class="sourceCode" id="cb219"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb219-1"><a href="#cb219-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> pg_trgm;</span></code></pre></div>
+<hr />
+<h2 id="loading-the-data-4">Loading the Data</h2>
+<h3 id="prerequisites-1">Prerequisites</h3>
+<p>Chapter 1’s seed script must have been run first —
+<code>business_names</code> is populated directly from the
+<code>businesses</code> table:</p>
+<div class="sourceCode" id="cb220"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb220-1"><a href="#cb220-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py</span></code></pre></div>
+<h3 id="run-the-chapter-5-seed">Run the Chapter 5 seed</h3>
+<div class="sourceCode" id="cb221"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb221-1"><a href="#cb221-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch05_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 58 residents …
+Populating business_names from businesses …
+Done — 58 rows in residents, 48 rows in business_names.</code></pre>
+<h3 id="verify-the-load-4">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these checks.</p>
+<p><strong>Check 1 — table structure:</strong></p>
+<div class="sourceCode" id="cb223"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb223-1"><a href="#cb223-1" aria-hidden="true" tabindex="-1"></a>\d residents</span></code></pre></div>
+<pre><code>                                  Table &quot;public.residents&quot;
+      Column       |  Type   | Collation | Nullable |                Default
+-------------------+---------+-----------+----------+---------------------------------------
+ id                | integer |           | not null | nextval(&#39;residents_id_seq&#39;::regclass)
+ full_name         | text    |           | not null |
+ neighbourhood     | text    |           | not null |
+ true_duplicate_of | integer |           |          |
+Indexes:
+    &quot;residents_pkey&quot; PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    &quot;residents_true_duplicate_of_fkey&quot; FOREIGN KEY (true_duplicate_of) REFERENCES residents(id)
+Referenced by:
+    TABLE &quot;residents&quot; CONSTRAINT &quot;residents_true_duplicate_of_fkey&quot; FOREIGN KEY (true_duplicate_of) REFERENCES residents(id)</code></pre>
+<p><strong>Check 2 — every marked duplicate points at a real canonical
+row:</strong></p>
+<div class="sourceCode" id="cb225"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb225-1"><a href="#cb225-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> duplicate_pairs</span>
+<span id="cb225-2"><a href="#cb225-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   residents</span>
+<span id="cb225-3"><a href="#cb225-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  true_duplicate_of <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span>;</span></code></pre></div>
+<pre><code> duplicate_pairs
+-----------------
+              12</code></pre>
+<p><strong>Check 3 — <code>business_names</code> mirrors
+<code>businesses</code> 1:1:</strong></p>
+<div class="sourceCode" id="cb227"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb227-1"><a href="#cb227-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> business_names;</span></code></pre></div>
+<pre><code> count
+-------
+    48</code></pre>
+<p>If all three match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-4">Exercises</h2>
+<hr />
+<h3 id="exercise-1-what-a-trigram-is-and-similarity">Exercise 1 — What a
+Trigram Is, and <code>similarity()</code></h3>
+<p><strong>1.1 — Break a string into trigrams</strong></p>
+<p><code>show_trgm()</code> returns the actual set of trigrams
+PostgreSQL generates for a string:</p>
+<div class="sourceCode" id="cb229"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb229-1"><a href="#cb229-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> show_trgm(<span class="st">&#39;Eleanor&#39;</span>);</span></code></pre></div>
+<pre><code>                show_trgm
+-------------------------------------------
+ {&quot;  e&quot;,&quot; el&quot;,ano,ean,ele,lea,nor,&quot;or &quot;}</code></pre>
+<p>Before splitting, PostgreSQL pads the string with two leading spaces
+and one trailing space — <code>"  eleanor "</code> — then takes every
+overlapping run of three characters: <code>"  e"</code>,
+<code>" el"</code>, <code>"ele"</code>, <code>"lea"</code>,
+<code>"ean"</code>, <code>"ano"</code>, <code>"nor"</code>,
+<code>"or "</code>. The padding matters: it means the first and last
+letters of a word each get their own distinguishing trigram
+(<code>"  e"</code> marks “starts with e”; <code>"or "</code> marks
+“ends with or”), so two strings that only differ at the very start or
+end still register as different rather than accidentally looking
+identical in the middle.</p>
+<p><strong>1.2 — <code>similarity()</code>: how much overlap, as a
+fraction</strong></p>
+<div class="sourceCode" id="cb231"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb231-1"><a href="#cb231-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> similarity(<span class="st">&#39;Eleanor Whitmore&#39;</span>, <span class="st">&#39;Elenor Whitmore&#39;</span>);</span></code></pre></div>
+<pre><code> similarity
+------------
+  0.7368421</code></pre>
+<p><code>similarity()</code> compares the trigram sets of both strings
+and returns roughly the fraction that overlap — mostly shared trigrams
+(both names are 16-17 characters, differing by one dropped letter) means
+a high score close to 1. Two unrelated strings — “Eleanor Whitmore” and,
+say, “Ironside Auto” — share almost no trigrams and score close to 0.
+The scale is intuitive by construction: 1.0 is identical, 0.0 is nothing
+alike.</p>
+<p><strong>1.3 — All twelve duplicate pairs, scored</strong></p>
+<div class="sourceCode" id="cb233"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb233-1"><a href="#cb233-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> a.full_name <span class="kw">AS</span> canonical, b.full_name <span class="kw">AS</span> duplicate_entry,</span>
+<span id="cb233-2"><a href="#cb233-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(similarity(a.full_name, b.full_name):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> sim</span>
+<span id="cb233-3"><a href="#cb233-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   residents a</span>
+<span id="cb233-4"><a href="#cb233-4" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   residents b <span class="kw">ON</span> b.true_duplicate_of <span class="op">=</span> a.<span class="kw">id</span></span>
+<span id="cb233-5"><a href="#cb233-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> a.<span class="kw">id</span>;</span></code></pre></div>
+<pre><code>      canonical        |    duplicate_entry     |  sim
+------------------------+------------------------+-------
+ Eleanor Whitmore       | Elenor Whitmore        | 0.737
+ Jonathan Castellano    | Jonathon Castellano    | 0.739
+ Priyanka Deshmukh      | Priyanka Deshmuk       | 0.842
+ Bartholomew Okonkwo    | Bartholemew Okonkwo    | 0.739
+ Marguerite Delacroix   | Marguerite Delacroiux  | 0.792
+ Siobhan McAllister     | Siobhan MacAllister    | 0.773
+ Theodore Vance         | Theodor Vance          | 0.813
+ Anastasia Volkov       | Anastassia Volkov      | 0.842
+ Desmond Okafor         | Desmund Okafor         | 0.667
+ Genevieve Laurent      | Genevieve Lorent       | 0.667
+ Mikhail Petrenko       | Mikail Petrenko        | 0.737
+ Fitzgerald Osei        | Fitzgerld Osei         | 0.722</code></pre>
+<p>Every genuine duplicate in this dataset scores well above 0.6,
+regardless of whether the typo was a dropped letter, a swapped letter,
+or a spelling variant. That range is the working intuition Exercise 2
+turns into an actual threshold.</p>
+<hr />
+<h3
+id="exercise-2-the-operator-and-why-one-threshold-isnt-enough">Exercise
+2 — The <code>%</code> Operator, and Why One Threshold Isn’t Enough</h3>
+<p><strong>2.1 — <code>%</code>: “similar enough,” using a session-wide
+threshold</strong></p>
+<p>Computing <code>similarity()</code> for every pair by hand doesn’t
+scale. The <code>%</code> operator wraps it into a boolean test against
+a configurable cutoff:</p>
+<div class="sourceCode" id="cb235"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb235-1"><a href="#cb235-1" aria-hidden="true" tabindex="-1"></a>SHOW pg_trgm.similarity_threshold;</span></code></pre></div>
+<pre><code> pg_trgm.similarity_threshold
+-------------------------------
+ 0.3</code></pre>
+<p><code>0.3</code> is the default. Self-join <code>residents</code>
+against itself to find every pair of <em>different</em> rows that clears
+it — this is the actual “find likely duplicates” query:</p>
+<div class="sourceCode" id="cb237"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb237-1"><a href="#cb237-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> a.<span class="kw">id</span>, a.full_name, b.<span class="kw">id</span>, b.full_name,</span>
+<span id="cb237-2"><a href="#cb237-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(similarity(a.full_name, b.full_name):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> sim</span>
+<span id="cb237-3"><a href="#cb237-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   residents a</span>
+<span id="cb237-4"><a href="#cb237-4" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   residents b <span class="kw">ON</span> a.<span class="kw">id</span> <span class="op">&lt;</span> b.<span class="kw">id</span></span>
+<span id="cb237-5"><a href="#cb237-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  a.full_name % b.full_name</span>
+<span id="cb237-6"><a href="#cb237-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> sim <span class="kw">DESC</span>, a.<span class="kw">id</span>;</span></code></pre></div>
+<pre><code> id |      full_name       | id |       full_name       |  sim
+----+-----------------------+----+------------------------+-------
+ 35 | Priyanka Deshmukh     | 36 | Priyanka Deshmuk       | 0.842
+ 45 | Anastasia Volkov      | 46 | Anastassia Volkov      | 0.842
+ 43 | Theodore Vance        | 44 | Theodor Vance          | 0.813
+ 39 | Marguerite Delacroix  | 40 | Marguerite Delacroiux  | 0.792
+ 41 | Siobhan McAllister    | 42 | Siobhan MacAllister    | 0.773
+ 57 | Nadia Kowalski        | 58 | Nadia Kowalska         | 0.765
+ 33 | Jonathan Castellano   | 34 | Jonathon Castellano    | 0.739
+ 37 | Bartholomew Okonkwo   | 38 | Bartholemew Okonkwo    | 0.739
+ 31 | Eleanor Whitmore      | 32 | Elenor Whitmore        | 0.737
+ 51 | Mikhail Petrenko      | 52 | Mikail Petrenko        | 0.737
+ 53 | Fitzgerald Osei       | 54 | Fitzgerld Osei         | 0.722
+ 47 | Desmond Okafor        | 48 | Desmund Okafor         | 0.667
+ 49 | Genevieve Laurent     | 50 | Genevieve Lorent       | 0.667
+ 55 | Robert Ashworth       | 56 | Bobby Ashworth         | 0.409
+(14 rows)</code></pre>
+<p><code>a.id &lt; b.id</code> keeps each pair once instead of twice
+(A-vs-B and B-vs-A are the same comparison). Notice:
+<strong>fourteen</strong> rows came back, not twelve. Check
+<code>true_duplicate_of</code> on every row involved and you’ll find
+twelve of these pairs marked as genuine duplicates and two that are not
+— “Nadia Kowalski” / “Nadia Kowalska” and “Robert Ashworth” / “Bobby
+Ashworth”. They’re in this dataset on purpose, and — this is the point
+of the exercise — look at <em>where</em> they landed in the ranking.</p>
+<p><strong>2.2 — A false positive sitting in the middle of the true
+positives</strong></p>
+<p>“Nadia Kowalski” and “Nadia Kowalska” are two unrelated Riverside
+residents who happen to share a first name and a Polish surname that
+differs only in its masculine/feminine ending. Their similarity,
+<code>0.765</code>, isn’t an edge case at the bottom of the list — it
+sits <strong>between</strong> “Siobhan McAllister”/“Siobhan MacAllister”
+(<code>0.773</code>) and “Bartholomew Okonkwo”/ “Bartholemew Okonkwo”
+(<code>0.739</code>), two genuine duplicates. <code>similarity()</code>
+is doing exactly what it’s designed to do: these two strings really are
+that close. Whether that means “probably the same person” is a judgment
+call the function cannot make on its own — the central limitation of
+fuzzy matching. It finds <strong>candidates</strong>, not verified
+duplicates. A production dedup pipeline treats a <code>%</code> match as
+“flag for review” or “compare a second field too” (a shared phone number
+or address), never as “merge automatically.”</p>
+<p><strong>2.3 — Prove no threshold fixes it</strong></p>
+<p>Try to set a threshold that excludes the Kowalski pair:</p>
+<div class="sourceCode" id="cb239"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb239-1"><a href="#cb239-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> pg_trgm.similarity_threshold <span class="op">=</span> <span class="fl">0.77</span>;</span></code></pre></div>
+<p>Re-run the query from 2.1. “Nadia Kowalski”/“Nadia Kowalska”
+(<code>0.765</code>) is gone — but so are seven of the twelve genuine
+duplicates, everything scoring below <code>0.77</code>. There is no
+number you can put in that <code>SET</code> statement that keeps all
+twelve real duplicates and excludes the Kowalski pair, because a real
+duplicate (“Bartholomew Okonkwo”/“Bartholemew Okonkwo”,
+<code>0.739</code>) scores <em>lower</em> than the false positive you’re
+trying to exclude. Put the threshold back before continuing:</p>
+<div class="sourceCode" id="cb240"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb240-1"><a href="#cb240-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> pg_trgm.similarity_threshold <span class="op">=</span> <span class="fl">0.3</span>;</span></code></pre></div>
+<p><strong>2.4 — A different failure: the false negative you’d never
+even see</strong></p>
+<p>“Robert Ashworth” and “Bobby Ashworth” are, in this dataset’s
+backstory, the same person — entered once with a nickname. Notice they
+only made the results list at all (<code>0.409</code>) because of the
+shared surname “Ashworth”; as given names alone, “Robert” and “Bobby”
+share nothing:</p>
+<div class="sourceCode" id="cb241"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb241-1"><a href="#cb241-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> similarity(<span class="st">&#39;Robert&#39;</span>, <span class="st">&#39;Bobby&#39;</span>);</span></code></pre></div>
+<pre><code> similarity
+------------
+          0</code></pre>
+<p>A resident with a <em>less</em> distinctive shared surname and a
+nicknamed given name would score near zero overall and never appear in a
+<code>%</code> results list at any threshold — not a borderline case to
+review, just silently absent. <code>similarity()</code> measures string
+closeness, not identity; it has no way to know “Bobby” is short for
+“Robert” unless something else tells it, such as a synonym table
+consulted alongside it.</p>
+<p><strong>2.5 — The honest takeaway</strong></p>
+<p>Between the Kowalski pair and the Ashworth pair, this dataset has one
+false positive that no threshold can cleanly exclude without also losing
+real duplicates, and one true duplicate that scores so low it would
+never surface as a candidate in the first place. Tune
+<code>pg_trgm.similarity_threshold</code> to trade recall against
+precision for your own data — but go in expecting a trade-off, not a
+number that gets both sides to zero.</p>
+<hr />
+<h3 id="exercise-3-word_similarity-for-partial-matches">Exercise 3 —
+<code>word_similarity()</code> for Partial Matches</h3>
+<p><code>similarity()</code> compares two whole strings — it penalizes a
+short query against a long target just for being different lengths,
+which makes it a poor fit for “does this short input appear as a strong
+match somewhere inside this longer string?”</p>
+<p><strong>3.1 — Compare the two functions on the same
+query</strong></p>
+<div class="sourceCode" id="cb243"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb243-1"><a href="#cb243-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, <span class="fu">round</span>(similarity(<span class="st">&#39;bake&#39;</span>, name):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> full_sim</span>
+<span id="cb243-2"><a href="#cb243-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_names</span>
+<span id="cb243-3"><a href="#cb243-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> full_sim <span class="kw">DESC</span>, name</span>
+<span id="cb243-4"><a href="#cb243-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">3</span>;</span></code></pre></div>
+<pre><code>          name          | full_sim
+-------------------------+----------
+ River Bend Bakery       |    0.222
+ Campus Bike &amp; Sports    |    0.091
+ Finch &amp; Sons Barbers    |    0.091</code></pre>
+<div class="sourceCode" id="cb245"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb245-1"><a href="#cb245-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, <span class="fu">round</span>(word_similarity(<span class="st">&#39;bake&#39;</span>, name):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> word_sim</span>
+<span id="cb245-2"><a href="#cb245-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_names</span>
+<span id="cb245-3"><a href="#cb245-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> word_sim <span class="kw">DESC</span>, name</span>
+<span id="cb245-4"><a href="#cb245-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">3</span>;</span></code></pre></div>
+<pre><code>          name          | word_sim
+-------------------------+----------
+ River Bend Bakery       |    0.800
+ Bay Street Electronics  |    0.400
+ Finch &amp; Sons Barbers    |    0.400</code></pre>
+<p>Same query, same top result, very different score: <code>0.222</code>
+versus <code>0.800</code>. <code>word_similarity()</code> finds the
+best-matching <em>substring extent</em> inside the target — effectively
+“if I could crop this longer string down to the part that best matches
+my query, how similar would that piece be?” — rather than scoring the
+query against the target’s full length. “bake” against “River Bend
+<strong>Bake</strong>ry” scores high because “Bake” is a near-perfect
+fragment match, even though “bake” is a small fraction of the full
+business name.</p>
+<p><strong>3.2 — When to reach for which</strong></p>
+<p>Use <code>similarity()</code> when you’re comparing two values that
+<em>should</em> represent the same whole thing — two spellings of one
+name, as in Exercises 1 and 2. Use <code>word_similarity()</code> when a
+short query is expected to be a fragment of a longer field —
+autocomplete-style search-as-you-type, or matching a partial business
+name a caller remembers.</p>
+<hr />
+<h3 id="exercise-4-gin-trigram-indexes">Exercise 4 — GIN Trigram
+Indexes</h3>
+<p><strong>4.1 — Without an index</strong></p>
+<div class="sourceCode" id="cb247"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb247-1"><a href="#cb247-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb247-2"><a href="#cb247-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> business_names <span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="st">&#39;%Bakery%&#39;</span>;</span></code></pre></div>
+<pre><code>                                                QUERY PLAN
+------------------------------------------------------------------------------------------------------
+ Seq Scan on business_names  (cost=0.00..25.88 rows=1 width=32) (actual time=0.008..0.009 rows=1 loops=1)
+   Filter: (name ~~ &#39;%Bakery%&#39;::text)
+   Rows Removed by Filter: 47
+   Buffers: shared hit=1</code></pre>
+<p>A plain B-tree index cannot help here — <code>%Bakery%</code> has no
+fixed prefix, so there’s nothing for a B-tree to seek to. This is
+exactly the case <code>pg_trgm</code> was built for: it indexes every
+trigram in every row, so a <code>LIKE</code> pattern (itself broken into
+trigrams) can be looked up directly.</p>
+<p><strong>4.2 — Create the index</strong></p>
+<div class="sourceCode" id="cb249"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb249-1"><a href="#cb249-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_business_names_trgm</span>
+<span id="cb249-2"><a href="#cb249-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> business_names</span>
+<span id="cb249-3"><a href="#cb249-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> GIN (name gin_trgm_ops);</span></code></pre></div>
+<p><strong>4.3 — Confirm it’s used</strong></p>
+<p>As in earlier chapters, force the index on a table this small to see
+the mechanism:</p>
+<div class="sourceCode" id="cb250"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb250-1"><a href="#cb250-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb250-2"><a href="#cb250-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb250-3"><a href="#cb250-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb250-4"><a href="#cb250-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> business_names <span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="st">&#39;%Bakery%&#39;</span>;</span>
+<span id="cb250-5"><a href="#cb250-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb250-6"><a href="#cb250-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;   <span class="co">-- always restore this</span></span></code></pre></div>
+<pre><code>                                                           QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on business_names  (cost=21.82..25.83 rows=1 width=32) (actual time=0.024..0.025 rows=1 loops=1)
+   Recheck Cond: (name ~~ &#39;%Bakery%&#39;::text)
+   Heap Blocks: exact=1
+   Buffers: shared hit=10
+   -&gt;  Bitmap Index Scan on idx_business_names_trgm  (cost=0.00..21.82 rows=1 width=0) (actual time=0.016..0.017 rows=1 loops=1)
+         Index Cond: (name ~~ &#39;%Bakery%&#39;::text)
+         Buffers: shared hit=9</code></pre>
+<p><code>Bitmap Index Scan on idx_business_names_trgm</code> — the same
+GIN index also accelerates <code>%</code>,
+<code>word_similarity() %&gt;</code>, and both <code>LIKE</code> and
+<code>ILIKE</code> with leading wildcards, all from one index.</p>
+<hr />
+<h3 id="exercise-5-a-did-you-mean-query-with-gist">Exercise 5 — A “Did
+You Mean?” Query with GiST</h3>
+<p><strong>5.1 — The pattern: order by trigram distance, take the top
+few</strong></p>
+<p><code>pg_trgm</code> defines a distance operator,
+<code>&lt;-&gt;</code> — the complement of similarity (smaller means
+more alike) — which makes “closest matches first” a plain
+<code>ORDER BY ... LIMIT</code>:</p>
+<div class="sourceCode" id="cb252"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb252-1"><a href="#cb252-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, <span class="fu">round</span>(similarity(name, <span class="st">&#39;Ironsyde Auto&#39;</span>):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> sim</span>
+<span id="cb252-2"><a href="#cb252-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_names</span>
+<span id="cb252-3"><a href="#cb252-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name <span class="op">&lt;-&gt;</span> <span class="st">&#39;Ironsyde Auto&#39;</span>, name</span>
+<span id="cb252-4"><a href="#cb252-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>        name         |  sim
+----------------------+-------
+ Ironside Auto        | 0.647
+ AutoFix Portsmith    | 0.143
+ Harbour Inn          | 0.040
+ The Art Depot        | 0.037
+ Riverside Cinema     | 0.033</code></pre>
+<p>A caller who typed “Ironsyde Auto” (transposed letters) gets
+“Ironside Auto” back as the clear top match, well clear of the noise
+below it — this is the entire “did you mean?” feature.</p>
+<p><strong>5.2 — Why the GIN index from Exercise 4 doesn’t help
+here</strong></p>
+<div class="sourceCode" id="cb254"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb254-1"><a href="#cb254-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>)</span>
+<span id="cb254-2"><a href="#cb254-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> business_names</span>
+<span id="cb254-3"><a href="#cb254-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> name <span class="op">&lt;-&gt;</span> <span class="st">&#39;Ironsyde Auto&#39;</span></span>
+<span id="cb254-4"><a href="#cb254-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>                                                      QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2.40..2.41 rows=5 width=36) (actual time=0.182..0.183 rows=5 loops=1)
+   -&gt;  Sort  (cost=2.40..2.52 rows=48 width=36) (actual time=0.181..0.182 rows=5 loops=1)
+         Sort Key: ((name &lt;-&gt; &#39;Ironsyde Auto&#39;::text))
+         Sort Method: top-N heapsort  Memory: 25kB
+         -&gt;  Seq Scan on business_names  (cost=0.00..1.60 rows=48 width=36) (actual time=0.040..0.157 rows=48 loops=1)</code></pre>
+<p>Even with <code>idx_business_names_trgm</code> in place, this plan is
+a full scan plus a sort — GIN accelerates <em>lookups</em> (“which rows
+contain trigrams matching this pattern”) but has no notion of a distance
+ordering. Nearest-neighbor queries need an index that natively
+understands “closest,” which is what <strong>GiST</strong> provides:</p>
+<div class="sourceCode" id="cb256"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb256-1"><a href="#cb256-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_business_names_trgm_gist</span>
+<span id="cb256-2"><a href="#cb256-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> business_names</span>
+<span id="cb256-3"><a href="#cb256-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> GIST (name gist_trgm_ops);</span></code></pre></div>
+<div class="sourceCode" id="cb257"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb257-1"><a href="#cb257-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>)</span>
+<span id="cb257-2"><a href="#cb257-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> business_names</span>
+<span id="cb257-3"><a href="#cb257-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> name <span class="op">&lt;-&gt;</span> <span class="st">&#39;Ironsyde Auto&#39;</span></span>
+<span id="cb257-4"><a href="#cb257-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>                                                                     QUERY PLAN
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..1.07 rows=5 width=36) (actual time=0.130..0.143 rows=5 loops=1)
+   -&gt;  Index Scan using idx_business_names_trgm_gist on business_names  (cost=0.14..9.09 rows=48 width=36) (actual time=0.129..0.141 rows=5 loops=1)
+         Order By: (name &lt;-&gt; &#39;Ironsyde Auto&#39;::text)</code></pre>
+<p><code>Order By: (name &lt;-&gt; 'Ironsyde Auto'::text)</code> inside
+an <code>Index Scan</code> — the GiST index walks straight to the
+nearest rows instead of scoring and sorting every row in the table.
+<strong>Rule of thumb: GIN for <code>%</code>/<code>LIKE</code>
+membership lookups, GiST for
+<code>ORDER BY ... &lt;-&gt; ... LIMIT n</code> nearest-match
+queries.</strong> It’s common to keep both, as this table now does, if
+an application needs both access patterns.</p>
+<p><strong>5.3 — One more example</strong></p>
+<div class="sourceCode" id="cb259"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb259-1"><a href="#cb259-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, <span class="fu">round</span>(similarity(name, <span class="st">&#39;Portsmith Vetrinary Clinic&#39;</span>):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> sim</span>
+<span id="cb259-2"><a href="#cb259-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_names</span>
+<span id="cb259-3"><a href="#cb259-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name <span class="op">&lt;-&gt;</span> <span class="st">&#39;Portsmith Vetrinary Clinic&#39;</span>, name</span>
+<span id="cb259-4"><a href="#cb259-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>            name              |  sim
+-------------------------------+-------
+ Portsmith Veterinary Clinic   | 0.833
+ AutoFix Portsmith             | 0.286
+ Portsmith Pharmacy            | 0.286
+ Portsmith Tailors             | 0.286
+ Portsmith Arms Hotel          | 0.263</code></pre>
+<hr />
+<h3
+id="exercise-6-trigram-matching-vs.-full-text-search-head-to-head">Exercise
+6 — Trigram Matching vs. Full-Text Search, Head to Head</h3>
+<p>Chapter 4 built full-text search over <code>city_documents</code>;
+this chapter built trigram matching over <code>business_names</code>.
+Both can answer “find rows matching this word” — they are good at it for
+different, almost opposite, reasons.</p>
+<p><strong>6.1 — A spelling variant: trigram wins</strong></p>
+<p>Portsmith’s own documents consistently use the British spelling
+“harbour.” A caller who types the American spelling “harbor” gets
+nothing from full-text search — stemming normalizes <em>inflection</em>
+(“harbors” → “harbor”), not <em>spelling</em>:</p>
+<div class="sourceCode" id="cb261"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb261-1"><a href="#cb261-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;Harbour View Theater&#39;</span>) @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;harbor&#39;</span>);</span></code></pre></div>
+<pre><code> ?column?
+----------
+ f</code></pre>
+<p>Trigram similarity doesn’t care that they’re “different words” — it
+only sees how many three-letter fragments overlap, and
+“harbor”/“harbour” share almost all of theirs:</p>
+<div class="sourceCode" id="cb263"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb263-1"><a href="#cb263-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> similarity(<span class="st">&#39;harbor&#39;</span>, <span class="st">&#39;harbour&#39;</span>);</span></code></pre></div>
+<pre><code> similarity
+------------
+        0.5</code></pre>
+<p><strong>6.2 — A short, correctly-spelled keyword: full-text search
+wins</strong></p>
+<p>Run a short, exact keyword against <code>business_names</code> both
+ways:</p>
+<div class="sourceCode" id="cb265"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb265-1"><a href="#cb265-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, <span class="fu">round</span>(similarity(name, <span class="st">&#39;bay&#39;</span>):<span class="ch">:numeric</span>, <span class="dv">3</span>) <span class="kw">AS</span> sim</span>
+<span id="cb265-2"><a href="#cb265-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_names</span>
+<span id="cb265-3"><a href="#cb265-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> sim <span class="kw">DESC</span>, name</span>
+<span id="cb265-4"><a href="#cb265-4" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">6</span>;</span></code></pre></div>
+<pre><code>          name           |  sim
+--------------------------+-------
+ Mango Bay Caribbean      | 0.200
+ Bay Street Electronics   | 0.174
+ River Bend Bakery        | 0.105
+ Finch &amp; Sons Barbers     | 0.095
+ Bella Napoli             | 0.063
+ Le Petit Bistro          | 0.053</code></pre>
+<p>A three-letter query like “bay” barely produces any trigrams of its
+own, so the scores are all low and close together — “River Bend Bakery”
+and “Finch &amp; Sons Barbers” show up with real, if small, similarity
+despite having nothing to do with “bay.” There’s no clean gap between
+signal and noise. Full-text search, which matches on whole tokens rather
+than character fragments, has no such problem:</p>
+<div class="sourceCode" id="cb267"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb267-1"><a href="#cb267-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> business_names</span>
+<span id="cb267-2"><a href="#cb267-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  to_tsvector(<span class="st">&#39;english&#39;</span>, name) @@ plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;bay&#39;</span>)</span>
+<span id="cb267-3"><a href="#cb267-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name;</span></code></pre></div>
+<pre><code>          name
+------------------------
+ Bay Street Electronics
+ Mango Bay Caribbean
+(2 rows)</code></pre>
+<p>Exactly the two relevant matches, no noise, no threshold to tune.</p>
+<p><strong>6.3 — The rule of thumb</strong></p>
+<p>Short queries made of correctly-spelled whole words belong to
+full-text search — it was built to match tokens precisely and cheaply
+via a GIN index over lexemes. Queries that might be misspelled,
+transposed, or OCR-damaged belong to trigram matching — it was built to
+tolerate exactly that kind of noise, at the cost of weaker signal on
+very short inputs. Many real search boxes run both: try full-text search
+first, and fall back to a trigram “did you mean?” only when it returns
+nothing.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-4">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>show_trgm(text)</code></td>
+<td>Shows the padded, overlapping 3-character sequences a string breaks
+into</td>
+</tr>
+<tr class="even">
+<td><code>similarity(a, b)</code></td>
+<td>Fraction of shared trigrams between two whole strings — best for
+“are these two values the same thing, spelled differently?”</td>
+</tr>
+<tr class="odd">
+<td><code>word_similarity(a, b)</code></td>
+<td>Best-matching substring extent of <code>a</code> inside
+<code>b</code> — best for “is <code>a</code> a fragment somewhere inside
+<code>b</code>?”</td>
+</tr>
+<tr class="even">
+<td><code>a % b</code></td>
+<td>Boolean test: does <code>similarity(a, b)</code> clear
+<code>pg_trgm.similarity_threshold</code> (default
+<code>0.3</code>)?</td>
+</tr>
+<tr class="odd">
+<td><code>a &lt;-&gt; b</code></td>
+<td>Trigram distance (<code>1 - similarity</code>) — sort by this for
+nearest-match-first results</td>
+</tr>
+<tr class="even">
+<td><code>GIN (col gin_trgm_ops)</code></td>
+<td>Accelerates <code>%</code> and <code>LIKE</code>/<code>ILIKE</code>
+membership-style lookups</td>
+</tr>
+<tr class="odd">
+<td><code>GIST (col gist_trgm_ops)</code></td>
+<td>Accelerates <code>ORDER BY col &lt;-&gt; query LIMIT n</code>
+nearest-neighbor lookups</td>
+</tr>
+<tr class="even">
+<td><code>pg_trgm.similarity_threshold</code></td>
+<td>Session-level cutoff for <code>%</code>; tune it, but expect
+trade-offs, not a perfect split</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+fuzzy matching produces <em>candidates</em>, not verdicts. The
+<code>%</code> operator surfaced all twelve real duplicate pairs in the
+<code>residents</code> table — and two pairs of genuinely different, or
+differently-named, people right alongside them, at every threshold
+tried. That isn’t a shortcoming to engineer away; it’s the nature of
+measuring string similarity instead of identity. Build fuzzy matching
+into a review queue or a secondary confirmation step, not an automatic
+merge.</p>
+<p>The <code>business_names</code> table you built here is reused in
+Chapter 10 (PostgREST), which exposes the “did you mean?” query from
+Exercise 5 as a public RPC endpoint.</p>
+<hr />
+<em>Going further: <code>pg_trgm</code> also provides <code>%&gt;</code>
+and <code>&lt;-&gt;&gt;</code> variants tuned for
+<code>word_similarity()</code> rather than <code>similarity()</code>,
+useful for indexing substring-style “did you mean?” search the same way
+Exercise 5 indexed whole-string search. For very large tables, GiST
+trigram indexes are typically smaller and faster to build than GIN but
+slower for pure membership lookups — benchmark both on your actual data
+distribution rather than assuming one is strictly better. And if
+deduplication is a recurring, business-critical process rather than an
+occasional query, look at dedicated record-linkage tools (e.g. the
+<code>dedupe</code> Python library), which combine trigram-style string
+similarity with other fields — address, phone number, date of birth —
+and a trained classifier, instead of a single threshold on a single
+column.</em>
 <div style="page-break-before: always;">
 
 </div>

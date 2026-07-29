@@ -2688,3 +2688,1702 @@ the point at which a dedicated broker starts to earn its operational cost.
 For most applications below that scale, the table you just built is
 enough.*
 <div style="page-break-before: always;"></div>
+# Chapter 4 — Full-Text Search: `tsvector`, Stopwords, and Ranking
+
+> *"Grep finds characters. Full-text search finds meaning — or at least gets
+> a lot closer."*
+
+---
+
+## Background
+
+`LIKE '%harbour%'` finds the literal substring "harbour". It will not find
+"Harbour", "harbours", or a document about "the harbor" (different spelling)
+unless you handle every variation yourself, and it cannot tell you whether a
+match in the title is more relevant than a match buried in paragraph six. As
+soon as an application needs to search prose — meeting minutes, support
+tickets, product descriptions, articles — substring matching stops being
+enough. The usual reflex is to reach for Elasticsearch or a similar dedicated
+search engine.
+
+PostgreSQL has had a full-text search engine built in since version 8.3. It
+tokenizes text into words, reduces those words to normalized root forms
+(*stemming*), discards low-information words like "the" and "of"
+(*stopwords*), and stores the result in a specialized `tsvector` type that a
+GIN index can search in milliseconds. A companion `tsquery` type lets you
+express boolean and phrase searches, and a family of ranking functions score
+how well each match fits the query. None of this requires an extension —
+it is core PostgreSQL, the same engine `websearch_to_tsquery`-powered search
+boxes on production sites are built on.
+
+This chapter builds a search feature over a small document archive: how text
+becomes a `tsvector`, what stopword removal actually throws away, how to keep
+the vector in sync as rows change, how query syntax differs between a
+developer-facing boolean query language and a plain-text search box, and how
+to rank and highlight results. The final exercise customizes the stopword
+list itself — because in a *city* government's document archive, the words
+"city" and "council" appear so often they stop being useful signals, exactly
+the kind of domain-specific tuning full-text search is designed to support.
+
+---
+
+## The Scenario
+
+Portsmith's city clerk publishes an archive of public records: council
+meeting minutes, zoning ordinances, and public notices. Residents need to
+search this archive by keyword — "what happened with the Riverside dog
+park?", "which ordinances mention Canal Road?" — and get back the most
+relevant documents first, with a highlighted snippet showing why each one
+matched.
+
+The `city_documents` table holds all three document types in one place, with
+a `body` column of plain prose text and a few relational columns for
+filtering:
+
+| Column           | Purpose                                                              |
+|------------------|-----------------------------------------------------------------------|
+| `doc_type`       | `council_minutes`, `zoning_ordinance`, or `public_notice`             |
+| `department`     | Which city department published it (City Council, Public Works, …)   |
+| `title`          | Short document title                                                  |
+| `body`           | Full plain-text document body — the field full-text search runs over |
+| `published_date` | When the document was published                                       |
+
+The documents share recurring topics on purpose — the Riverside dog park,
+the Harbour District waterfront rezoning, the Canal Road bike lane — so that
+searches in the exercises return more than one hit, and ranking has
+something real to sort between. No extensions are required for this
+chapter: `tsvector`, `tsquery`, and every function used below are core
+PostgreSQL.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Convert text to a `tsvector` and read the lexeme:position notation it
+  produces.
+- Explain exactly what stopword removal and stemming do to a document, using
+  `ts_debug` to see PostgreSQL's tokenizer classify each word.
+- Maintain a `tsvector` column automatically with a trigger, and index it
+  with GIN for sub-millisecond searches.
+- Write boolean queries with `to_tsquery` and understand why
+  `plainto_tsquery` is the safer choice for a plain search box.
+- Rank results with `ts_rank` and `ts_rank_cd`, and generate highlighted
+  snippets with `ts_headline`.
+- Build a custom text search configuration that treats domain-specific words
+  as stopwords, and see it change real search results.
+
+---
+
+## Installation
+
+This chapter needs nothing beyond what Chapter 1 already set up: PostgreSQL
+16 and a Python 3.12 virtual environment with `psycopg`. If you skipped
+Chapter 1, see its Installation section. Full-text search is core
+PostgreSQL — there is no extension to enable.
+
+---
+
+## Loading the Data
+
+### Run the seed script
+
+From the `book/` directory, with the virtual environment active:
+
+```bash
+python data/ch04_seed.py
+```
+
+Expected output:
+
+```
+Connecting to: dbname=portsmith
+Creating schema …
+Inserting 30 documents …
+Done — 30 rows in city_documents.
+```
+
+The seed script is self-contained — it does not depend on any earlier
+chapter's data. Note that it deliberately does **not** create a `tsvector`
+column or index; you build both by hand in Exercise 3, which is the point of
+the chapter.
+
+### Verify the load
+
+Open `psql portsmith` and run these checks.
+
+**Check 1 — table structure:**
+
+```sql
+\d city_documents
+```
+
+```
+                                Table "public.city_documents"
+     Column     |  Type   | Collation | Nullable |                  Default
+----------------+---------+-----------+----------+--------------------------------------------
+ id             | integer |           | not null | nextval('city_documents_id_seq'::regclass)
+ doc_type       | text    |           | not null |
+ department     | text    |           | not null |
+ title          | text    |           | not null |
+ body           | text    |           | not null |
+ published_date | date    |           | not null |
+Indexes:
+    "city_documents_pkey" PRIMARY KEY, btree (id)
+    "idx_city_documents_doc_type" btree (doc_type)
+    "idx_city_documents_published_date" btree (published_date)
+Check constraints:
+    "city_documents_doc_type_check" CHECK (doc_type = ANY (ARRAY['council_minutes'::text, 'zoning_ordinance'::text, 'public_notice'::text]))
+```
+
+**Check 2 — counts by document type:**
+
+```sql
+SELECT doc_type, COUNT(*) AS documents
+FROM   city_documents
+GROUP  BY doc_type
+ORDER  BY doc_type;
+```
+
+```
+     doc_type     | documents
+------------------+-----------
+ council_minutes  |        10
+ public_notice    |        10
+ zoning_ordinance |        10
+(3 rows)
+```
+
+**Check 3 — counts by department:**
+
+```sql
+SELECT department, COUNT(*) AS documents
+FROM   city_documents
+GROUP  BY department
+ORDER  BY department;
+```
+
+```
+     department     | documents
+--------------------+-----------
+ City Council       |         9
+ Finance            |         1
+ Parks & Recreation |         3
+ Planning & Zoning  |        12
+ Public Works       |         5
+(5 rows)
+```
+
+If all three match, proceed to the exercises.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — Converting Text to `tsvector`
+
+**1.1 — A basic conversion**
+
+`to_tsvector` is the function that turns plain text into PostgreSQL's
+searchable representation. Try it on one document's body:
+
+```sql
+SELECT title FROM city_documents WHERE id = 1;
+```
+
+```
+               title
+------------------------------------
+ Council Minutes — Harbour District Waterfront Renovation Budget
+```
+
+```sql
+SELECT to_tsvector('english', body) FROM city_documents WHERE id = 1;
+```
+
+```
+'along':38 'approv':67 'begin':79 'boardwalk':34 'bond':53 'budget':10 'citi':3
+'construct':76 'conven':5 'council':4,41,61 'cover':28 'debat':56 'director':18
+'discuss':43 'district':14 'expect':77 'fall':82 'first':69 'fund':44,74
+'grant':50 'harbour':13,40,72 'includ':46 'infrastructur':49 'light':36
+'measur':54 'member':42 'new':32 'one':65 'pedestrian':33 'phase':26,70
+'plan':27 'portsmith':2 'present':22 'propos':9 'public':20 'renov':16,73
+'repair':30 'review':7 'seawal':29 'six':63 'sourc':45 'state':48
+'three':25 'three-phas':24 'timelin':59 'upgrad':37 'vote':62
+'waterfront':15 'work':21
+```
+
+**1.2 — Reading the format**
+
+Each entry is `'lexeme':position,position,…`. A **lexeme** is a normalized
+word form, not the literal text — notice `'vote':62` even though the source
+text says "voted", `'approv':67` for "approve", and `'renov':16,73` for both
+"renovation" (position 16) and "renovation" again later (position 73, from
+"harbour **renovation** funding"). PostgreSQL stems words to their root so
+that a search for "vote" also matches documents containing "voted",
+"votes", or "voting" — you don't have to enumerate every inflection
+yourself.
+
+The **positions** are the word's ordinal location in the original text (1st
+word, 2nd word, …). They exist for two reasons: `ts_rank` uses them to
+compute how spread out or clustered a document's matches are, and phrase
+search (`<->`, used in Exercise 4) uses them to require words to appear
+adjacent to each other, not just anywhere in the document.
+
+**1.3 — Case and punctuation are already handled**
+
+Note that "Council" (capitalized, position 4) and "council" (lowercase,
+positions 41 and 61) both collapsed into the single lexeme `'council'` with
+three positions — `to_tsvector` lowercases everything and strips punctuation
+as part of tokenization, before stemming ever runs.
+
+---
+
+### Exercise 2 — What Stopword Removal Actually Throws Away
+
+**2.1 — Compare `simple` and `english` configurations**
+
+PostgreSQL ships several **text search configurations** — named bundles of
+tokenizer + dictionary rules. `simple` lowercases and tokenizes but does
+*no* stemming and drops *no* stopwords; `english` does both. Run the same
+body through each and count the resulting lexemes:
+
+```sql
+SELECT array_length(regexp_split_to_array(body, '\s+'), 1) AS raw_words
+FROM   city_documents WHERE id = 1;
+```
+
+```
+ raw_words
+-----------
+        80
+```
+
+```sql
+SELECT array_length(tsvector_to_array(to_tsvector('simple', body)), 1) AS lexemes_simple,
+       array_length(tsvector_to_array(to_tsvector('english', body)), 1) AS lexemes_english
+FROM   city_documents WHERE id = 1;
+```
+
+```
+ lexemes_simple | lexemes_english
+-----------------+------------------
+              59 |               49
+```
+
+80 raw whitespace-separated words collapse to 59 distinct lexemes under
+`simple` (repeated words like "the" and "council" count once each, but
+nothing is removed or stemmed) and to 49 under `english` — ten fewer,
+because `english` additionally discards stopwords like "the", "a", "of",
+"to", "in", and "and" entirely. They carry no search-relevant meaning on
+their own, and indexing them would only bloat the index with entries that
+match nearly every document.
+
+**2.2 — Watch the tokenizer classify each word with `ts_debug`**
+
+`ts_debug` is the diagnostic function for seeing exactly what a
+configuration does to a piece of text, word by word — useful whenever a
+search isn't matching what you expect and you need to know why. Run it on a
+short sentence:
+
+```sql
+SELECT alias, token, dictionaries, lexemes
+FROM   ts_debug('english', 'The council voted to approve the budget for the harbour renovation.')
+WHERE  alias <> 'blank';
+```
+
+```
+   alias   |   token    |  dictionaries  |  lexemes
+-----------+------------+----------------+-----------
+ asciiword | The        | {english_stem} | {}
+ asciiword | council    | {english_stem} | {council}
+ asciiword | voted      | {english_stem} | {vote}
+ asciiword | to         | {english_stem} | {}
+ asciiword | approve    | {english_stem} | {approv}
+ asciiword | the        | {english_stem} | {}
+ asciiword | budget     | {english_stem} | {budget}
+ asciiword | for        | {english_stem} | {}
+ asciiword | the        | {english_stem} | {}
+ asciiword | harbour    | {english_stem} | {harbour}
+ asciiword | renovation | {english_stem} | {renov}
+```
+
+Every token gets classified (`asciiword` here — a plain word) and routed to
+the `english_stem` dictionary. Content words come back with a stemmed
+lexeme; stopwords ("The", "to", "the", "for", "the") come back with an
+**empty** `lexemes` array — recognized, looked up, and explicitly discarded.
+That empty array is the entire mechanism: a word is a stopword precisely
+when its dictionary entry maps it to nothing.
+
+**2.3 — When you'd reach for `simple` instead**
+
+`english` is the right default for prose. `simple` is useful for columns
+where stemming would be actively wrong — product SKUs, tag lists, or
+anything where "waterfront" and "waterfronts" should *not* be treated as the
+same token. `city_documents.body` is prose, so the rest of this chapter uses
+`english`.
+
+---
+
+### Exercise 3 — A Maintained Column and a GIN Index
+
+Computing `to_tsvector(body)` at query time works, but it means recomputing
+the same tokenization on every single search, over every row, every time.
+The standard pattern is to store the vector in its own column, keep it
+current as rows change, and index it.
+
+**3.1 — Add the column and backfill it**
+
+```sql
+ALTER TABLE city_documents ADD COLUMN search_vector tsvector;
+
+UPDATE city_documents
+SET    search_vector = to_tsvector('english', title || ' ' || body);
+```
+
+Indexing `title` alongside `body` means a search for a word that only
+appears in the title (not repeated in the body text) still matches.
+
+**3.2 — Keep it current with a trigger**
+
+A column populated once goes stale the moment anyone edits `title` or
+`body`. A `BEFORE` trigger recomputes it on every write:
+
+```sql
+CREATE FUNCTION city_documents_search_vector_update() RETURNS trigger AS $$
+BEGIN
+    NEW.search_vector := to_tsvector('english', NEW.title || ' ' || NEW.body);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_city_documents_search_vector
+    BEFORE INSERT OR UPDATE OF title, body ON city_documents
+    FOR EACH ROW
+    EXECUTE FUNCTION city_documents_search_vector_update();
+```
+
+`OF title, body` scopes the trigger so it only fires when one of the two
+source columns actually changes — an `UPDATE` that only touches
+`published_date` doesn't pay for a needless re-tokenization.
+
+> **Note — the manual way vs. the modern way:** This trigger pattern is how
+> every PostgreSQL version has supported derived `tsvector` columns, and
+> it's still exactly right when the derived value depends on more than one
+> column, as it does here (`title` **and** `body`). PostgreSQL 12 added
+> **generated columns** (`GENERATED ALWAYS AS (...) STORED`), which handle
+> the common case — a `tsvector` derived from a single column — with less
+> boilerplate and no trigger function to maintain by hand. Chapter 16
+> revisits this exact table and replaces this trigger with a generated
+> column once `body` alone is the source. Both approaches produce an
+> identical `tsvector`; the trigger is simply the general-purpose tool that
+> works whenever the derivation is more than one column deep.
+
+**3.3 — Index it with GIN**
+
+```sql
+CREATE INDEX idx_city_documents_search_vector
+    ON city_documents USING GIN (search_vector);
+```
+
+```sql
+\d city_documents
+```
+
+```
+                                Table "public.city_documents"
+     Column     |   Type   | Collation | Nullable |                  Default
+----------------+----------+-----------+----------+--------------------------------------------
+ id             | integer  |           | not null | nextval('city_documents_id_seq'::regclass)
+ doc_type       | text     |           | not null |
+ department     | text     |           | not null |
+ title          | text     |           | not null |
+ body           | text     |           | not null |
+ published_date | date     |           | not null |
+ search_vector  | tsvector |           |          |
+Indexes:
+    "city_documents_pkey" PRIMARY KEY, btree (id)
+    "idx_city_documents_doc_type" btree (doc_type)
+    "idx_city_documents_published_date" btree (published_date)
+    "idx_city_documents_search_vector" gin (search_vector)
+Check constraints:
+    "city_documents_doc_type_check" CHECK (doc_type = ANY (ARRAY['council_minutes'::text, 'zoning_ordinance'::text, 'public_notice'::text]))
+Triggers:
+    trg_city_documents_search_vector BEFORE INSERT OR UPDATE OF title, body ON city_documents FOR EACH ROW EXECUTE FUNCTION city_documents_search_vector_update()
+```
+
+**3.4 — Confirm the index is used**
+
+The `@@` operator tests whether a `tsvector` matches a `tsquery`:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'harbour & waterfront');
+```
+
+```
+                                               QUERY PLAN
+---------------------------------------------------------------------------------------------------------
+ Seq Scan on city_documents  (cost=0.00..8.38 rows=1 width=36) (actual time=0.025..0.047 rows=5 loops=1)
+   Filter: (search_vector @@ '''harbour'' & ''waterfront'''::tsquery)
+   Rows Removed by Filter: 25
+   Buffers: shared hit=8
+```
+
+On 30 rows the planner reasonably decides a sequential scan is cheaper than
+an index lookup — same behaviour you saw with the JSONB GIN index in
+Chapter 1. Force the index to confirm it works, exactly as in that chapter:
+
+```sql
+SET enable_seqscan = off;
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'harbour & waterfront');
+
+SET enable_seqscan = on;   -- always restore this
+```
+
+```
+                                                                Query Plan
+------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on city_documents  (cost=12.98..16.99 rows=1 width=36) (actual time=0.024..0.033 rows=5 loops=1)
+   Recheck Cond: (search_vector @@ '''harbour'' & ''waterfront'''::tsquery)
+   Heap Blocks: exact=5
+   Buffers: shared hit=10
+   ->  Bitmap Index Scan on idx_city_documents_search_vector  (cost=0.00..12.98 rows=1 width=0) (actual time=0.014..0.014 rows=5 loops=1)
+         Index Cond: (search_vector @@ '''harbour'' & ''waterfront'''::tsquery)
+         Buffers: shared hit=5
+```
+
+`Bitmap Index Scan on idx_city_documents_search_vector` confirms the GIN
+index is doing the work. This is what makes full-text search viable at
+scale: instead of tokenizing every row's text on every query, PostgreSQL
+looks up each query lexeme directly in the index.
+
+---
+
+### Exercise 4 — `to_tsquery` vs. `plainto_tsquery`
+
+**4.1 — `to_tsquery`: a boolean query language**
+
+`to_tsquery` expects an expression using explicit operators: `&` (AND),
+`|` (OR), `!` (NOT), and `<->` (phrase — "immediately followed by"):
+
+```sql
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'harbour & waterfront')
+ORDER  BY id;
+```
+
+```
+ id |                                 title
+----+--------------------------------------------------------------------------
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget
+  8 | Council Minutes — Harbour District Food Truck Permits
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning
+ 30 | Public Notice — Annual Fireworks Display and Street Closures
+(5 rows)
+```
+
+`!` excludes a term. This finds documents about flooding that are *not*
+about the flood-mitigation infrastructure program specifically:
+
+```sql
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'flood & !mitigation')
+ORDER  BY id;
+```
+
+```
+ id |                        title
+----+--------------------------------------------------------
+  5 | Council Minutes — Riverside Road Resurfacing Program
+(1 row)
+```
+
+That single hit mentions "flooding" (which stems to `flood`) while
+discussing drainage damage, but never says "mitigation" — exactly what the
+query asked for.
+
+**4.2 — `to_tsquery` has no forgiveness for plain text**
+
+Feed it a raw phrase with no operator between the words, and it errors
+instead of guessing what you meant:
+
+```sql
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'flood mitigation');
+```
+
+```
+ERROR:  syntax error in tsquery: "flood mitigation"
+```
+
+This is `to_tsquery`'s defining trade-off: it is a precise query language
+for code that constructs queries deliberately, and it is the wrong function
+to hand raw user input from a search box — a user typing "flood mitigation"
+with no operators will get an error page instead of results.
+
+**4.3 — `plainto_tsquery`: safe for a search box**
+
+`plainto_tsquery` takes plain text, tokenizes and stems it exactly like
+`to_tsvector` does, drops stopwords, and **ANDs** everything that survives.
+Feed it the same two words that made `to_tsquery` error out in 4.2, but
+typed the way an actual user would type them — with a stray "the" in front:
+
+```sql
+SELECT plainto_tsquery('english', 'the flood mitigation');
+```
+
+```
+  plainto_tsquery
+--------------------
+ 'flood' & 'mitig'
+```
+
+"the" never makes it into the query — `plainto_tsquery` drops it as a
+stopword, exactly the way `to_tsvector` would drop it from a document, and
+ANDs together whatever content words are left. Run it against the table:
+
+```sql
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ plainto_tsquery('english', 'the flood mitigation')
+ORDER  BY id;
+```
+
+```
+ id |                                 title
+----+------------------------------------------------------------------------
+ 10 | Council Minutes — Special Session on Flood Mitigation Infrastructure
+ 25 | Public Notice — City Council Special Session on Flood Mitigation
+(2 rows)
+```
+
+No error this time, and no operators to get wrong — `plainto_tsquery` took
+a sentence fragment with a stopword in it and produced exactly the query
+4.2 had to write by hand. The trade-off runs the other way from
+`to_tsquery`: you get safety and stopword handling for free, but you lose
+the ability to express OR, NOT, or phrase search — `plainto_tsquery` always
+ANDs every surviving word together.
+
+**4.4 — `|` for OR searches**
+
+```sql
+SELECT to_tsquery('english', 'dog | bike');
+```
+
+```
+   to_tsquery
+----------------
+ 'dog' | 'bike'
+```
+
+```sql
+SELECT id, title
+FROM   city_documents
+WHERE  search_vector @@ to_tsquery('english', 'dog | bike')
+ORDER  BY id;
+```
+
+```
+ id |                               title
+----+---------------------------------------------------------------------
+  5 | Council Minutes — Riverside Road Resurfacing Program
+  6 | Council Minutes — Riverside Dog Park Funding
+  9 | Council Minutes — Canal Road Bike Lane Expansion
+ 15 | Zoning Ordinance — Reduced Parking Minimums Near Transit Corridors
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+ 28 | Public Notice — Canal Road Bike Lane Construction Schedule
+ 30 | Public Notice — Annual Fireworks Display and Street Closures
+(7 rows)
+```
+
+Document 5 (road resurfacing) and 15 (parking minimums) show up because
+each mentions "bike" in passing — the resurfacing minutes note the work
+being coordinated with "the planned Canal Road bike lane construction," and
+the parking ordinance references "the city's ongoing bike lane expansion."
+`OR` genuinely means *either*, which is exactly why it's useful and why it
+returns more, looser matches than `AND`.
+
+---
+
+### Exercise 5 — Ranking with `ts_rank` and `ts_rank_cd`, and `ts_headline` Snippets
+
+`@@` tells you whether a document matches — it says nothing about *how
+well*. A user searching a 30-document archive can eyeball every hit, but a
+user searching 30,000 documents needs the best matches first.
+
+**5.1 — `ts_rank`: weight by term frequency**
+
+```sql
+SELECT id, title, round(ts_rank(search_vector, query)::numeric, 4) AS rank
+FROM   city_documents, to_tsquery('english', 'harbour & waterfront') AS query
+WHERE  search_vector @@ query
+ORDER  BY rank DESC;
+```
+
+```
+ id |                                 title                                  |  rank
+----+------------------------------------------------------------------------+--------
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance         | 0.1986
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget        | 0.1959
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning | 0.1895
+  8 | Council Minutes — Harbour District Food Truck Permits                  | 0.0999
+ 30 | Public Notice — Annual Fireworks Display and Street Closures           | 0.0992
+(5 rows)
+```
+
+`ts_rank` scores primarily on how often the query terms appear relative to
+the document's overall length — it does not care where in the document they
+appear or how close together they are. Documents 12, 1, and 22 rank
+highest because "harbour" and "waterfront" are central, repeated themes in
+short documents; 8 and 30 rank lower because each mentions the harbour only
+in passing within a longer document about something else.
+
+**5.2 — `ts_rank_cd`: weight by proximity too ("cover density")**
+
+```sql
+SELECT id, title,
+       round(ts_rank(search_vector, query)::numeric, 4) AS rank,
+       round(ts_rank_cd(search_vector, query)::numeric, 4) AS rank_cd
+FROM   city_documents, to_tsquery('english', 'harbour & waterfront') AS query
+WHERE  search_vector @@ query
+ORDER  BY rank_cd DESC;
+```
+
+```
+ id |                                 title                                  |  rank  | rank_cd
+----+------------------------------------------------------------------------+--------+---------
+  1 | Council Minutes — Harbour District Waterfront Renovation Budget        | 0.1959 |  0.1107
+ 22 | Public Notice — Public Hearing on Harbour District Waterfront Rezoning | 0.1895 |  0.1053
+ 12 | Zoning Ordinance — Harbour District Waterfront Height Variance         | 0.1986 |  0.0700
+ 30 | Public Notice — Annual Fireworks Display and Street Closures           | 0.0992 |  0.0545
+  8 | Council Minutes — Harbour District Food Truck Permits                  | 0.0999 |  0.0542
+(5 rows)
+```
+
+The order changes: document 12 had the *highest* `ts_rank` but drops to
+third under `ts_rank_cd`. `ts_rank_cd` additionally rewards matched terms
+that cluster close together in the text ("cover density") — in documents 1
+and 22, "harbour" and "waterfront" appear right next to each other
+("Harbour District **Waterfront** Renovation…"); in document 12 they occur
+further apart. Neither function is universally "more correct" — `ts_rank`
+is the standard choice; `ts_rank_cd` is worth trying when word proximity
+itself signals relevance, as it often does for short phrase-like queries.
+
+**5.3 — Highlighted snippets with `ts_headline`**
+
+A ranked list of titles is useful; showing *why* a document matched, with
+the query terms highlighted in context, is what users actually expect from
+a search results page:
+
+```sql
+SELECT ts_headline('english', body, to_tsquery('english', 'harbour & waterfront'),
+                    'StartSel=**, StopSel=**, MaxWords=25, MinWords=10')
+FROM   city_documents
+WHERE  id = 1;
+```
+
+```
+ **Harbour** District **waterfront** renovation. The Director of Public Works presented
+```
+
+`ts_headline` re-scans the original text (not the `tsvector`) looking for
+the query terms, extracts a window around the best-matching fragment
+bounded by `MinWords`/`MaxWords`, and wraps each match in `StartSel`/
+`StopSel` markers — `**…**` here, but in a web application you'd use
+`<mark>…</mark>` or similar. This is genuinely expensive compared to a
+`tsvector` lookup (it re-tokenizes the source text on every call), so use
+it only on the page of results you're actually displaying, never inside a
+`WHERE` clause.
+
+---
+
+### Exercise 6 — A Custom Text Search Configuration for Domain Stopwords
+
+**6.1 — The problem: some "content" words carry no information here**
+
+This is a city document archive. The words "Portsmith", "city", and
+"council" appear constantly — they are structurally present in almost every
+record, the way "the" is present in almost every English sentence. Standard
+`english` stopword removal has no way to know that, because it is tuned for
+general English, not this specific corpus:
+
+```sql
+SELECT count(*) FROM city_documents
+WHERE  search_vector @@ to_tsquery('english', 'city & council');
+```
+
+```
+ count
+-------
+     8
+```
+
+Eight of thirty documents — over a quarter of the entire archive — "match"
+a query on words that describe almost nothing about what makes any one of
+them relevant. Left alone, these words dilute ranking scores and inflate
+plain-text queries with noise terms the searcher didn't mean to require.
+
+**6.2 — Build a stopword file that extends the standard list**
+
+A text search configuration's stopword list is a plain text file, one word
+per line, that PostgreSQL reads from its `tsearch_data` directory. Start
+from the existing `english.stop` file so you keep every standard English
+stopword, then append the domain-specific ones:
+
+```bash
+PG_SHAREDIR=$(pg_config --sharedir)
+sudo bash -c "cat '$PG_SHAREDIR/tsearch_data/english.stop' > '$PG_SHAREDIR/tsearch_data/portsmith_english.stop'"
+sudo bash -c "printf 'portsmith\ncity\ncouncil\n' >> '$PG_SHAREDIR/tsearch_data/portsmith_english.stop'"
+```
+
+> Placing files here requires root, since `tsearch_data` lives under
+> PostgreSQL's shared install directory rather than anything database-owned.
+> If your platform's PostgreSQL package stores it elsewhere, `pg_config
+> --sharedir` will always point at the right location.
+
+**6.3 — Wire the file into a dictionary and a configuration**
+
+A stopword file alone does nothing — it has to be attached to a **text
+search dictionary**, and that dictionary mapped into a **text search
+configuration** that queries can actually reference:
+
+```sql
+CREATE TEXT SEARCH DICTIONARY portsmith_stem (
+    TEMPLATE = snowball,
+    LANGUAGE = english,
+    STOPWORDS = portsmith_english
+);
+
+CREATE TEXT SEARCH CONFIGURATION public.portsmith_english (COPY = pg_catalog.english);
+
+ALTER TEXT SEARCH CONFIGURATION portsmith_english
+    ALTER MAPPING FOR asciiword, asciihword, hword_asciipart, word, hword, hword_part
+    WITH portsmith_stem;
+```
+
+`TEMPLATE = snowball` reuses PostgreSQL's standard English stemming
+algorithm — only the stopword list changes, not the stemming rules.
+`COPY = pg_catalog.english` starts the new configuration as an exact clone
+of `english` (same tokenizer, same handling of numbers, emails, URLs, …),
+and the `ALTER MAPPING` line is the one substitution: word tokens now route
+through `portsmith_stem` instead of the stock `english_stem` dictionary.
+
+**6.4 — Confirm the noise words are gone**
+
+```sql
+SELECT to_tsvector('portsmith_english', body) FROM city_documents WHERE id = 25;
+```
+
+```
+'affect':37 'area':27 'attend':44 'basin':59 'comment':47 'conven':11 'develop':61
+'discuss':16 'drain':56 'encourag':42 'engin':53 'flood':17,40,68 'given':4
+'herebi':3 'infrastructur':19 'last':65 'mitig':18 'northgat':24 'notic':1
+'open':31 'present':50 'propos':60 'provid':46 'public':34 'resid':36
+'respons':63 'retain':25 'retent':58 'riversid':21 'session':14,29 'special':13
+'spring':39 'staff':48 'storm':55 'wall':26 'year':66
+```
+
+Compare to `to_tsvector('english', body)` on the same row, which still
+carries `'citi':8,52`, `'council':9`, and `'portsmith':7` — three entries
+present under `english` and absent under `portsmith_english`. Everything
+else is untouched, because only the stopword list changed.
+
+**6.5 — Watch a noise-only query collapse to nothing**
+
+```sql
+SELECT to_tsquery('portsmith_english', 'city & council');
+```
+
+```
+NOTICE:  text-search query contains only stop words or doesn't contain lexemes, ignored
+ to_tsquery
+------------
+
+(1 row)
+```
+
+Under `portsmith_english`, "city" and "council" are *both* stopwords, so a
+query built from nothing else has nothing left to search for — PostgreSQL
+says so explicitly instead of silently matching everything (or nothing) for
+an unclear reason.
+
+**6.6 — See it fix a real plain-text search**
+
+This is the exercise's payoff: a resident searching for "Portsmith dog park
+council" — a completely natural way to phrase it — under `english`:
+
+```sql
+SELECT plainto_tsquery('english', 'Portsmith dog park council');
+```
+
+```
+             plainto_tsquery
+-------------------------------------------
+ 'portsmith' & 'dog' & 'park' & 'council'
+```
+
+```sql
+SELECT id, title FROM city_documents
+WHERE  search_vector @@ plainto_tsquery('english', 'Portsmith dog park council')
+ORDER  BY id;
+```
+
+```
+ id |                          title
+----+-----------------------------------------------------------
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+(1 row)
+```
+
+Only one hit. The council minutes that actually approved funding for the
+same dog park (document 6) never happens to use the literal word
+"Portsmith," so requiring it as an AND term silently excludes the single
+most relevant record. Under `portsmith_english`:
+
+```sql
+SELECT plainto_tsquery('portsmith_english', 'Portsmith dog park council');
+```
+
+```
+ plainto_tsquery
+-----------------
+ 'dog' & 'park'
+```
+
+```sql
+SELECT id, title FROM city_documents
+WHERE  search_vector @@ plainto_tsquery('portsmith_english', 'Portsmith dog park council')
+ORDER  BY id;
+```
+
+```
+ id |                          title
+----+-----------------------------------------------------------
+  6 | Council Minutes — Riverside Dog Park Funding
+ 24 | Public Notice — Riverside Dog Park Ribbon-Cutting Event
+(2 rows)
+```
+
+Stripped down to the two words that actually distinguish this search —
+`dog` and `park` — both relevant documents come back. This is the concrete
+argument for a custom configuration: it is not a cosmetic tweak, it changes
+which documents a real user actually finds.
+
+> **Note:** the `search_vector` column built in Exercise 3 was populated
+> with the stock `english` configuration, so it still contains `'citi'`,
+> `'council'`, and `'portsmith'` lexemes. The comparisons above work because
+> `@@` only needs the *query's* surviving lexemes to be a subset of the
+> document's — extra lexemes in the document that the query no longer asks
+> for are simply irrelevant. To fully adopt `portsmith_english` as the
+> table's search configuration going forward, you would update the trigger
+> from Exercise 3 to call `to_tsvector('portsmith_english', …)` and rebuild
+> `search_vector` for existing rows.
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it does |
+|------|-------------|
+| `to_tsvector(config, text)` | Tokenizes, lowercases, stems, and removes stopwords, producing a searchable `lexeme:position` vector |
+| `to_tsquery(config, expr)` | Parses a boolean query language (`&`, `\|`, `!`, `<->`); errors on plain text with no operators |
+| `plainto_tsquery(config, text)` | Tokenizes plain text the same way as `to_tsvector`, then ANDs every surviving lexeme — safe for a search box |
+| `@@` | Tests whether a `tsvector` matches a `tsquery` |
+| `ts_debug(config, text)` | Shows exactly how each token was classified and which lexeme (if any) it produced — the tool for "why didn't this match?" |
+| GIN index on a `tsvector` column | Turns `@@` from a sequential scan into an index lookup |
+| `ts_rank` / `ts_rank_cd` | Score match quality by term frequency, or by term frequency **and** proximity ("cover density") |
+| `ts_headline(config, text, query, options)` | Re-scans the source text and returns a highlighted snippet — expensive; use only on displayed results |
+| `CREATE TEXT SEARCH DICTIONARY ... (STOPWORDS = ...)` + `CREATE TEXT SEARCH CONFIGURATION` | Build a custom configuration with domain-specific stopwords |
+
+**The key design insight** from this chapter is that full-text search is not
+one function call — it's a pipeline (tokenize → stem → filter stopwords)
+that you can inspect at every stage with `ts_debug`, store the output of
+with a maintained column and a GIN index, query against with two very
+different trade-offs (`to_tsquery` for precision, `plainto_tsquery` for
+safety), and tune for your specific corpus by swapping the stopword list —
+exactly the kind of tuning a generic search engine bolted on top of your
+database can't do without shipping your schema knowledge to it.
+
+The `city_documents` table you built here is reused directly in later
+chapters: Chapter 6 (`pgvector`) adds embeddings to the same table for
+semantic search and builds a hybrid search combining `ts_rank` with cosine
+distance, and Chapter 16 (Generated Columns) replaces the hand-written
+trigger from Exercise 3 with a `GENERATED ALWAYS AS (...) STORED` column.
+
+---
+
+*Going further: `websearch_to_tsquery` (PostgreSQL 11+) is worth knowing
+about even though this chapter didn't use it — it accepts the same
+quoted-phrase and `-exclude` syntax as a typical web search box (e.g.
+`"flood mitigation" -infrastructure`) while remaining as forgiving as
+`plainto_tsquery`, making it the best default for a real user-facing search
+field. For very large document sets, look into PostgreSQL's built-in
+support for weighted vectors (`setweight()`, ranking title matches above
+body matches) and consider whether a dedicated search engine becomes
+worthwhile once ranking quality and query latency requirements outgrow what
+a GIN index over a single table can deliver — the honest answer, for most
+applications, is later than you'd expect.*
+<div style="page-break-before: always;"></div>
+# Chapter 5 — Fuzzy Matching: `pg_trgm`
+
+> *"Every registry that outlives a year of real data entry ends up with the
+> same person in it twice, spelled two different ways."*
+
+---
+
+## Background
+
+Full-text search, from the last chapter, is built for a specific kind of
+imprecision: the same *word*, inflected differently ("vote", "voted",
+"voting"). It does nothing for a different, equally common kind of
+imprecision — the same word, **spelled** differently. "Portsmith" typed as
+"Portsmith" versus "Portsmyth". "McAllister" versus "MacAllister". A
+resident registry filled in by hand, twice, by two different clerks, on two
+different days. Stemming cannot fix a typo, because a typo isn't a
+grammatical variant of the correct word — it's a different string that a
+human reader recognizes as "close enough" and a computer, by default, does
+not.
+
+`pg_trgm` is PostgreSQL's answer: it breaks strings into overlapping
+three-character sequences (**trigrams**) and measures how many trigrams two
+strings share. Two spellings of the same name share most of their trigrams
+even when several letters differ; two unrelated strings usually share
+almost none. That single idea — measured, thresholded, and indexed — is
+enough to power "did you mean?" search boxes, deduplicate messy records, and
+accelerate substring `LIKE` queries that would otherwise force a sequential
+scan.
+
+This chapter builds a small deduplication and search tool around that idea:
+what a trigram actually is, how `similarity()` scores a pair of strings, how
+to turn that into an index instead of an O(n²) scan, and — the harder,
+more honest part — where trigram matching's judgment calls are, because no
+similarity threshold gets every case right.
+
+---
+
+## The Scenario
+
+Portsmith's resident registry has been filled in over years by different
+staff at different counters, and it shows: the same person appears twice
+under two spellings of their name often enough that nobody trusts a raw
+`COUNT(*)` on it anymore. Separately, the city's 311 line fields phone
+searches for local businesses, and callers rarely spell a business name
+correctly on the first try.
+
+Two tables model this:
+
+| Table            | Purpose                                                                 |
+|-------------------|--------------------------------------------------------------------------|
+| `residents`       | Synthetic residents, including intentional near-duplicate entries — the same person, typed twice, with a typo, transposition, or variant spelling the second time |
+| `business_names`  | A flat `(business_id, name)` lookup extending the `businesses` table from Chapter 1, used for "did you mean?" search |
+
+`residents` includes a `true_duplicate_of` column that a real registry would
+**not** have — you would not know in advance which rows are duplicates; that
+is the entire problem fuzzy matching exists to solve. It's here purely so
+the exercises can check whether your queries found the right answers. The
+dataset also includes two pairs that are deliberately *not* marked as
+duplicates, on purpose — more on those in Exercise 2.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Explain what a trigram is and compute `similarity()` between two strings
+  by hand for a short example.
+- Use the `%` operator to find near-matches at a configurable similarity
+  threshold, and explain why no single threshold is perfectly correct.
+- Use `word_similarity()` to find a short query as a strong partial match
+  inside a longer string, and explain how it differs from `similarity()`.
+- Create a GIN trigram index and confirm it accelerates both `%` and
+  `LIKE '%term%'` queries that would otherwise force a sequential scan.
+- Build a "did you mean?" query using a GiST trigram index and `ORDER BY
+  ... <->`, and explain why GiST — not GIN — is the right index for that
+  access pattern.
+- Compare trigram matching against full-text search on the same kind of
+  short, keyword-style query, and know which one to reach for.
+
+---
+
+## Installation
+
+`pg_trgm` ships as part of the standard `postgresql-16` package on
+Debian/Ubuntu — unlike PostGIS in Chapter 2, there is no separate package to
+install. Enable it in the database:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+---
+
+## Loading the Data
+
+### Prerequisites
+
+Chapter 1's seed script must have been run first — `business_names` is
+populated directly from the `businesses` table:
+
+```bash
+python data/ch01_seed.py
+```
+
+### Run the Chapter 5 seed
+
+```bash
+python data/ch05_seed.py
+```
+
+Expected output:
+
+```
+Connecting to: dbname=portsmith
+Creating schema …
+Inserting 58 residents …
+Populating business_names from businesses …
+Done — 58 rows in residents, 48 rows in business_names.
+```
+
+### Verify the load
+
+Open `psql portsmith` and run these checks.
+
+**Check 1 — table structure:**
+
+```sql
+\d residents
+```
+
+```
+                                  Table "public.residents"
+      Column       |  Type   | Collation | Nullable |                Default
+-------------------+---------+-----------+----------+---------------------------------------
+ id                | integer |           | not null | nextval('residents_id_seq'::regclass)
+ full_name         | text    |           | not null |
+ neighbourhood     | text    |           | not null |
+ true_duplicate_of | integer |           |          |
+Indexes:
+    "residents_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "residents_true_duplicate_of_fkey" FOREIGN KEY (true_duplicate_of) REFERENCES residents(id)
+Referenced by:
+    TABLE "residents" CONSTRAINT "residents_true_duplicate_of_fkey" FOREIGN KEY (true_duplicate_of) REFERENCES residents(id)
+```
+
+**Check 2 — every marked duplicate points at a real canonical row:**
+
+```sql
+SELECT COUNT(*) AS duplicate_pairs
+FROM   residents
+WHERE  true_duplicate_of IS NOT NULL;
+```
+
+```
+ duplicate_pairs
+-----------------
+              12
+```
+
+**Check 3 — `business_names` mirrors `businesses` 1:1:**
+
+```sql
+SELECT COUNT(*) FROM business_names;
+```
+
+```
+ count
+-------
+    48
+```
+
+If all three match, proceed to the exercises.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — What a Trigram Is, and `similarity()`
+
+**1.1 — Break a string into trigrams**
+
+`show_trgm()` returns the actual set of trigrams PostgreSQL generates for a
+string:
+
+```sql
+SELECT show_trgm('Eleanor');
+```
+
+```
+                show_trgm
+-------------------------------------------
+ {"  e"," el",ano,ean,ele,lea,nor,"or "}
+```
+
+Before splitting, PostgreSQL pads the string with two leading spaces and one
+trailing space — `"  eleanor "` — then takes every overlapping run of three
+characters: `"  e"`, `" el"`, `"ele"`, `"lea"`, `"ean"`, `"ano"`, `"nor"`,
+`"or "`. The padding matters: it means the first and last letters of a word
+each get their own distinguishing trigram (`"  e"` marks "starts with e";
+`"or "` marks "ends with or"), so two strings that only differ at the very
+start or end still register as different rather than accidentally looking
+identical in the middle.
+
+**1.2 — `similarity()`: how much overlap, as a fraction**
+
+```sql
+SELECT similarity('Eleanor Whitmore', 'Elenor Whitmore');
+```
+
+```
+ similarity
+------------
+  0.7368421
+```
+
+`similarity()` compares the trigram sets of both strings and returns
+roughly the fraction that overlap — mostly shared trigrams (both names are
+16-17 characters, differing by one dropped letter) means a high score close
+to 1. Two unrelated strings — "Eleanor Whitmore" and, say, "Ironside Auto"
+— share almost no trigrams and score close to 0. The scale is intuitive by
+construction: 1.0 is identical, 0.0 is nothing alike.
+
+**1.3 — All twelve duplicate pairs, scored**
+
+```sql
+SELECT a.full_name AS canonical, b.full_name AS duplicate_entry,
+       round(similarity(a.full_name, b.full_name)::numeric, 3) AS sim
+FROM   residents a
+JOIN   residents b ON b.true_duplicate_of = a.id
+ORDER  BY a.id;
+```
+
+```
+      canonical        |    duplicate_entry     |  sim
+------------------------+------------------------+-------
+ Eleanor Whitmore       | Elenor Whitmore        | 0.737
+ Jonathan Castellano    | Jonathon Castellano    | 0.739
+ Priyanka Deshmukh      | Priyanka Deshmuk       | 0.842
+ Bartholomew Okonkwo    | Bartholemew Okonkwo    | 0.739
+ Marguerite Delacroix   | Marguerite Delacroiux  | 0.792
+ Siobhan McAllister     | Siobhan MacAllister    | 0.773
+ Theodore Vance         | Theodor Vance          | 0.813
+ Anastasia Volkov       | Anastassia Volkov      | 0.842
+ Desmond Okafor         | Desmund Okafor         | 0.667
+ Genevieve Laurent      | Genevieve Lorent       | 0.667
+ Mikhail Petrenko       | Mikail Petrenko        | 0.737
+ Fitzgerald Osei        | Fitzgerld Osei         | 0.722
+```
+
+Every genuine duplicate in this dataset scores well above 0.6, regardless
+of whether the typo was a dropped letter, a swapped letter, or a spelling
+variant. That range is the working intuition Exercise 2 turns into an
+actual threshold.
+
+---
+
+### Exercise 2 — The `%` Operator, and Why One Threshold Isn't Enough
+
+**2.1 — `%`: "similar enough," using a session-wide threshold**
+
+Computing `similarity()` for every pair by hand doesn't scale. The `%`
+operator wraps it into a boolean test against a configurable cutoff:
+
+```sql
+SHOW pg_trgm.similarity_threshold;
+```
+
+```
+ pg_trgm.similarity_threshold
+-------------------------------
+ 0.3
+```
+
+`0.3` is the default. Self-join `residents` against itself to find every
+pair of *different* rows that clears it — this is the actual "find likely
+duplicates" query:
+
+```sql
+SELECT a.id, a.full_name, b.id, b.full_name,
+       round(similarity(a.full_name, b.full_name)::numeric, 3) AS sim
+FROM   residents a
+JOIN   residents b ON a.id < b.id
+WHERE  a.full_name % b.full_name
+ORDER  BY sim DESC, a.id;
+```
+
+```
+ id |      full_name       | id |       full_name       |  sim
+----+-----------------------+----+------------------------+-------
+ 35 | Priyanka Deshmukh     | 36 | Priyanka Deshmuk       | 0.842
+ 45 | Anastasia Volkov      | 46 | Anastassia Volkov      | 0.842
+ 43 | Theodore Vance        | 44 | Theodor Vance          | 0.813
+ 39 | Marguerite Delacroix  | 40 | Marguerite Delacroiux  | 0.792
+ 41 | Siobhan McAllister    | 42 | Siobhan MacAllister    | 0.773
+ 57 | Nadia Kowalski        | 58 | Nadia Kowalska         | 0.765
+ 33 | Jonathan Castellano   | 34 | Jonathon Castellano    | 0.739
+ 37 | Bartholomew Okonkwo   | 38 | Bartholemew Okonkwo    | 0.739
+ 31 | Eleanor Whitmore      | 32 | Elenor Whitmore        | 0.737
+ 51 | Mikhail Petrenko      | 52 | Mikail Petrenko        | 0.737
+ 53 | Fitzgerald Osei       | 54 | Fitzgerld Osei         | 0.722
+ 47 | Desmond Okafor        | 48 | Desmund Okafor         | 0.667
+ 49 | Genevieve Laurent     | 50 | Genevieve Lorent       | 0.667
+ 55 | Robert Ashworth       | 56 | Bobby Ashworth         | 0.409
+(14 rows)
+```
+
+`a.id < b.id` keeps each pair once instead of twice (A-vs-B and B-vs-A are
+the same comparison). Notice: **fourteen** rows came back, not twelve. Check
+`true_duplicate_of` on every row involved and you'll find twelve of these
+pairs marked as genuine duplicates and two that are not — "Nadia Kowalski"
+/ "Nadia Kowalska" and "Robert Ashworth" / "Bobby Ashworth". They're in
+this dataset on purpose, and — this is the point of the exercise — look at
+*where* they landed in the ranking.
+
+**2.2 — A false positive sitting in the middle of the true positives**
+
+"Nadia Kowalski" and "Nadia Kowalska" are two unrelated Riverside
+residents who happen to share a first name and a Polish surname that
+differs only in its masculine/feminine ending. Their similarity, `0.765`,
+isn't an edge case at the bottom of the list — it sits **between** "Siobhan
+McAllister"/"Siobhan MacAllister" (`0.773`) and "Bartholomew Okonkwo"/
+"Bartholemew Okonkwo" (`0.739`), two genuine duplicates. `similarity()` is
+doing exactly what it's designed to do: these two strings really are that
+close. Whether that means "probably the same person" is a judgment call
+the function cannot make on its own — the central limitation of fuzzy
+matching. It finds **candidates**, not verified duplicates. A production
+dedup pipeline treats a `%` match as "flag for review" or "compare a
+second field too" (a shared phone number or address), never as "merge
+automatically."
+
+**2.3 — Prove no threshold fixes it**
+
+Try to set a threshold that excludes the Kowalski pair:
+
+```sql
+SET pg_trgm.similarity_threshold = 0.77;
+```
+
+Re-run the query from 2.1. "Nadia Kowalski"/"Nadia Kowalska" (`0.765`) is
+gone — but so are seven of the twelve genuine duplicates, everything
+scoring below `0.77`. There is no number you can put in that `SET`
+statement that keeps all twelve real duplicates and excludes the Kowalski
+pair, because a real duplicate ("Bartholomew Okonkwo"/"Bartholemew
+Okonkwo", `0.739`) scores *lower* than the false positive you're trying to
+exclude. Put the threshold back before continuing:
+
+```sql
+SET pg_trgm.similarity_threshold = 0.3;
+```
+
+**2.4 — A different failure: the false negative you'd never even see**
+
+"Robert Ashworth" and "Bobby Ashworth" are, in this dataset's backstory,
+the same person — entered once with a nickname. Notice they only made the
+results list at all (`0.409`) because of the shared surname "Ashworth"; as
+given names alone, "Robert" and "Bobby" share nothing:
+
+```sql
+SELECT similarity('Robert', 'Bobby');
+```
+
+```
+ similarity
+------------
+          0
+```
+
+A resident with a *less* distinctive shared surname and a nicknamed given
+name would score near zero overall and never appear in a `%` results list
+at any threshold — not a borderline case to review, just silently absent.
+`similarity()` measures string closeness, not identity; it has no way to
+know "Bobby" is short for "Robert" unless something else tells it, such as
+a synonym table consulted alongside it.
+
+**2.5 — The honest takeaway**
+
+Between the Kowalski pair and the Ashworth pair, this dataset has one
+false positive that no threshold can cleanly exclude without also losing
+real duplicates, and one true duplicate that scores so low it would never
+surface as a candidate in the first place. Tune
+`pg_trgm.similarity_threshold` to trade recall against precision for your
+own data — but go in expecting a trade-off, not a number that gets both
+sides to zero.
+
+---
+
+### Exercise 3 — `word_similarity()` for Partial Matches
+
+`similarity()` compares two whole strings — it penalizes a short query
+against a long target just for being different lengths, which makes it a
+poor fit for "does this short input appear as a strong match somewhere
+inside this longer string?"
+
+**3.1 — Compare the two functions on the same query**
+
+```sql
+SELECT name, round(similarity('bake', name)::numeric, 3) AS full_sim
+FROM   business_names
+ORDER  BY full_sim DESC, name
+LIMIT  3;
+```
+
+```
+          name          | full_sim
+-------------------------+----------
+ River Bend Bakery       |    0.222
+ Campus Bike & Sports    |    0.091
+ Finch & Sons Barbers    |    0.091
+```
+
+```sql
+SELECT name, round(word_similarity('bake', name)::numeric, 3) AS word_sim
+FROM   business_names
+ORDER  BY word_sim DESC, name
+LIMIT  3;
+```
+
+```
+          name          | word_sim
+-------------------------+----------
+ River Bend Bakery       |    0.800
+ Bay Street Electronics  |    0.400
+ Finch & Sons Barbers    |    0.400
+```
+
+Same query, same top result, very different score: `0.222` versus `0.800`.
+`word_similarity()` finds the best-matching *substring extent* inside the
+target — effectively "if I could crop this longer string down to the part
+that best matches my query, how similar would that piece be?" — rather than
+scoring the query against the target's full length. "bake" against "River
+Bend **Bake**ry" scores high because "Bake" is a near-perfect fragment
+match, even though "bake" is a small fraction of the full business name.
+
+**3.2 — When to reach for which**
+
+Use `similarity()` when you're comparing two values that *should* represent
+the same whole thing — two spellings of one name, as in Exercises 1 and 2.
+Use `word_similarity()` when a short query is expected to be a fragment of
+a longer field — autocomplete-style search-as-you-type, or matching a
+partial business name a caller remembers.
+
+---
+
+### Exercise 4 — GIN Trigram Indexes
+
+**4.1 — Without an index**
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name FROM business_names WHERE name LIKE '%Bakery%';
+```
+
+```
+                                                QUERY PLAN
+------------------------------------------------------------------------------------------------------
+ Seq Scan on business_names  (cost=0.00..25.88 rows=1 width=32) (actual time=0.008..0.009 rows=1 loops=1)
+   Filter: (name ~~ '%Bakery%'::text)
+   Rows Removed by Filter: 47
+   Buffers: shared hit=1
+```
+
+A plain B-tree index cannot help here — `%Bakery%` has no fixed prefix, so
+there's nothing for a B-tree to seek to. This is exactly the case `pg_trgm`
+was built for: it indexes every trigram in every row, so a `LIKE` pattern
+(itself broken into trigrams) can be looked up directly.
+
+**4.2 — Create the index**
+
+```sql
+CREATE INDEX idx_business_names_trgm
+    ON business_names
+    USING GIN (name gin_trgm_ops);
+```
+
+**4.3 — Confirm it's used**
+
+As in earlier chapters, force the index on a table this small to see the
+mechanism:
+
+```sql
+SET enable_seqscan = off;
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT name FROM business_names WHERE name LIKE '%Bakery%';
+
+SET enable_seqscan = on;   -- always restore this
+```
+
+```
+                                                           QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on business_names  (cost=21.82..25.83 rows=1 width=32) (actual time=0.024..0.025 rows=1 loops=1)
+   Recheck Cond: (name ~~ '%Bakery%'::text)
+   Heap Blocks: exact=1
+   Buffers: shared hit=10
+   ->  Bitmap Index Scan on idx_business_names_trgm  (cost=0.00..21.82 rows=1 width=0) (actual time=0.016..0.017 rows=1 loops=1)
+         Index Cond: (name ~~ '%Bakery%'::text)
+         Buffers: shared hit=9
+```
+
+`Bitmap Index Scan on idx_business_names_trgm` — the same GIN index also
+accelerates `%`, `word_similarity() %>`, and both `LIKE` and `ILIKE` with
+leading wildcards, all from one index.
+
+---
+
+### Exercise 5 — A "Did You Mean?" Query with GiST
+
+**5.1 — The pattern: order by trigram distance, take the top few**
+
+`pg_trgm` defines a distance operator, `<->` — the complement of
+similarity (smaller means more alike) — which makes "closest matches
+first" a plain `ORDER BY ... LIMIT`:
+
+```sql
+SELECT name, round(similarity(name, 'Ironsyde Auto')::numeric, 3) AS sim
+FROM   business_names
+ORDER  BY name <-> 'Ironsyde Auto', name
+LIMIT  5;
+```
+
+```
+        name         |  sim
+----------------------+-------
+ Ironside Auto        | 0.647
+ AutoFix Portsmith    | 0.143
+ Harbour Inn          | 0.040
+ The Art Depot        | 0.037
+ Riverside Cinema     | 0.033
+```
+
+A caller who typed "Ironsyde Auto" (transposed letters) gets "Ironside
+Auto" back as the clear top match, well clear of the noise below it — this
+is the entire "did you mean?" feature.
+
+**5.2 — Why the GIN index from Exercise 4 doesn't help here**
+
+```sql
+EXPLAIN (ANALYZE)
+SELECT name FROM business_names
+ORDER BY name <-> 'Ironsyde Auto'
+LIMIT  5;
+```
+
+```
+                                                      QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2.40..2.41 rows=5 width=36) (actual time=0.182..0.183 rows=5 loops=1)
+   ->  Sort  (cost=2.40..2.52 rows=48 width=36) (actual time=0.181..0.182 rows=5 loops=1)
+         Sort Key: ((name <-> 'Ironsyde Auto'::text))
+         Sort Method: top-N heapsort  Memory: 25kB
+         ->  Seq Scan on business_names  (cost=0.00..1.60 rows=48 width=36) (actual time=0.040..0.157 rows=48 loops=1)
+```
+
+Even with `idx_business_names_trgm` in place, this plan is a full scan plus
+a sort — GIN accelerates *lookups* ("which rows contain trigrams matching
+this pattern") but has no notion of a distance ordering. Nearest-neighbor
+queries need an index that natively understands "closest," which is what
+**GiST** provides:
+
+```sql
+CREATE INDEX idx_business_names_trgm_gist
+    ON business_names
+    USING GIST (name gist_trgm_ops);
+```
+
+```sql
+EXPLAIN (ANALYZE)
+SELECT name FROM business_names
+ORDER BY name <-> 'Ironsyde Auto'
+LIMIT  5;
+```
+
+```
+                                                                     QUERY PLAN
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..1.07 rows=5 width=36) (actual time=0.130..0.143 rows=5 loops=1)
+   ->  Index Scan using idx_business_names_trgm_gist on business_names  (cost=0.14..9.09 rows=48 width=36) (actual time=0.129..0.141 rows=5 loops=1)
+         Order By: (name <-> 'Ironsyde Auto'::text)
+```
+
+`Order By: (name <-> 'Ironsyde Auto'::text)` inside an `Index Scan` — the
+GiST index walks straight to the nearest rows instead of scoring and
+sorting every row in the table. **Rule of thumb: GIN for `%`/`LIKE`
+membership lookups, GiST for `ORDER BY ... <-> ... LIMIT n` nearest-match
+queries.** It's common to keep both, as this table now does, if an
+application needs both access patterns.
+
+**5.3 — One more example**
+
+```sql
+SELECT name, round(similarity(name, 'Portsmith Vetrinary Clinic')::numeric, 3) AS sim
+FROM   business_names
+ORDER  BY name <-> 'Portsmith Vetrinary Clinic', name
+LIMIT  5;
+```
+
+```
+            name              |  sim
+-------------------------------+-------
+ Portsmith Veterinary Clinic   | 0.833
+ AutoFix Portsmith             | 0.286
+ Portsmith Pharmacy            | 0.286
+ Portsmith Tailors             | 0.286
+ Portsmith Arms Hotel          | 0.263
+```
+
+---
+
+### Exercise 6 — Trigram Matching vs. Full-Text Search, Head to Head
+
+Chapter 4 built full-text search over `city_documents`; this chapter built
+trigram matching over `business_names`. Both can answer "find rows
+matching this word" — they are good at it for different, almost opposite,
+reasons.
+
+**6.1 — A spelling variant: trigram wins**
+
+Portsmith's own documents consistently use the British spelling
+"harbour." A caller who types the American spelling "harbor" gets nothing
+from full-text search — stemming normalizes *inflection* ("harbors" →
+"harbor"), not *spelling*:
+
+```sql
+SELECT to_tsvector('english', 'Harbour View Theater') @@ to_tsquery('english', 'harbor');
+```
+
+```
+ ?column?
+----------
+ f
+```
+
+Trigram similarity doesn't care that they're "different words" — it only
+sees how many three-letter fragments overlap, and "harbor"/"harbour" share
+almost all of theirs:
+
+```sql
+SELECT similarity('harbor', 'harbour');
+```
+
+```
+ similarity
+------------
+        0.5
+```
+
+**6.2 — A short, correctly-spelled keyword: full-text search wins**
+
+Run a short, exact keyword against `business_names` both ways:
+
+```sql
+SELECT name, round(similarity(name, 'bay')::numeric, 3) AS sim
+FROM   business_names
+ORDER  BY sim DESC, name
+LIMIT  6;
+```
+
+```
+          name           |  sim
+--------------------------+-------
+ Mango Bay Caribbean      | 0.200
+ Bay Street Electronics   | 0.174
+ River Bend Bakery        | 0.105
+ Finch & Sons Barbers     | 0.095
+ Bella Napoli             | 0.063
+ Le Petit Bistro          | 0.053
+```
+
+A three-letter query like "bay" barely produces any trigrams of its own,
+so the scores are all low and close together — "River Bend Bakery" and
+"Finch & Sons Barbers" show up with real, if small, similarity despite
+having nothing to do with "bay." There's no clean gap between signal and
+noise. Full-text search, which matches on whole tokens rather than
+character fragments, has no such problem:
+
+```sql
+SELECT name FROM business_names
+WHERE  to_tsvector('english', name) @@ plainto_tsquery('english', 'bay')
+ORDER  BY name;
+```
+
+```
+          name
+------------------------
+ Bay Street Electronics
+ Mango Bay Caribbean
+(2 rows)
+```
+
+Exactly the two relevant matches, no noise, no threshold to tune.
+
+**6.3 — The rule of thumb**
+
+Short queries made of correctly-spelled whole words belong to full-text
+search — it was built to match tokens precisely and cheaply via a GIN
+index over lexemes. Queries that might be misspelled, transposed, or
+OCR-damaged belong to trigram matching — it was built to tolerate exactly
+that kind of noise, at the cost of weaker signal on very short inputs. Many
+real search boxes run both: try full-text search first, and fall back to a
+trigram "did you mean?" only when it returns nothing.
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it does |
+|------|-------------|
+| `show_trgm(text)` | Shows the padded, overlapping 3-character sequences a string breaks into |
+| `similarity(a, b)` | Fraction of shared trigrams between two whole strings — best for "are these two values the same thing, spelled differently?" |
+| `word_similarity(a, b)` | Best-matching substring extent of `a` inside `b` — best for "is `a` a fragment somewhere inside `b`?" |
+| `a % b` | Boolean test: does `similarity(a, b)` clear `pg_trgm.similarity_threshold` (default `0.3`)? |
+| `a <-> b` | Trigram distance (`1 - similarity`) — sort by this for nearest-match-first results |
+| `GIN (col gin_trgm_ops)` | Accelerates `%` and `LIKE`/`ILIKE` membership-style lookups |
+| `GIST (col gist_trgm_ops)` | Accelerates `ORDER BY col <-> query LIMIT n` nearest-neighbor lookups |
+| `pg_trgm.similarity_threshold` | Session-level cutoff for `%`; tune it, but expect trade-offs, not a perfect split |
+
+**The key design insight** from this chapter is that fuzzy matching
+produces *candidates*, not verdicts. The `%` operator surfaced all twelve
+real duplicate pairs in the `residents` table — and two pairs of genuinely
+different, or differently-named, people right alongside them, at every
+threshold tried. That isn't a shortcoming to engineer away; it's the
+nature of measuring string similarity instead of identity. Build fuzzy
+matching into a review queue or a secondary confirmation step, not an
+automatic merge.
+
+The `business_names` table you built here is reused in Chapter 10
+(PostgREST), which exposes the "did you mean?" query from Exercise 5 as a
+public RPC endpoint.
+
+---
+
+*Going further: `pg_trgm` also provides `%>` and `<->>` variants tuned for
+`word_similarity()` rather than `similarity()`, useful for indexing
+substring-style "did you mean?" search the same way Exercise 5 indexed
+whole-string search. For very large tables, GiST trigram indexes are
+typically smaller and faster to build than GIN but slower for pure
+membership lookups — benchmark both on your actual data distribution
+rather than assuming one is strictly better. And if deduplication is a
+recurring, business-critical process rather than an occasional query,
+look at dedicated record-linkage tools (e.g. the `dedupe` Python library),
+which combine trigram-style string similarity with other fields — address,
+phone number, date of birth — and a trained classifier, instead of a single
+threshold on a single column.*
+<div style="page-break-before: always;"></div>

@@ -27,7 +27,7 @@ $(OUTPUT).md: $(INPUT) | $(OUTDIR)
 	# copy resources
 	cp imgs/* $(OUTDIR)/imgs
 	cp css/* $(OUTDIR)/css
-	find chapters/ \( -name '*.png' -o -name '*.jpg' -o -name '*.gif' -o -name '*.jpeg' \) -exec cp "{}" $(OUTDIR)/imgs \;
+	#find chapters/ \( -name '*.png' -o -name '*.jpg' -o -name '*.gif' -o -name '*.jpeg' \) -exec cp "{}" $(OUTDIR)/imgs \;
 
 # Generate HTML
 html: $(OUTPUT).md
