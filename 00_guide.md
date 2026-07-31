@@ -330,6 +330,50 @@ This lab book explores PostgreSQL's extended capabilities through hands-on exerc
 
 ---
 
+### Chapter 21 — Graph Queries: PostgreSQL 19's Property Graphs
+
+> **Status: placeholder.** PostgreSQL 19 is still in beta at the time this
+> entry was written. Everything below — exact syntax, catalog views,
+> installation steps — is provisional and needs to be verified against the
+> real feature once we sit down to write this chapter, the same way every
+> other chapter in this book was built by running the real thing, not by
+> writing from memory of the docs.
+
+**Concept:** Query graph-structured data using PostgreSQL 19's native
+property graph support (the SQL/PGQ standard — `CREATE PROPERTY GRAPH` and
+`GRAPH_TABLE` pattern-matching queries), and contrast it directly with the
+hand-rolled `WITH RECURSIVE` approach Chapter 12 already built. Where
+Chapter 12 taught *how graph traversal works* by making you write the
+recursion yourself, this chapter asks *when does the declarative version
+pay for itself* — readability, optimizer awareness of graph structure, and
+where a recursive CTE is still the right tool.
+
+**Synthetic data:** Reuses `city_org` and `road_segments` from Chapter 12
+unchanged, defined as a property graph over the existing tables rather than
+re-seeded from scratch — the same department hierarchy and road network,
+queried a second way.
+
+**Exercises (provisional pending research):**
+1. Install PostgreSQL 19 (beta) — likely alongside, not instead of, the
+   PostgreSQL 16 cluster used by every earlier chapter — and confirm
+   SQL/PGQ support is present.
+2. Define a property graph over `city_org` (nodes: employees; edges:
+   reports-to) with `CREATE PROPERTY GRAPH`.
+3. Rewrite Chapter 12's "walk from any node to the root" query as a
+   `GRAPH_TABLE` pattern match; compare it side by side with the
+   `WITH RECURSIVE` version.
+4. Define a second property graph over `road_segments` and rewrite
+   Chapter 12's breadth-first shortest-path query using native graph
+   pattern matching; compare plans and performance against the recursive
+   CTE.
+5. Explore variable-length path patterns and built-in cycle handling;
+   compare to Chapter 12's manual `CYCLE ... SET ... USING` clause.
+6. Decision guide: recursive CTE vs. native graph query vs. reaching for a
+   dedicated graph database (Neo4j and similar) — what each is actually
+   for.
+
+---
+
 ## Appendices
 
 - **A — Environment Setup:** Docker Compose file spinning up PostgreSQL 16 with all required extensions pre-installed.

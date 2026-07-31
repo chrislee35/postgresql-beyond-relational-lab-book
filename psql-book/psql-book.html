@@ -352,6 +352,85 @@ id="toc-exercise-6-trigram-matching-vs.-full-text-search-head-to-head">Exercise
 id="toc-summary-what-you-should-now-know-4">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-6-vector-search-pgvector-for-embeddings"
+id="toc-chapter-6-vector-search-pgvector-for-embeddings">Chapter 6 —
+Vector Search: <code>pgvector</code> for Embeddings</a>
+<ul>
+<li><a href="#background-5" id="toc-background-5">Background</a></li>
+<li><a href="#the-scenario-5" id="toc-the-scenario-5">The
+Scenario</a></li>
+<li><a href="#exercise-goals-5" id="toc-exercise-goals-5">Exercise
+Goals</a></li>
+<li><a href="#installation-5" id="toc-installation-5">Installation</a>
+<ul>
+<li><a href="#pgvector" id="toc-pgvector">1 —
+<code>pgvector</code></a></li>
+<li><a href="#sentence-transformers-cpu-only"
+id="toc-sentence-transformers-cpu-only">2 —
+<code>sentence-transformers</code>, CPU-only</a></li>
+</ul></li>
+<li><a href="#loading-the-data-5" id="toc-loading-the-data-5">Loading
+the Data</a>
+<ul>
+<li><a href="#prerequisites-2"
+id="toc-prerequisites-2">Prerequisites</a></li>
+<li><a href="#run-the-chapter-6-seed"
+id="toc-run-the-chapter-6-seed">Run the Chapter 6 seed</a></li>
+<li><a href="#compute-real-embeddings-for-city_documents"
+id="toc-compute-real-embeddings-for-city_documents">Compute real
+embeddings for <code>city_documents</code></a></li>
+<li><a href="#verify-the-load-5" id="toc-verify-the-load-5">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-5" id="toc-exercises-5">Exercises</a>
+<ul>
+<li><a href="#exercise-1-the-vector-type"
+id="toc-exercise-1-the-vector-type">Exercise 1 — The <code>vector</code>
+Type</a></li>
+<li><a href="#exercise-2-exact-nearest-neighbors--"
+id="toc-exercise-2-exact-nearest-neighbors--">Exercise 2 — Exact Nearest
+Neighbors: <code>&lt;-&gt;</code>, <code>&lt;#&gt;</code>,
+<code>&lt;=&gt;</code></a></li>
+<li><a
+href="#exercise-3-ivfflat-approximate-search-with-lists-and-probes"
+id="toc-exercise-3-ivfflat-approximate-search-with-lists-and-probes">Exercise
+3 — IVFFlat: Approximate Search with <code>lists</code> and
+<code>probes</code></a></li>
+<li><a href="#exercise-4-hnsw-a-different-trade-off"
+id="toc-exercise-4-hnsw-a-different-trade-off">Exercise 4 — HNSW: A
+Different Trade-off</a></li>
+<li><a href="#exercise-5-semantic-search-finding-meaning-not-words"
+id="toc-exercise-5-semantic-search-finding-meaning-not-words">Exercise 5
+— Semantic Search: Finding Meaning, Not Words</a></li>
+<li><a
+href="#exercise-6-hybrid-search-blending-keyword-and-semantic-signals"
+id="toc-exercise-6-hybrid-search-blending-keyword-and-semantic-signals">Exercise
+6 — Hybrid Search: Blending Keyword and Semantic Signals</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-5"
+id="toc-summary-what-you-should-now-know-5">Summary — What You Should
+Now Know</a></li>
+<li><a href="#bonus-section-build-a-local-rag-system"
+id="toc-bonus-section-build-a-local-rag-system">Bonus Section — Build a
+Local RAG System</a>
+<ul>
+<li><a href="#what-rag-actually-is" id="toc-what-rag-actually-is">What
+RAG actually is</a></li>
+<li><a href="#installation-ollama"
+id="toc-installation-ollama">Installation — Ollama</a></li>
+<li><a href="#ingest-chunk-and-embed-a-directory-of-documents"
+id="toc-ingest-chunk-and-embed-a-directory-of-documents">Ingest: chunk
+and embed a directory of documents</a></li>
+<li><a href="#ask-a-question" id="toc-ask-a-question">Ask a
+question</a></li>
+<li><a href="#what-happens-when-the-answer-isnt-in-the-documents"
+id="toc-what-happens-when-the-answer-isnt-in-the-documents">What happens
+when the answer isn’t in the documents</a></li>
+<li><a href="#the-prompt-the-actual-glue-between-the-two-systems"
+id="toc-the-prompt-the-actual-glue-between-the-two-systems">The prompt:
+the actual glue between the two systems</a></li>
+</ul></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -4373,6 +4452,1097 @@ occasional query, look at dedicated record-linkage tools (e.g. the
 similarity with other fields — address, phone number, date of birth —
 and a trained classifier, instead of a single threshold on a single
 column.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-6-vector-search-pgvector-for-embeddings">Chapter 6 —
+Vector Search: <code>pgvector</code> for Embeddings</h1>
+<blockquote>
+<p><em>“Full-text search finds documents that use your words. Vector
+search finds documents that share your meaning, whether or not they
+share a single word with you.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-5">Background</h2>
+<p>Chapter 4 matched documents by shared vocabulary. Chapter 5 matched
+strings by shared spelling. Neither technique can find a document about
+“the city’s dog park” when a resident searches “somewhere my pet can run
+off-leash” — there isn’t a misspelling to correct or a stemmed word in
+common; the two phrases are simply <em>about the same thing</em>,
+expressed in unrelated words. No amount of stemming, stopword tuning, or
+trigram threshold-adjusting closes that gap, because all three earlier
+techniques operate on the text itself. Closing it requires a
+representation of what the text <em>means</em>.</p>
+<p>That representation is an <strong>embedding</strong>: a machine
+learning model reads a piece of text and outputs a vector — literally an
+array of a few hundred floating-point numbers — positioned in a
+high-dimensional space such that texts with similar meaning end up as
+nearby points and unrelated texts end up far apart. “Somewhere my pet
+can run off-leash” and “the city’s dog park” land close together in that
+space even though they share zero words. This chapter never trains such
+a model — it uses a small, well-established, freely available one
+(<code>all-MiniLM-L6-v2</code>) to turn text into 384-number vectors,
+and PostgreSQL’s <code>pgvector</code> extension to store, index, and
+search them.</p>
+<p>The two hard problems <code>pgvector</code> solves are storage (a
+native <code>vector</code> type, instead of smuggling floats through a
+JSONB array or a comma-separated text column) and <strong>search at
+scale</strong>. Finding the closest vector to a query by brute force
+means comparing it against every single row — fine for the thirty
+documents in Chapter 4’s table, hopeless for a million-row photo
+library. This chapter builds up to two different <strong>approximate
+nearest neighbor (ANN)</strong> index types, IVFFlat and HNSW, that
+trade a small amount of accuracy for a large amount of speed, and it’s
+honest about exactly how much accuracy each one actually costs you at
+its defaults, because the answer is more surprising than most
+introductions let on.</p>
+<hr />
+<h2 id="the-scenario-5">The Scenario</h2>
+<p>Two tables carry this chapter, and they get their vectors two very
+different ways, on purpose.</p>
+<p><code>city_documents</code> — the council minutes, zoning ordinances,
+and public notices from Chapter 4 — gets a real <code>embedding</code>
+column computed by actually running <code>all-MiniLM-L6-v2</code> over
+each document’s title and body. These are genuine embeddings: semantic
+search over them in Exercise 5 finds real conceptual matches, not a
+scripted demo.</p>
+<p><code>city_photos</code> is different, and says so in its own name:
+it’s a synthetic stand-in for a photo library’s image embeddings (the
+kind a real vision model like CLIP would produce for actual
+photographs), used purely to give Exercises 3 and 4 a table large enough
+— 5,000 rows across ten categories — for approximate indexing to be
+worth doing at all. Thirty rows, like <code>city_documents</code> has,
+will never be large enough to make an ANN index pay for itself; a
+sequential scan over thirty rows is already about as fast as computation
+gets. There is no real photo behind any row in <code>city_photos</code>
+— each one is a random point clustered around one of ten category
+“anchors” in 384-dimensional space, which reproduces the <em>shape</em>
+of a real embedding space (similar things cluster; different things
+don’t) without needing a single actual image.</p>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 71%" />
+<col style="width: 9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Vectors</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>city_documents</code></td>
+<td>Real — <code>all-MiniLM-L6-v2</code> embeddings of each document’s
+title + body</td>
+<td>Semantic search, hybrid search (Exercises 5-6)</td>
+</tr>
+<tr class="even">
+<td><code>city_photos</code></td>
+<td>Synthetic — 5,000 rows, 10 clustered categories, no real images</td>
+<td>ANN indexing at scale (Exercises 3-4)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="exercise-goals-5">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Store embeddings in a native <code>vector</code> column and
+understand what the numbers in it actually represent.</li>
+<li>Compute exact nearest neighbors with <code>&lt;-&gt;</code> (L2),
+<code>&lt;#&gt;</code> (negative inner product), and
+<code>&lt;=&gt;</code> (cosine distance), and know when the choice
+between them actually changes your results.</li>
+<li>Build an IVFFlat index, and correctly interpret its
+<code>lists</code> and <code>probes</code> parameters instead of
+trusting the defaults.</li>
+<li>Build an HNSW index, and make an informed build-time-vs-recall
+trade-off between it and IVFFlat instead of guessing.</li>
+<li>Run real semantic search: find documents by meaning even when they
+share no vocabulary with the query.</li>
+<li>Build hybrid search that blends a keyword score
+(<code>ts_rank</code>, from Chapter 4) with a semantic score into one
+ranking.</li>
+</ul>
+<hr />
+<h2 id="installation-5">Installation</h2>
+<p>This chapter has two dependencies, and they’re independent of each
+other — you need both, but you’re installing two unrelated things for
+two unrelated reasons.</p>
+<h3 id="pgvector">1 — <code>pgvector</code></h3>
+<div class="sourceCode" id="cb269"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb269-1"><a href="#cb269-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16-pgvector</span></code></pre></div>
+<p>Enable the extension. <strong>Unlike <code>pg_trgm</code> in Chapter
+5, <code>pgvector</code> 0.6.x is not a “trusted” extension</strong> —
+its control file doesn’t set <code>trusted = true</code>, so a regular
+database-owning role cannot enable it with a plain
+<code>CREATE EXTENSION</code>. It has to be done once, by a
+superuser:</p>
+<div class="sourceCode" id="cb270"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb270-1"><a href="#cb270-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> <span class="at">-u</span> postgres psql portsmith <span class="at">-c</span> <span class="st">&quot;CREATE EXTENSION vector;&quot;</span></span></code></pre></div>
+<p>Confirm it’s there:</p>
+<div class="sourceCode" id="cb271"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb271-1"><a href="#cb271-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> extversion <span class="kw">FROM</span> pg_extension <span class="kw">WHERE</span> extname <span class="op">=</span> <span class="st">&#39;vector&#39;</span>;</span></code></pre></div>
+<pre><code> extversion
+------------
+ 0.6.0</code></pre>
+<h3 id="sentence-transformers-cpu-only">2 —
+<code>sentence-transformers</code>, CPU-only</h3>
+<p>The embedding model runs locally, in Python, via the
+<code>sentence-transformers</code> library — no API key, no network
+calls at query time. It depends on PyTorch, and installing PyTorch’s
+default package pulls in a full NVIDIA CUDA toolkit (several gigabytes)
+even on a machine with no GPU, which is pure waste for embedding a few
+dozen short documents on CPU. Install the CPU-only build explicitly,
+then <code>sentence-transformers</code> on top of it:</p>
+<div class="sourceCode" id="cb273"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb273-1"><a href="#cb273-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3.12</span> <span class="at">-m</span> venv .venv   <span class="co"># if you haven&#39;t already, from earlier chapters</span></span>
+<span id="cb273-2"><a href="#cb273-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span>
+<span id="cb273-3"><a href="#cb273-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install torch <span class="at">--index-url</span> https://download.pytorch.org/whl/cpu</span>
+<span id="cb273-4"><a href="#cb273-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install sentence-transformers pgvector</span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> this installs roughly 3GB into your virtual
+environment (PyTorch and its numerical dependencies are not small, even
+CPU-only) and the first time any script loads
+<code>all-MiniLM-L6-v2</code>, it downloads about 90MB of model weights
+from Hugging Face and caches them in <code>~/.cache/huggingface</code>.
+Every run after that is fully offline. If you see a
+<code>Warning: You are sending unauthenticated requests to the HF Hub</code>
+line the first time, that’s expected and harmless — it’s just Hugging
+Face reminding you that an account would raise your download rate
+limit.</p>
+</blockquote>
+<hr />
+<h2 id="loading-the-data-5">Loading the Data</h2>
+<h3 id="prerequisites-2">Prerequisites</h3>
+<p>Chapter 4’s seed script must have been run first:</p>
+<div class="sourceCode" id="cb274"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb274-1"><a href="#cb274-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch04_seed.py</span></code></pre></div>
+<p><code>ch04_seed.py</code> alone is <strong>not</strong> enough,
+though — this chapter’s hybrid search (Exercise 6) needs
+<code>city_documents.search_vector</code>, and that column only gets
+created by hand-running Chapter 4’s <strong>Exercise 3</strong> SQL; it
+is not part of <code>ch04_seed.py</code>’s schema. (If you re-run
+<code>ch04_seed.py</code> after already having done Exercise 3 — say, to
+reset the document data — it drops <code>city_documents</code> and
+rebuilds it <em>without</em> <code>search_vector</code>, silently
+undoing that exercise.) <code>ch06_seed.py</code> (below) checks for the
+column and will stop with the exact fix if it’s missing; if you’d rather
+do it now, here it is verbatim from Chapter 4:</p>
+<div class="sourceCode" id="cb275"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb275-1"><a href="#cb275-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> city_documents <span class="kw">ADD</span> <span class="kw">COLUMN</span> search_vector tsvector;</span>
+<span id="cb275-2"><a href="#cb275-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb275-3"><a href="#cb275-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> city_documents</span>
+<span id="cb275-4"><a href="#cb275-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    search_vector <span class="op">=</span> to_tsvector(<span class="st">&#39;english&#39;</span>, title <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span> <span class="kw">body</span>);</span>
+<span id="cb275-5"><a href="#cb275-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb275-6"><a href="#cb275-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> city_documents_search_vector_update() RETURNS <span class="kw">trigger</span> <span class="kw">AS</span> $$</span>
+<span id="cb275-7"><a href="#cb275-7" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb275-8"><a href="#cb275-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">NEW</span>.search_vector <span class="op">:=</span> to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">NEW</span>.title <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span> <span class="kw">NEW</span>.<span class="kw">body</span>);</span>
+<span id="cb275-9"><a href="#cb275-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">NEW</span>;</span>
+<span id="cb275-10"><a href="#cb275-10" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb275-11"><a href="#cb275-11" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span>
+<span id="cb275-12"><a href="#cb275-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb275-13"><a href="#cb275-13" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TRIGGER</span> trg_city_documents_search_vector</span>
+<span id="cb275-14"><a href="#cb275-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">BEFORE</span> <span class="kw">INSERT</span> <span class="kw">OR</span> <span class="kw">UPDATE</span> <span class="kw">OF</span> title, <span class="kw">body</span> <span class="kw">ON</span> city_documents</span>
+<span id="cb275-15"><a href="#cb275-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">EACH</span> <span class="kw">ROW</span></span>
+<span id="cb275-16"><a href="#cb275-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">EXECUTE</span> <span class="kw">FUNCTION</span> city_documents_search_vector_update();</span>
+<span id="cb275-17"><a href="#cb275-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb275-18"><a href="#cb275-18" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_documents_search_vector</span>
+<span id="cb275-19"><a href="#cb275-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> city_documents <span class="kw">USING</span> GIN (search_vector);</span></code></pre></div>
+<h3 id="run-the-chapter-6-seed">Run the Chapter 6 seed</h3>
+<p>This adds the (initially empty) <code>embedding</code> column to
+<code>city_documents</code> and creates and populates
+<code>city_photos</code>. It needs only <code>psycopg</code>,
+<code>numpy</code>, and <code>pgvector</code> — not
+<code>sentence-transformers</code> — since <code>city_photos</code>’s
+vectors are synthetic:</p>
+<div class="sourceCode" id="cb276"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb276-1"><a href="#cb276-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Applying DDL …
+Generating 5000 synthetic photo embeddings …
+Done — 5000 rows in city_photos across 10 categories.
+city_documents.embedding added but left NULL — run `python data/ch06_embed_documents.py` next.</code></pre>
+<h3 id="compute-real-embeddings-for-city_documents">Compute real
+embeddings for <code>city_documents</code></h3>
+<p>This is the step that actually loads and runs the model:</p>
+<div class="sourceCode" id="cb278"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb278-1"><a href="#cb278-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_embed_documents.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Loading all-MiniLM-L6-v2 (first run downloads ~90MB of model weights) …
+Embedding 30 documents …
+Done — 30 rows in city_documents now have an embedding.</code></pre>
+<h3 id="verify-the-load-5">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these checks.</p>
+<p><strong>Check 1 — <code>city_photos</code> structure:</strong></p>
+<div class="sourceCode" id="cb280"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb280-1"><a href="#cb280-1" aria-hidden="true" tabindex="-1"></a>\d city_photos</span></code></pre></div>
+<pre><code>                                  Table &quot;public.city_photos&quot;
+    Column     |    Type     | Collation | Nullable |                 Default
+---------------+-------------+-----------+----------+-----------------------------------------
+ id            | integer     |           | not null | nextval(&#39;city_photos_id_seq&#39;::regclass)
+ category      | text        |           | not null |
+ neighbourhood | text        |           | not null |
+ caption       | text        |           | not null |
+ embedding     | vector(384) |           | not null |
+Indexes:
+    &quot;city_photos_pkey&quot; PRIMARY KEY, btree (id)</code></pre>
+<p><strong>Check 2 — 500 photos per category:</strong></p>
+<div class="sourceCode" id="cb282"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb282-1"><a href="#cb282-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">category</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_photos <span class="kw">GROUP</span> <span class="kw">BY</span> <span class="kw">category</span> <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="kw">category</span>;</span></code></pre></div>
+<pre><code>          category           | count
+-----------------------------+-------
+ community_event             |   500
+ harbour_waterfront          |   500
+ historic_architecture       |   500
+ industrial_dock             |   500
+ infrastructure_construction |   500
+ municipal_building          |   500
+ public_park                 |   500
+ residential_street          |   500
+ street_market               |   500
+ wildlife_nature             |   500
+(10 rows)</code></pre>
+<p><strong>Check 3 — every <code>city_documents</code> row has an
+embedding:</strong></p>
+<div class="sourceCode" id="cb284"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb284-1"><a href="#cb284-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> total, <span class="fu">COUNT</span>(embedding) <span class="kw">AS</span> with_embedding <span class="kw">FROM</span> city_documents;</span></code></pre></div>
+<pre><code> total | with_embedding
+-------+-----------------
+    30 |              30</code></pre>
+<p>If all three match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-5">Exercises</h2>
+<hr />
+<h3 id="exercise-1-the-vector-type">Exercise 1 — The <code>vector</code>
+Type</h3>
+<p><strong>1.1 — Literals and dimensions</strong></p>
+<p>A <code>vector</code> literal is a bracketed list of numbers:</p>
+<div class="sourceCode" id="cb286"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb286-1"><a href="#cb286-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;[1,2,3]&#39;</span>:<span class="ch">:vector</span>;</span></code></pre></div>
+<pre><code> vector
+---------
+ [1,2,3]</code></pre>
+<p>A <code>vector(384)</code> column, like
+<code>city_documents.embedding</code>, enforces its dimension count at
+write time — every row’s vector must have exactly 384 numbers. There is
+no meaningful way to compare a 384-dimensional embedding to a
+3-dimensional one, so PostgreSQL simply won’t let a mismatched value
+in:</p>
+<div class="sourceCode" id="cb288"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb288-1"><a href="#cb288-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;[1,2,3]&#39;</span>:<span class="ch">:vector</span>(<span class="dv">384</span>);</span></code></pre></div>
+<pre><code>ERROR:  expected 384 dimensions, not 3</code></pre>
+<p><strong>1.2 — What’s actually in the column</strong></p>
+<p><code>city_documents.embedding</code> isn’t hand-written — it came
+from <code>ch06_embed_documents.py</code> calling
+<code>all-MiniLM-L6-v2</code> on each document’s title and body. Look at
+a real one:</p>
+<div class="sourceCode" id="cb290"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb290-1"><a href="#cb290-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title, embedding <span class="kw">FROM</span> city_documents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<p>The <code>embedding</code> value prints as 384 comma-separated
+floating-point numbers between roughly -1 and 1 — not something a human
+reads directly, but exactly what every operator and index in this
+chapter operates on. What those particular 384 numbers <em>mean</em>
+isn’t individually interpretable (no single dimension corresponds to a
+concept like “is about harbours”); what matters is only their
+<em>position relative to other documents’ vectors</em>, which is what
+the distance operators in Exercise 2 measure.</p>
+<hr />
+<h3 id="exercise-2-exact-nearest-neighbors--">Exercise 2 — Exact Nearest
+Neighbors: <code>&lt;-&gt;</code>, <code>&lt;#&gt;</code>,
+<code>&lt;=&gt;</code></h3>
+<p><code>pgvector</code> gives you three distance operators. They agree
+more often than you’d expect, and the case where they disagree is worth
+understanding before it surprises you in production.</p>
+<p><strong>2.1 — Three tiny vectors, three operators</strong></p>
+<div class="sourceCode" id="cb291"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb291-1"><a href="#cb291-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;[1,0,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;-&gt;</span> <span class="st">&#39;[0,1,0]&#39;</span>:<span class="ch">:vector</span> <span class="kw">AS</span> l2_distance;</span></code></pre></div>
+<pre><code>     l2_distance
+--------------------
+ 1.4142135623730951</code></pre>
+<p><code>&lt;-&gt;</code> is <strong>Euclidean (L2) distance</strong> —
+straight-line distance between the two points, exactly like distance in
+ordinary geometry. Two orthogonal unit vectors are <code>√2</code>
+apart.</p>
+<div class="sourceCode" id="cb293"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb293-1"><a href="#cb293-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;[1,0,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;</span>#<span class="op">&gt;</span> <span class="st">&#39;[0,1,0]&#39;</span>:<span class="ch">:vector</span> <span class="kw">AS</span> neg_inner_product;</span></code></pre></div>
+<pre><code> neg_inner_product
+--------------------
+                 -0</code></pre>
+<p><code>&lt;#&gt;</code> is the <strong>negative inner product</strong>
+— the dot product of the two vectors, negated (pgvector negates it so
+that, consistent with the other two operators, <em>smaller means
+closer</em>). Orthogonal vectors have a dot product of zero.</p>
+<div class="sourceCode" id="cb295"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb295-1"><a href="#cb295-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;[1,0,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;=&gt;</span> <span class="st">&#39;[0,1,0]&#39;</span>:<span class="ch">:vector</span> <span class="kw">AS</span> cosine_distance;</span></code></pre></div>
+<pre><code> cosine_distance
+------------------
+                1</code></pre>
+<p><code>&lt;=&gt;</code> is <strong>cosine distance</strong>
+(<code>1 - cosine similarity</code>) — the angle between the two
+vectors, completely ignoring their length. Orthogonal vectors have
+maximum cosine distance, <code>1</code>.</p>
+<p><strong>2.2 — Where they disagree: magnitude</strong></p>
+<p>The three operators can rank the <em>same</em> pair of candidates in
+a <em>different</em> order the moment the vectors involved aren’t the
+same length. Compare a query vector against two candidates — one that
+points in exactly the same direction but is twice as long, and one that
+points in a slightly different direction but is almost the same
+length:</p>
+<div class="sourceCode" id="cb297"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb297-1"><a href="#cb297-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span></span>
+<span id="cb297-2"><a href="#cb297-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;[1,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;-&gt;</span> <span class="st">&#39;[2,0]&#39;</span>:<span class="ch">:vector</span>   <span class="kw">AS</span> l2_to_a,</span>
+<span id="cb297-3"><a href="#cb297-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;[1,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;-&gt;</span> <span class="st">&#39;[1,0.5]&#39;</span>:<span class="ch">:vector</span> <span class="kw">AS</span> l2_to_b,</span>
+<span id="cb297-4"><a href="#cb297-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>((<span class="st">&#39;[1,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;=&gt;</span> <span class="st">&#39;[2,0]&#39;</span>:<span class="ch">:vector</span>):<span class="ch">:numeric</span>, <span class="dv">4</span>)   <span class="kw">AS</span> cos_to_a,</span>
+<span id="cb297-5"><a href="#cb297-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>((<span class="st">&#39;[1,0]&#39;</span>:<span class="ch">:vector</span> <span class="op">&lt;=&gt;</span> <span class="st">&#39;[1,0.5]&#39;</span>:<span class="ch">:vector</span>):<span class="ch">:numeric</span>, <span class="dv">4</span>) <span class="kw">AS</span> cos_to_b;</span></code></pre></div>
+<pre><code> l2_to_a | l2_to_b | cos_to_a | cos_to_b
+---------+---------+----------+----------
+       1 |     0.5 |   0.0000 |   0.1056</code></pre>
+<p><strong>The ranking flips.</strong> By <code>&lt;-&gt;</code> (L2),
+candidate B (<code>[1,0.5]</code>, distance <code>0.5</code>) is closer
+than candidate A (<code>[2,0]</code>, distance <code>1</code>). By
+<code>&lt;=&gt;</code> (cosine), it’s the reverse — A is distance
+<code>0</code> (identical direction) while B is <code>0.1056</code>
+away. Neither operator is “wrong”; they’re answering different
+questions. L2 asks “how far apart are these points.” Cosine asks “how
+similarly are these vectors oriented, regardless of scale.”</p>
+<p><strong>2.3 — Why this chapter normalizes, and what that buys
+you</strong></p>
+<p><code>ch06_embed_documents.py</code> calls
+<code>model.encode(texts, normalize_embeddings=True)</code> — every
+stored embedding is scaled to unit length before it’s written. Once
+every vector in a comparison has the same length, the magnitude
+difference that caused Exercise 2.2’s disagreement simply can’t occur,
+and all three operators produce the <em>same ranking</em> (just on
+different numeric scales). Embedding the query “waterfront redevelopment
+funding” (Exercise 5 shows how) and checking the top 3
+<code>city_documents</code> rows by each operator confirms it:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th><code>&lt;-&gt;</code> (L2)</th>
+<th><code>&lt;#&gt;</code> (neg. inner product)</th>
+<th><code>&lt;=&gt;</code> (cosine)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Rank 1</td>
+<td>doc 1 — <code>0.8605</code></td>
+<td>doc 1 — <code>-0.6298</code></td>
+<td>doc 1 — <code>0.3702</code></td>
+</tr>
+<tr class="even">
+<td>Rank 2</td>
+<td>doc 22 — <code>1.0546</code></td>
+<td>doc 22 — <code>-0.4439</code></td>
+<td>doc 22 — <code>0.5561</code></td>
+</tr>
+<tr class="odd">
+<td>Rank 3</td>
+<td>doc 5 — <code>1.0646</code></td>
+<td>doc 5 — <code>-0.4333</code></td>
+<td>doc 5 — <code>0.5667</code></td>
+</tr>
+</tbody>
+</table>
+<p>Same three documents, same order, every time — only the numbers’
+scale differs between columns. The practical rule: <strong>normalize
+your embeddings, and pick whichever operator has an index you can
+build</strong> — for normalized vectors it stops being a search-quality
+decision and becomes a performance one, covered next.</p>
+<hr />
+<h3
+id="exercise-3-ivfflat-approximate-search-with-lists-and-probes">Exercise
+3 — IVFFlat: Approximate Search with <code>lists</code> and
+<code>probes</code></h3>
+<p><strong>3.1 — Exact search doesn’t scale</strong></p>
+<p><code>city_photos</code> has 5,000 rows — small by real standards,
+but already enough to feel the cost of brute-force search. Find the 10
+nearest neighbors of photo <code>id = 1</code> by comparing it against
+every other row:</p>
+<div class="sourceCode" id="cb299"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb299-1"><a href="#cb299-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb299-2"><a href="#cb299-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, <span class="kw">category</span>, embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>) <span class="kw">AS</span> dist</span>
+<span id="cb299-3"><a href="#cb299-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_photos</span>
+<span id="cb299-4"><a href="#cb299-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">!=</span> <span class="dv">1</span></span>
+<span id="cb299-5"><a href="#cb299-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb299-6"><a href="#cb299-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">10</span>;</span></code></pre></div>
+<pre><code>                                                     QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1439.32..1439.35 rows=10 width=30) (actual time=4.164..4.167 rows=10 loops=1)
+   -&gt;  Sort  (cost=1431.02..1443.52 rows=4999 width=30) (actual time=4.163..4.164 rows=10 loops=1)
+         Sort Key: ((city_photos.embedding &lt;-&gt; $0))
+         Sort Method: top-N heapsort  Memory: 26kB
+         -&gt;  Seq Scan on city_photos  (cost=0.00..1323.00 rows=4999 width=30) (actual time=0.024..3.381 rows=4999 loops=1)</code></pre>
+<p>Every one of the 4,999 other rows gets its distance computed and
+sorted — about 4.6ms here. That cost grows linearly with table size; at
+real photo library scale (millions of rows) it stops being viable.</p>
+<p><strong>3.2 — Build the index</strong></p>
+<div class="sourceCode" id="cb301"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb301-1"><a href="#cb301-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_photos_ivfflat</span>
+<span id="cb301-2"><a href="#cb301-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> city_photos</span>
+<span id="cb301-3"><a href="#cb301-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> ivfflat (embedding vector_l2_ops)</span>
+<span id="cb301-4"><a href="#cb301-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WITH</span> (lists <span class="op">=</span> <span class="dv">50</span>);</span></code></pre></div>
+<pre><code>CREATE INDEX
+Time: 152.129 ms</code></pre>
+<p><code>lists = 50</code> partitions the 5,000 vectors into 50 clusters
+(via k-means at index-build time) and stores each vector under its
+nearest cluster centroid. A rule of thumb from the pgvector docs:
+<code>lists ≈ rows / 1000</code> for up to roughly a million rows.</p>
+<p><strong>3.3 — The planner picks it up on its own</strong></p>
+<div class="sourceCode" id="cb303"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb303-1"><a href="#cb303-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb303-2"><a href="#cb303-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, <span class="kw">category</span>, embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>) <span class="kw">AS</span> dist</span>
+<span id="cb303-3"><a href="#cb303-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_photos</span>
+<span id="cb303-4"><a href="#cb303-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">!=</span> <span class="dv">1</span></span>
+<span id="cb303-5"><a href="#cb303-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb303-6"><a href="#cb303-6" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">10</span>;</span></code></pre></div>
+<pre><code>                                                             QUERY PLAN
+-------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=61.55..62.35 rows=10 width=30) (actual time=0.145..0.168 rows=10 loops=1)
+   -&gt;  Index Scan using idx_city_photos_ivfflat on city_photos  (cost=53.25..455.00 rows=4999 width=30) (actual time=0.145..0.166 rows=10 loops=1)
+         Order By: (embedding &lt;-&gt; $0)</code></pre>
+<p>No <code>enable_seqscan = off</code> trick needed this time, unlike
+the small tables in earlier chapters — at 5,000 rows the planner’s own
+cost estimate already favors the index: <strong>4.6ms down to about
+0.2ms.</strong></p>
+<p><strong>3.4 — The catch: default <code>probes</code> gives up a lot
+of accuracy</strong></p>
+<p>An IVFFlat search only examines the clusters nearest the query
+vector, not all 50 — controlled by <code>ivfflat.probes</code>, which
+<strong>defaults to 1</strong>. Compare the approximate top-10 against
+the true exact top-10:</p>
+<div class="sourceCode" id="cb305"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb305-1"><a href="#cb305-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Exact (force a sequential scan to get true ground truth):</span></span>
+<span id="cb305-2"><a href="#cb305-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_indexscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb305-3"><a href="#cb305-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> array_agg(<span class="kw">id</span>) <span class="kw">FROM</span> (</span>
+<span id="cb305-4"><a href="#cb305-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">!=</span> <span class="dv">1</span></span>
+<span id="cb305-5"><a href="#cb305-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span> <span class="kw">BY</span> embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>) <span class="kw">LIMIT</span> <span class="dv">10</span></span>
+<span id="cb305-6"><a href="#cb305-6" aria-hidden="true" tabindex="-1"></a>) t;</span></code></pre></div>
+<pre><code>                 array_agg
+--------------------------------------------
+ {146,357,485,468,500,261,384,397,185,226}</code></pre>
+<div class="sourceCode" id="cb307"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb307-1"><a href="#cb307-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Approximate, default probes = 1:</span></span>
+<span id="cb307-2"><a href="#cb307-2" aria-hidden="true" tabindex="-1"></a><span class="kw">RESET</span> enable_indexscan;</span>
+<span id="cb307-3"><a href="#cb307-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> array_agg(<span class="kw">id</span>) <span class="kw">FROM</span> (</span>
+<span id="cb307-4"><a href="#cb307-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">!=</span> <span class="dv">1</span></span>
+<span id="cb307-5"><a href="#cb307-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span> <span class="kw">BY</span> embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>) <span class="kw">LIMIT</span> <span class="dv">10</span></span>
+<span id="cb307-6"><a href="#cb307-6" aria-hidden="true" tabindex="-1"></a>) t;</span></code></pre></div>
+<pre><code>                 array_agg
+--------------------------------------------
+ {485,261,185,226,385,22,274,433,56,327}</code></pre>
+<p>Only <strong>4 of the 10</strong> results match (<code>485</code>,
+<code>261</code>, <code>185</code>, <code>226</code>) — <strong>40%
+recall</strong>, at the default setting, on a real query. This is not a
+contrived worst case; it’s what <code>ivfflat.probes = 1</code> actually
+does: it searches only the single cluster closest to the query and
+simply never looks at the other 49, even though some of the true nearest
+neighbors live in a different cluster.</p>
+<blockquote>
+<p><strong>A note on reproducing these exact numbers:</strong> IVFFlat’s
+clustering step uses k-means with a random initialization at <em>index
+build</em> time — even against <code>city_photos</code>’s fixed, seeded
+synthetic data, rebuilding the same
+<code>CREATE INDEX ... USING ivfflat</code> statement can shift which
+photos land in which of the 50 clusters, and therefore which specific
+IDs and exact recall percentage <code>probes = 1</code> produces.
+Rerunning this exercise on your own machine will very likely show
+different IDs and a different percentage than the ones printed here. The
+pattern that reproduces reliably is the <em>shape</em>:
+<code>probes = 1</code> is measurably, often substantially,
+incomplete.</p>
+</blockquote>
+<p><strong>3.5 — Raise <code>probes</code>, watch recall
+recover</strong></p>
+<div class="sourceCode" id="cb309"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb309-1"><a href="#cb309-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> ivfflat.probes <span class="op">=</span> <span class="dv">2</span>;</span></code></pre></div>
+<pre><code>                 array_agg
+--------------------------------------------
+ {146,357,485,468,500,261,384,397,185,226}</code></pre>
+<p>At <code>probes = 2</code> the result already matches the exact set
+exactly — <strong>100% recall</strong> on this query. Timing at a
+slightly more conservative <code>probes = 5</code>, and at
+<code>probes = 50</code> (every list — the most exhaustive an IVFFlat
+search can be):</p>
+<table>
+<thead>
+<tr class="header">
+<th><code>probes</code></th>
+<th>Recall (this query)</th>
+<th>Query time</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1 (default)</td>
+<td>40%</td>
+<td>~0.4ms</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>100%</td>
+<td>~0.6ms</td>
+</tr>
+<tr class="odd">
+<td>50 (all lists)</td>
+<td>100%</td>
+<td>~0.6ms</td>
+</tr>
+</tbody>
+</table>
+<p>Timings vary run to run more than the recall figures do (expect noise
+in the tenths of a millisecond on a table this size) — the shape that
+matters is that <code>probes = 1</code> is consistently fastest
+<em>and</em> the least reliable, while anything from
+<code>probes = 5</code> up delivers full recall on this query without a
+further, proportional cost from probing still more lists; the IVFFlat
+index structure keeps even an “examine every list” search meaningfully
+faster than the 4.6ms plain sequential scan from Exercise 3.1. Reset
+before continuing:</p>
+<div class="sourceCode" id="cb311"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb311-1"><a href="#cb311-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> ivfflat.probes <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<p>Two probes happened to be enough for this particular query; it isn’t
+a guarantee for every query, which is why a small safety margin (a
+starting point of <code>probes ≈ √lists</code>, so <code>√50 ≈ 7</code>)
+is the honest recommendation rather than the bare minimum that worked
+once. The overall lesson: <strong>IVFFlat’s out-of-the-box defaults are
+fast and unreliable at the same time</strong> — <code>lists</code> and
+<code>probes</code> are not optional tuning, they’re the whole
+feature.</p>
+<hr />
+<h3 id="exercise-4-hnsw-a-different-trade-off">Exercise 4 — HNSW: A
+Different Trade-off</h3>
+<p><strong>4.1 — Build it, and time the build</strong></p>
+<div class="sourceCode" id="cb312"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb312-1"><a href="#cb312-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_photos_hnsw</span>
+<span id="cb312-2"><a href="#cb312-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> city_photos</span>
+<span id="cb312-3"><a href="#cb312-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> hnsw (embedding vector_l2_ops);</span></code></pre></div>
+<pre><code>CREATE INDEX
+Time: 513.963 ms</code></pre>
+<p>Compare against IVFFlat’s build time from Exercise 3.2:
+<strong>152ms.</strong> HNSW (Hierarchical Navigable Small World) builds
+a multi-layer graph structure connecting each vector to its approximate
+neighbors, which costs roughly <strong>3x longer to build</strong> than
+IVFFlat’s k-means clustering, on this table.</p>
+<p><strong>4.2 — Recall at HNSW’s default settings</strong></p>
+<p>Drop (or temporarily disable) the IVFFlat index so the planner has no
+choice but to use HNSW, then repeat the exact same top-10 query from
+Exercise 3.4:</p>
+<div class="sourceCode" id="cb314"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb314-1"><a href="#cb314-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb314-2"><a href="#cb314-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> idx_city_photos_ivfflat;</span>
+<span id="cb314-3"><a href="#cb314-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb314-4"><a href="#cb314-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> array_agg(<span class="kw">id</span>) <span class="kw">FROM</span> (</span>
+<span id="cb314-5"><a href="#cb314-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">!=</span> <span class="dv">1</span></span>
+<span id="cb314-6"><a href="#cb314-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ORDER</span> <span class="kw">BY</span> embedding <span class="op">&lt;-&gt;</span> (<span class="kw">SELECT</span> embedding <span class="kw">FROM</span> city_photos <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>) <span class="kw">LIMIT</span> <span class="dv">10</span></span>
+<span id="cb314-7"><a href="#cb314-7" aria-hidden="true" tabindex="-1"></a>) t;</span>
+<span id="cb314-8"><a href="#cb314-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb314-9"><a href="#cb314-9" aria-hidden="true" tabindex="-1"></a><span class="kw">ROLLBACK</span>;  <span class="co">-- put idx_city_photos_ivfflat back</span></span></code></pre></div>
+<pre><code>                 array_agg
+--------------------------------------------
+ {146,357,485,468,500,261,384,397,185,226}</code></pre>
+<p><strong>Exact match with the true top-10 — 100% recall, at HNSW’s
+default settings</strong>, no tuning required. Query time for this was
+about 0.63ms. Repeating the comparison against a second, independent
+query point (<code>id = 1001</code>, a <code>public_park</code> photo)
+confirms it isn’t a fluke: HNSW again returned the exact top-10, while
+IVFFlat at default <code>probes = 1</code> again recovered only 3 of 10
+(30% recall — as Exercise 3.4 noted, the exact percentage shifts between
+index rebuilds; what doesn’t shift is that it’s consistently well short
+of complete). HNSW’s default, across every test in this chapter, has not
+missed a single true neighbor.</p>
+<p><strong>4.3 — The trade-off, stated plainly</strong></p>
+<table>
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 50%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>IVFFlat</th>
+<th>HNSW</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Build time (5,000 rows)</td>
+<td>152ms</td>
+<td>514ms (~3x)</td>
+</tr>
+<tr class="even">
+<td>Recall at defaults</td>
+<td>30-40% in this chapter’s tests, varies by build (needs
+<code>probes</code> tuned up)</td>
+<td>~100% (no tuning needed)</td>
+</tr>
+<tr class="odd">
+<td>Query time (well-tuned)</td>
+<td>Comparable</td>
+<td>Comparable</td>
+</tr>
+<tr class="even">
+<td>Tuning burden</td>
+<td>On you, every session (<code>probes</code> is a session-level
+<code>SET</code>)</td>
+<td>Minimal</td>
+</tr>
+</tbody>
+</table>
+<p>This matches the general guidance in the pgvector documentation:
+<strong>HNSW is the better default choice for most workloads</strong> —
+better recall out of the box, no per-session parameter to remember to
+set. IVFFlat’s advantages are real but narrower: faster to build
+(relevant if you rebuild the index often, e.g. after large bulk loads)
+and somewhat lower memory overhead at very large scale. Choose IVFFlat
+deliberately for those reasons, not by default.</p>
+<hr />
+<h3 id="exercise-5-semantic-search-finding-meaning-not-words">Exercise 5
+— Semantic Search: Finding Meaning, Not Words</h3>
+<p><strong>5.1 — A query with no vocabulary overlap</strong></p>
+<p><code>data/ch06_semantic_search.py</code> embeds a query string with
+the same model used to build the column, and searches
+<code>city_documents</code> by cosine similarity:</p>
+<div class="sourceCode" id="cb316"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb316-1"><a href="#cb316-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_semantic_search.py <span class="st">&quot;stray dogs and pet-friendly spaces&quot;</span></span></code></pre></div>
+<pre><code>  id      sim  title
+   6   0.4447  Council Minutes — Riverside Dog Park Funding
+  24   0.3927  Public Notice — Riverside Dog Park Ribbon-Cutting Event
+  16   0.2683  Zoning Ordinance — Riverside Short-Term Rental Restrictions
+  ...</code></pre>
+<p>Not one word of the query — “stray,” “dogs,” “pet-friendly,” “spaces”
+— appears in document 6’s title, and full-text search (Chapter 4) would
+return zero rows for it; there’s no shared lexeme to match on,
+misspelled or otherwise, so Chapter 5’s trigram matching wouldn’t help
+either. The embedding model has no notion of exact words at all — it
+read “the city’s dog park” and “somewhere my pet can run off-leash” as
+<em>about the same thing</em>, which is precisely the gap described in
+this chapter’s Background.</p>
+<p><strong>5.2 — A stronger example</strong></p>
+<div class="sourceCode" id="cb318"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb318-1"><a href="#cb318-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_semantic_search.py <span class="st">&quot;waterfront redevelopment funding&quot;</span></span></code></pre></div>
+<pre><code>  id      sim  title
+   1   0.6298  Council Minutes — Harbour District Waterfront Renovation Budget
+  22   0.4439  Public Notice — Public Hearing on Harbour District Waterfront Rezoning
+   5   0.4333  Council Minutes — Riverside Road Resurfacing Program
+  12   0.4207  Zoning Ordinance — Harbour District Waterfront Height Variance
+   9   0.4101  Council Minutes — Canal Road Bike Lane Expansion
+  ...</code></pre>
+<p><strong>5.3 — Reading the gap, not just the ranking</strong></p>
+<p>Look at the jump between rank 1 (<code>0.6298</code>) and rank 2
+(<code>0.4439</code>) — a much bigger drop than between ranks 2 through
+5. That gap is meaningful: it says document 1 isn’t merely the <em>best
+available</em> match, it’s a <em>genuinely strong</em> one, while the
+rest are progressively looser associations. Semantic search has a
+property full-text search doesn’t: <strong>it never returns zero
+results.</strong> Every document has <em>some</em> cosine similarity to
+any query — the model will confidently rank all thirty documents even
+for a nonsense query, it just won’t find any of them close. A real
+application needs a similarity-score cutoff (or a “confidence” gap check
+like this one) to distinguish “found it” from “here’s our least-bad
+guess,” a problem keyword search’s honest zero-rows sidesteps
+entirely.</p>
+<hr />
+<h3
+id="exercise-6-hybrid-search-blending-keyword-and-semantic-signals">Exercise
+6 — Hybrid Search: Blending Keyword and Semantic Signals</h3>
+<p>Semantic search and keyword search fail differently. Semantic search
+misses exact terms that matter — a specific ordinance number, a street
+name — treating them as just more words to average into a general
+impression of meaning. Keyword search misses paraphrases entirely, as
+Exercise 5 just showed. Hybrid search runs both and blends the
+scores.</p>
+<p><strong>6.1 — Keyword-only ranking</strong></p>
+<div class="sourceCode" id="cb320"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb320-1"><a href="#cb320-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, title, <span class="fu">round</span>(ts_rank(search_vector, plainto_tsquery(<span class="st">&#39;english&#39;</span>,<span class="st">&#39;bike lane&#39;</span>)):<span class="ch">:numeric</span>,<span class="dv">4</span>) <span class="kw">AS</span> kw_rank</span>
+<span id="cb320-2"><a href="#cb320-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents</span>
+<span id="cb320-3"><a href="#cb320-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ plainto_tsquery(<span class="st">&#39;english&#39;</span>,<span class="st">&#39;bike lane&#39;</span>)</span>
+<span id="cb320-4"><a href="#cb320-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> kw_rank <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code> id |                               title                                | kw_rank
+----+----------------------------------------------------------------------+---------
+  9 | Council Minutes — Canal Road Bike Lane Expansion                   |  0.2928
+ 28 | Public Notice — Canal Road Bike Lane Construction Schedule         |  0.1960
+ 30 | Public Notice — Annual Fireworks Display and Street Closures       |  0.1759
+  5 | Council Minutes — Riverside Road Resurfacing Program               |  0.0992
+ 15 | Zoning Ordinance — Reduced Parking Minimums Near Transit Corridors |  0.0991</code></pre>
+<p><strong>6.2 — Semantic-only ranking, same query</strong></p>
+<div class="sourceCode" id="cb322"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb322-1"><a href="#cb322-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_semantic_search.py <span class="st">&quot;bike lane&quot;</span> <span class="at">--top</span> 8</span></code></pre></div>
+<pre><code>  id      sim  title
+   9   0.5513  Council Minutes — Canal Road Bike Lane Expansion
+  28   0.4433  Public Notice — Canal Road Bike Lane Construction Schedule
+  15   0.4117  Zoning Ordinance — Reduced Parking Minimums Near Transit Corridors
+   5   0.3965  Council Minutes — Riverside Road Resurfacing Program
+  21   0.2754  Public Notice — Bay Street Water Main Repair Road Closure
+   6   0.2688  Council Minutes — Riverside Dog Park Funding
+  30   0.2653  Public Notice — Annual Fireworks Display and Street Closures
+  10   0.2359  Council Minutes — Special Session on Flood Mitigation Infrastructure</code></pre>
+<p>Both agree on the top 2 (documents 9 and 28 — a real, strong signal
+either way finds them). They disagree further down: document 30 ranks
+<strong>3rd</strong> by keyword (it happens to use the phrase “biking
+along the Canal Road bike lane” once, in passing) but only
+<strong>7th</strong> by semantic similarity, while document 15 ranks
+<strong>5th</strong> by keyword but <strong>3rd</strong> semantically
+(it’s substantively about bike-lane-adjacent parking policy, using
+different phrasing throughout).</p>
+<p><strong>6.3 — Blend both into one score</strong></p>
+<div class="sourceCode" id="cb324"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb324-1"><a href="#cb324-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_semantic_search.py <span class="st">&quot;bike lane&quot;</span> <span class="at">--hybrid</span> <span class="at">--top</span> 8</span></code></pre></div>
+<pre><code>  id       kw      sem   hybrid  title
+   9   0.2928   0.5513   0.4479  Council Minutes — Canal Road Bike Lane Expansion
+  28   0.1960   0.4433   0.3444  Public Notice — Canal Road Bike Lane Construction Schedule
+  15   0.0991   0.4117   0.2867  Zoning Ordinance — Reduced Parking Minimums Near Transit Corridors
+   5   0.0992   0.3965   0.2776  Council Minutes — Riverside Road Resurfacing Program
+  30   0.1759   0.2653   0.2295  Public Notice — Annual Fireworks Display and Street Closures
+  21   0.0000   0.2754   0.1652  Public Notice — Bay Street Water Main Repair Road Closure
+   6   0.0000   0.2688   0.1613  Council Minutes — Riverside Dog Park Funding
+  10   0.0000   0.2359   0.1415  Council Minutes — Special Session on Flood Mitigation Infrastructure</code></pre>
+<p>The underlying SQL (<code>HYBRID_SQL</code> in
+<code>ch06_semantic_search.py</code>) is a <code>LEFT JOIN</code>
+between a keyword-matched candidate set and a semantic top-10 candidate
+set, so documents 21, 6, and 10 — never matched by the keyword query at
+all (<code>kw = 0.0000</code>) — still appear, carried in purely by
+semantic similarity:</p>
+<div class="sourceCode" id="cb326"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb326-1"><a href="#cb326-1" aria-hidden="true" tabindex="-1"></a>hybrid_score <span class="op">=</span> <span class="fl">0.4</span> <span class="op">*</span> <span class="fu">COALESCE</span>(kw_score, <span class="dv">0</span>) <span class="op">+</span> <span class="fl">0.6</span> <span class="op">*</span> <span class="fu">COALESCE</span>(sem_score, <span class="dv">0</span>)</span></code></pre></div>
+<p>Document 15 moves from 5th (keyword) up to 3rd (hybrid); document 30
+moves from 3rd (keyword) down to 5th (hybrid) — the blend genuinely
+changes the ranking, not just the score.</p>
+<p><strong>6.4 — The honest caveat about the weights</strong></p>
+<p><code>0.4</code> and <code>0.6</code> here are fixed constants chosen
+because <code>ts_rank</code> and cosine similarity happen to land in
+roughly comparable numeric ranges on <em>this</em> dataset — they are
+not principled, and they are not portable to a different corpus or a
+different embedding model without re-checking that assumption. A
+production hybrid-search system typically normalizes each signal
+(min-max or z-score, over the actual candidate set returned) before
+blending, rather than trusting that two arbitrary scoring functions
+happen to land in the same numeric neighborhood. Treat the weights here
+as a teaching simplification, not a formula to copy into production
+untested.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-5">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>vector(N)</code></td>
+<td>A fixed-dimension floating-point array column type; enforces
+<code>N</code> at write time</td>
+</tr>
+<tr class="even">
+<td><code>&lt;-&gt;</code></td>
+<td>L2 (Euclidean) distance — straight-line distance between points</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;#&gt;</code></td>
+<td>Negative inner product — dot product, negated so smaller means
+closer</td>
+</tr>
+<tr class="even">
+<td><code>&lt;=&gt;</code></td>
+<td>Cosine distance — angle between vectors, ignoring magnitude</td>
+</tr>
+<tr class="odd">
+<td><code>normalize_embeddings=True</code></td>
+<td>Makes all three operators agree on ranking; without it, they can
+disagree</td>
+</tr>
+<tr class="even">
+<td><code>USING ivfflat (col vector_l2_ops) WITH (lists = N)</code></td>
+<td>Clusters vectors into <code>N</code> buckets; fast to build, needs
+<code>probes</code> tuned up from its default to get usable recall</td>
+</tr>
+<tr class="odd">
+<td><code>SET ivfflat.probes = N</code></td>
+<td>How many clusters an IVFFlat search actually examines — defaults to
+<code>1</code>, often too low</td>
+</tr>
+<tr class="even">
+<td><code>USING hnsw (col vector_l2_ops)</code></td>
+<td>Graph-based ANN index; ~3x slower to build than IVFFlat here, but
+near-exact recall by default</td>
+</tr>
+<tr class="odd">
+<td><code>ts_rank(...) + (1 - cosine_distance)</code> weighted
+blend</td>
+<td>Hybrid search — keyword precision plus semantic recall in one
+ranking</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+“approximate” in “approximate nearest neighbor” is not a rounding error
+— at IVFFlat’s default settings, this chapter repeatedly measured 30-40%
+recall on real queries, which means 6-7 of the top 10 <em>true</em>
+nearest neighbors were silently missing from the results, with no error,
+no warning, nothing to indicate anything was wrong. Every ANN index
+trades recall for speed on a dial you control (<code>probes</code>,
+<code>ef_search</code>); the failure mode to avoid is not knowing where
+that dial is set.</p>
+<p>The <code>city_documents</code> table’s <code>embedding</code> column
+is reused in Chapter 10 (PostgREST), which exposes the semantic search
+query from Exercise 5 as a public RPC endpoint alongside the fuzzy “did
+you mean?” search from Chapter 5.</p>
+<hr />
+<p><em>Going further: this chapter used <code>all-MiniLM-L6-v2</code>
+(384 dimensions) because it’s small, fast on CPU, and good enough to
+teach with — production systems often use larger models (OpenAI’s
+<code>text-embedding-3-small</code> at 1536 dimensions, or similar) for
+better semantic quality, at proportionally higher storage and compute
+cost per vector. For tables much larger than <code>city_photos</code>’s
+5,000 rows, revisit <code>lists</code> (scale roughly with row count)
+and consider <code>hnsw</code>’s <code>m</code> and
+<code>ef_construction</code> build-time parameters, which trade index
+size and build time for recall the same way <code>probes</code> trades
+query time for it. And if your embeddings change meaning over time — a
+newer, better model version — remember that a <code>vector</code> column
+has no built-in versioning; re-embedding the whole table and rebuilding
+the index is a full migration, not an in-place update.</em></p>
+<h2 id="bonus-section-build-a-local-rag-system">Bonus Section — Build a
+Local RAG System</h2>
+<p><em>This section is optional and sits outside the numbered exercises
+— nothing later in the book depends on it. It exists because semantic
+search (Exercise 5) is one step short of the thing most people actually
+mean when they say “AI search”: a system that doesn’t just return
+matching documents, but reads them and answers the question directly.
+That’s <strong>Retrieval- Augmented Generation (RAG)</strong>, and you
+already built the hard half of it — retrieval — in Exercises 1 through
+5. This section adds the other half.</em></p>
+<h3 id="what-rag-actually-is">What RAG actually is</h3>
+<p>Every large language model has a knowledge cutoff and no idea what’s
+in your <code>city_documents</code> table. Ask one directly “what are
+the rules for Portsmith’s dog park?” and it will either say it doesn’t
+know or, worse, confidently invent something plausible-sounding and
+wrong — a <strong>hallucination</strong>. RAG sidesteps this without
+retraining or fine-tuning anything: before asking the model the
+question, retrieve the most relevant real text from your own database
+and paste it directly into the prompt, instructing the model to answer
+<em>only</em> from that text. The model isn’t recalling facts from
+training anymore; it’s reading comprehension over text you handed it
+seconds ago.</p>
+<p>This means RAG is two independent systems wired together, and it’s
+worth keeping them mentally separate:</p>
+<ol type="1">
+<li><strong>Retrieval</strong> — PostgreSQL, <code>pgvector</code>, and
+everything from Exercises 1-5 of this chapter. Given a question, find
+the most relevant chunks of text.</li>
+<li><strong>Generation</strong> — a large language model that turns
+“here are some relevant facts, here is a question” into a fluent, direct
+answer.</li>
+</ol>
+<p>Nothing about retrieval changes when you add generation on top of it
+— the <code>&lt;=&gt;</code> cosine-distance query from Exercise 5 is
+exactly what runs here too. What’s new is chunking (documents are
+usually too long and too topically mixed to embed as a single vector)
+and the LLM call itself, which this section runs locally through
+<strong>Ollama</strong> rather than a paid API, for the same reason
+Chapter 6 as a whole runs its embedding model locally: no API key, no
+per-query cost, nothing leaves your machine.</p>
+<h3 id="installation-ollama">Installation — Ollama</h3>
+<div class="sourceCode" id="cb327"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb327-1"><a href="#cb327-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-fsSL</span> https://ollama.com/install.sh <span class="kw">|</span> <span class="fu">sh</span></span></code></pre></div>
+<p>This installs Ollama as a systemd service listening on
+<code>localhost:11434</code>. Pull a chat model — this section uses
+<code>llama3.1:8b</code> (about 4.9GB):</p>
+<div class="sourceCode" id="cb328"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb328-1"><a href="#cb328-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ollama</span> pull llama3.1:8b</span></code></pre></div>
+<p>If disk space or RAM is tight, <code>ollama pull phi</code> gets you
+a much smaller (~1.6GB) model at a real quality cost; every example
+below works with either, since the model name is a plain argument to the
+RAG script, not something hardcoded.</p>
+<blockquote>
+<p><strong>Note:</strong> the <em>first</em> request to any given model
+incurs a one-time load delay (10-15 seconds isn’t unusual) while Ollama
+loads its weights into memory. Every request after that, to the same
+model, is fast — Ollama keeps recently used models resident for a while.
+Don’t judge a model’s real latency by its very first response.</p>
+</blockquote>
+<h3 id="ingest-chunk-and-embed-a-directory-of-documents">Ingest: chunk
+and embed a directory of documents</h3>
+<p><code>data/rag_docs/</code> contains four new, longer, informational
+documents — a business licensing guide, a parks and recreation guide, a
+utilities guide, and a newcomer’s guide — distinct from
+<code>city_documents</code>’s formal council records, written in the
+plain-prose register an actual city help-desk handout would use.
+<code>ch06_rag_ingest.py</code> splits each file into overlapping
+word-count chunks, embeds every chunk with <code>all-MiniLM-L6-v2</code>
+(the same model used everywhere else in this chapter — retrieval only
+works if the same model embeds both the documents and the questions),
+and loads them into a table you name on the command line:</p>
+<div class="sourceCode" id="cb329"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb329-1"><a href="#cb329-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_rag_ingest.py data/rag_docs <span class="at">--table</span> portsmith_rag <span class="at">--recreate</span></span></code></pre></div>
+<pre><code>Connecting to: dbname=portsmith
+Loading all-MiniLM-L6-v2 …
+  getting_a_business_license.txt: 4 chunks
+  newcomer_guide.txt: 4 chunks
+  parks_and_recreation.txt: 4 chunks
+  utilities_and_public_works.txt: 4 chunks
+Done — 16 chunks from 4 files loaded into &#39;portsmith_rag&#39;.</code></pre>
+<p>Each ~700-word document became 4 chunks of 180 words with a 40-word
+overlap between consecutive chunks (both configurable via
+<code>--chunk-size</code> and <code>--chunk-overlap</code>). The overlap
+matters: without it, a sentence that happens to fall right at a chunk
+boundary gets split across two chunks, and neither half alone may
+retrieve well for a question about it.</p>
+<p>The table it creates is deliberately the same generic shape
+regardless of what you point it at:</p>
+<div class="sourceCode" id="cb331"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb331-1"><a href="#cb331-1" aria-hidden="true" tabindex="-1"></a>\d portsmith_rag</span></code></pre></div>
+<pre><code>                                 Table &quot;public.portsmith_rag&quot;
+   Column    |    Type     | Collation | Nullable |                  Default
+-------------+-------------+-----------+----------+-------------------------------------------
+ id          | integer     |           | not null | nextval(&#39;portsmith_rag_id_seq&#39;::regclass)
+ source      | text        |           | not null |
+ chunk_index | integer     |           | not null |
+ content     | text        |           | not null |
+ embedding   | vector(384) |           | not null |
+Indexes:
+    &quot;portsmith_rag_pkey&quot; PRIMARY KEY, btree (id)
+    &quot;idx_portsmith_rag_embedding&quot; hnsw (embedding vector_cosine_ops)</code></pre>
+<p><code>--table</code> is a plain identifier you choose — point the
+same script at a different directory with <code>--table</code> set to
+something else, and you have a second, independent knowledge base in the
+same database. Run it against your own notes, a project’s documentation,
+anything in <code>.txt</code> or <code>.md</code> files.</p>
+<blockquote>
+<p><strong>Why the table name is validated, not just
+interpolated:</strong> <code>--table</code> comes from the command line
+and flows into <code>CREATE TABLE</code>, <code>INSERT</code>, and
+<code>CREATE INDEX</code> statements. SQL identifiers (table names)
+can’t be passed as query parameters the way values can —
+<code>cur.execute("... WHERE id = %s", (table_name,))</code> only works
+for <em>values</em>. <code>ch06_rag_ingest.py</code> and
+<code>ch06_rag_chat.py</code> both reject anything that isn’t a plain
+lowercase identifier before it touches SQL, and use
+<code>psycopg.sql.Identifier</code> to quote it correctly rather than
+dropping it into an f-string. For a script you run yourself against your
+own database this is a small concern; the habit is worth keeping anyway,
+because the same shortcut in a script that takes a table name from a web
+form is a real SQL injection hole.</p>
+</blockquote>
+<h3 id="ask-a-question">Ask a question</h3>
+<p><code>ch06_rag_chat.py</code> takes three required arguments —
+<code>model</code>, <code>table</code>, <code>question</code>, in that
+order — plus <code>--host</code> and <code>--port</code> for Ollama
+(both default to <code>localhost</code> and <code>11434</code>, so you
+only need them if Ollama runs elsewhere):</p>
+<div class="sourceCode" id="cb333"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb333-1"><a href="#cb333-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_rag_chat.py llama3.1:8b portsmith_rag <span class="dt">\</span></span>
+<span id="cb333-2"><a href="#cb333-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;How do I get a business license in Portsmith?&quot;</span> <span class="at">--show-context</span></span></code></pre></div>
+<pre><code>--- retrieved context ---
+[getting_a_business_license.txt#0  dist=0.2743] Getting a Business License in Portsmith Anyone opening a business within city limits needs a busines...
+[getting_a_business_license.txt#3  dist=0.5796] to change their registered category — a retail shop adding a small cafe counter, for example — need ...
+[getting_a_business_license.txt#2  dist=0.6149] scratch rather than simply renewing, which means a new round of inspections for categories that requ...
+[newcomer_guide.txt#0  dist=0.6176] A Newcomer&#39;s Guide to Portsmith Welcome to Portsmith. This guide covers the basics every new residen...
+
+To get a business license in Portsmith, you need to start online through the city&#39;s permitting portal, where you choose a business category since it determines which inspections and follow-up permits apply. Most applications are processed within two to three weeks, but those involving food service or alcohol take longer because they require scheduled in-person inspections.</code></pre>
+<p><code>--show-context</code> prints exactly what got retrieved before
+the model ever saw the question — the same top-K cosine-distance query
+from Exercise 5, just with <code>content</code> instead of
+<code>title</code> as the payload. The answer isn’t copied from any
+single chunk; it’s the model synthesizing across the top few, which is
+the actual value RAG adds over raw semantic search: Exercise 5 would
+have handed a person four ranked chunks to read themselves, this hands
+them one sentence that already did the reading.</p>
+<blockquote>
+<p><strong>Reproducibility, honestly:</strong> the retrieved chunks and
+their <code>dist</code> values above are fully deterministic — rerun the
+exact query and you’ll get the exact same four chunks in the exact same
+order, because embedding and cosine distance are pure math. The
+generated <em>answer</em> is not — Ollama samples from the model’s
+output distribution, so wording will differ run to run (sometimes prose,
+sometimes a bulleted list) even against identical context. That’s a
+property of the generation half of RAG, not the retrieval half; don’t
+expect to reproduce this exact paragraph verbatim.</p>
+</blockquote>
+<h3 id="what-happens-when-the-answer-isnt-in-the-documents">What happens
+when the answer isn’t in the documents</h3>
+<p>This is the case that actually matters for trusting a RAG system —
+ask something the ingested documents have no way of answering:</p>
+<div class="sourceCode" id="cb335"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb335-1"><a href="#cb335-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch06_rag_chat.py llama3.1:8b portsmith_rag <span class="dt">\</span></span>
+<span id="cb335-2"><a href="#cb335-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;What is the capital of France?&quot;</span> <span class="at">--show-context</span></span></code></pre></div>
+<pre><code>--- retrieved context ---
+[newcomer_guide.txt#1  dist=0.9228] river on the city&#39;s western edge and is primarily residential, with the new dog park, several parks ...
+[utilities_and_public_works.txt#1  dist=0.9272] requires temporarily shutting off service to a section of a neighbourhood, Public Works issues a boi...
+[newcomer_guide.txt#0  dist=0.9361] A Newcomer&#39;s Guide to Portsmith Welcome to Portsmith. This guide covers the basics every new residen...
+[newcomer_guide.txt#2  dist=0.9475] alike. Noise ordinance enforcement is more actively watched here than in other neighbourhoods given ...
+
+I don&#39;t know. The context only provides information about the city of Portsmith, its neighbourhoods, and various services offered by the city, but does not mention the capital of France.</code></pre>
+<p>Two things to notice. First, retrieval <strong>still returned four
+chunks</strong> — exactly as Exercise 5 described, cosine similarity
+search never returns “no results,” it returns the <em>least bad</em>
+matches available, and here they’re genuinely irrelevant. Second, look
+at the distances: <code>0.92-0.95</code>, versus <code>0.27-0.61</code>
+for the business license question. That gap is the signal a production
+system would actually act on — this script’s prompt template happens to
+lean on the model’s own judgment to say “I don’t know,” but a more
+defensive design would check the top distance against a threshold
+<em>before</em> even calling the LLM, and skip generation entirely for a
+question this poorly matched. Relying on the model to notice the context
+is irrelevant works here because <code>llama3.1:8b</code> is reasonably
+well-behaved about it — it is not a guarantee every model or every
+prompt will get right, and it’s the single biggest reliability risk in
+any RAG system: nothing stops a language model from answering
+confidently from weak or irrelevant context if the prompt doesn’t insist
+otherwise.</p>
+<h3 id="the-prompt-the-actual-glue-between-the-two-systems">The prompt:
+the actual glue between the two systems</h3>
+<p><code>ask_ollama()</code> in <code>ch06_rag_chat.py</code> sends the
+model one plain-text prompt via Ollama’s <code>/api/generate</code>
+endpoint — no special “RAG mode” exists in Ollama or in the model
+itself, it’s just a string:</p>
+<pre><code>You are a help-desk assistant for the city of Portsmith. Answer the question using ONLY the context below. If the context doesn&#39;t contain the answer, say you don&#39;t know rather than guessing.
+
+Context:
+(getting_a_business_license.txt) Getting a Business License in Portsmith Anyone opening a business ...
+(getting_a_business_license.txt) to change their registered category — a retail shop adding a small ...
+...
+
+Question: How do I get a business license in Portsmith?
+
+Answer:</code></pre>
+<p>This is the entire mechanism. There is no fine-tuning, no special
+API, nothing model-specific — “retrieval-augmented generation” is a
+prompt template plus a database query, which is exactly why it was worth
+showing you the whole thing at this level rather than reaching for a
+framework.</p>
+<hr />
+<em>Going further: this section’s retrieval is intentionally the
+simplest version that works — top-K by raw cosine distance, no
+re-ranking, no distance-threshold cutoff before generation, no limit on
+how many tokens of context get sent to the model regardless of length.
+Production RAG systems typically add a <strong>re-ranking</strong> step
+(retrieve a wider candidate set cheaply, then re-score the top
+candidates with a slower, more accurate model before picking the final
+context), <strong>hybrid retrieval</strong> (blend <code>ts_rank</code>
+back in, exactly as Exercise 6 did, since keyword precision and semantic
+recall are just as complementary here as they were there), and explicit
+<strong>citations</strong> in the generated answer so a user can verify
+a claim against the source chunk rather than trusting the model’s
+summary outright. None of that changes the shape of what you built here
+— it’s still retrieval, then generation, with more care taken at each
+step.</em>
 <div style="page-break-before: always;">
 
 </div>

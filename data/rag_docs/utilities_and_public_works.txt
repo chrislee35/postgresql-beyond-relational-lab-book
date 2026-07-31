@@ -1,0 +1,56 @@
+Utilities and Public Works in Portsmith
+
+Public Works maintains water, sewer, and road infrastructure across all
+six neighbourhoods, and most resident interactions with the department
+happen one of two ways: reporting a problem, or getting advance notice of
+planned work that will affect their street. Both go through the same
+non-emergency service request line and the online portal, which logs
+every request with a tracking number so residents can check on status
+without having to call back and re-explain the issue.
+
+Water main breaks and other emergency repairs get prioritized ahead of
+routine maintenance, and crews aim to restore water within a few hours for
+most breaks, though older sections of pipe in Old Town and the Harbour
+District occasionally require longer repairs due to the age of the
+infrastructure underneath those streets. When a repair affects water
+pressure or requires temporarily shutting off service to a section of a
+neighbourhood, Public Works issues a boil water advisory as a precaution
+until follow-up testing confirms the water meets safety standards — this
+is standard procedure any time pressure drops significantly, not a sign
+that contamination has actually been detected.
+
+Road resurfacing follows an annual cycle, with priority given to streets
+showing the most drainage or surface damage from the previous year,
+particularly after a wet winter or spring flooding. The city tries to
+coordinate resurfacing with other planned work on the same street — a bike
+lane extension, a water main replacement — so that a single street isn't
+dug up and repaved twice within the same year for unrelated projects.
+Residents on a street scheduled for work receive a mailed notice roughly
+two weeks before crews arrive, with an estimated timeline that Public
+Works updates on the portal if conditions cause delays.
+
+Trash and recycling collection runs on a weekly schedule that varies by
+neighbourhood, with recycling picked up every other week on the same day
+as trash. Bulk item pickup — furniture, appliances, large yard waste —
+requires scheduling through the portal at least three business days in
+advance rather than simply leaving items at the curb, since unscheduled
+bulk items are treated as illegal dumping and can result in a fine to the
+property. Yard waste is collected separately from spring through fall and
+composted at the city's facility near the Industrial Port.
+
+Streetlight outages, potholes, and storm drain blockages can all be
+reported through the same portal used for water issues, and each report
+type routes to the appropriate crew automatically rather than requiring
+the resident to know which department handles what. Potholes reported
+through the portal are typically patched within one to two weeks outside
+of winter, when patching material doesn't cure properly in freezing
+temperatures and repairs are limited to temporary cold-patch fixes until
+weather allows a permanent repair.
+
+Flood mitigation has become a growing focus for Public Works, particularly
+in low-lying sections of Riverside, after several seasons of spring
+flooding damaged roads and put pressure on the aging storm drain system.
+The city's long-term plan includes upgraded storm drains, a new retention
+basin, and selectively raised roadbeds on the streets that flood most
+often, funded in part through state infrastructure grants the city
+applies for annually.
