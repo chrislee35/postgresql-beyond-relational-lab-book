@@ -431,6 +431,57 @@ id="toc-the-prompt-the-actual-glue-between-the-two-systems">The prompt:
 the actual glue between the two systems</a></li>
 </ul></li>
 </ul></li>
+<li><a href="#chapter-7-ip-and-network-filtering-ip4r"
+id="toc-chapter-7-ip-and-network-filtering-ip4r">Chapter 7 — IP and
+Network Filtering: <code>ip4r</code></a>
+<ul>
+<li><a href="#background-6" id="toc-background-6">Background</a></li>
+<li><a href="#the-scenario-6" id="toc-the-scenario-6">The
+Scenario</a></li>
+<li><a href="#exercise-goals-6" id="toc-exercise-goals-6">Exercise
+Goals</a></li>
+<li><a href="#installation-6"
+id="toc-installation-6">Installation</a></li>
+<li><a href="#loading-the-data-6" id="toc-loading-the-data-6">Loading
+the Data</a>
+<ul>
+<li><a href="#run-the-seed-script-3" id="toc-run-the-seed-script-3">Run
+the seed script</a></li>
+<li><a href="#verify-the-load-6" id="toc-verify-the-load-6">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-6" id="toc-exercises-6">Exercises</a>
+<ul>
+<li><a href="#exercise-1-ip4r-vs.-the-built-in-inetcidr"
+id="toc-exercise-1-ip4r-vs.-the-built-in-inetcidr">Exercise 1 —
+<code>ip4r</code> vs. the Built-in
+<code>inet</code>/<code>cidr</code></a></li>
+<li><a href="#exercise-2-containment-and"
+id="toc-exercise-2-containment-and">Exercise 2 — Containment:
+<code>&gt;&gt;</code> and <code>&lt;&lt;=</code></a></li>
+<li><a href="#exercise-3-gist-indexing-and-a-real-gotcha"
+id="toc-exercise-3-gist-indexing-and-a-real-gotcha">Exercise 3 — GiST
+Indexing (and a Real Gotcha)</a></li>
+<li><a href="#exercise-4-aggregating-by-subnet"
+id="toc-exercise-4-aggregating-by-subnet">Exercise 4 — Aggregating by
+Subnet</a></li>
+<li><a
+href="#exercise-5-overlap-detection-between-allow-and-block-lists"
+id="toc-exercise-5-overlap-detection-between-allow-and-block-lists">Exercise
+5 — Overlap Detection Between Allow and Block Lists</a></li>
+<li><a href="#exercise-6-a-real-time-is-this-ip-blocked-function"
+id="toc-exercise-6-a-real-time-is-this-ip-blocked-function">Exercise 6 —
+A Real-Time “Is This IP Blocked?” Function</a></li>
+<li><a
+href="#exercise-7-additional-rate-limiting-by-host-and-24-with-a-token-bucket"
+id="toc-exercise-7-additional-rate-limiting-by-host-and-24-with-a-token-bucket">Exercise
+7 (Additional) — Rate Limiting by Host <em>and</em> <code>/24</code>
+with a Token Bucket</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-6"
+id="toc-summary-what-you-should-now-know-6">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -5543,6 +5594,834 @@ a claim against the source chunk rather than trusting the model’s
 summary outright. None of that changes the shape of what you built here
 — it’s still retrieval, then generation, with more care taken at each
 step.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-7-ip-and-network-filtering-ip4r">Chapter 7 — IP and
+Network Filtering: <code>ip4r</code></h1>
+<blockquote>
+<p><em>“An IP address is a number. A CIDR block is a range. PostgreSQL’s
+built-in types treat the first well and the second as an afterthought —
+<code>ip4r</code> treats the range as the whole point.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-6">Background</h2>
+<p>PostgreSQL already ships <code>inet</code> and <code>cidr</code> —
+you don’t strictly need an extension to store an IP address. So why does
+one exist? Because <code>inet</code> and <code>cidr</code> were designed
+for storing addresses and networks, not for answering the question a
+security team actually asks all day: <em>“is this address inside any of
+these ranges?”</em> — over and over, at high volume, fast.
+<code>cidr</code> is also stricter than it looks: it rejects a value
+with any host bits set relative to its mask (<code>192.168.1.5/24</code>
+is refused outright — more on that in Exercise 1), and neither built-in
+type ships a purpose-built index structure for “find every range
+containing this point” or “find every point inside this range” at scale.
+Every containment check against a large blocklist falls back to a
+sequential scan unless you reach for something else.</p>
+<p><code>ip4r</code> is that something else: a dedicated
+<code>ip4</code> type for single IPv4 addresses, an <code>ip4r</code>
+type for arbitrary IPv4 ranges (CIDR-aligned or not — also unlike
+<code>cidr</code>), a GiST opclass built specifically for fast range
+containment, and — despite the name — full IPv6 equivalents
+(<code>ip6</code>, <code>ip6r</code>) plus polymorphic
+<code>ipaddress</code>/<code>iprange</code> types that work with either
+family. This chapter builds a small network security monitoring setup
+around it: logging access attempts, maintaining block and allow lists,
+indexing them properly, and — because real blocklists and allowlists
+eventually disagree with each other — finding and resolving the
+conflicts that creates.</p>
+<hr />
+<h2 id="the-scenario-6">The Scenario</h2>
+<p>Portsmith’s online services — the resident portal, the business
+licensing API from Chapter 5, the permit dashboard — all sit behind the
+same logging and access-control layer. Every login attempt and API call
+gets recorded, and a security team maintains two lists: a
+<strong>blocklist</strong> of ranges observed doing something hostile
+(brute-force login attempts, known Tor exit nodes, botnet activity), and
+an <strong>allowlist</strong> of ranges that should never be blocked
+regardless — the city’s own VPN, a trusted vendor’s office network.</p>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 78%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>network_events</code></td>
+<td>One row per login attempt or API call — type, source IP,
+timestamp</td>
+</tr>
+<tr class="even">
+<td><code>blocklists</code></td>
+<td>CIDR ranges flagged as malicious, with a category and
+description</td>
+</tr>
+<tr class="odd">
+<td><code>allowlists</code></td>
+<td>CIDR ranges that should never be blocked, regardless of blocklist
+entries</td>
+</tr>
+</tbody>
+</table>
+<p>Every range in this chapter’s data uses IANA-reserved, non-routable
+address space (the RFC 5737 documentation blocks
+<code>192.0.2.0/24</code>, <code>198.51.100.0/24</code>,
+<code>203.0.113.0/24</code>, and the reserved <code>240.0.0.0/4</code>
+block) — synthetic security data, not a real blocklist, using addresses
+that were never going to belong to anyone.</p>
+<hr />
+<h2 id="exercise-goals-6">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Explain what <code>ip4r</code> gets you over the built-in
+<code>inet</code>/<code>cidr</code> types, in storage and in what values
+each type actually accepts.</li>
+<li>Use the containment operators <code>&gt;&gt;</code> and
+<code>&lt;&lt;=</code> to check whether an address falls inside a range,
+and handle the case where it matches more than one.</li>
+<li>Build a GiST index for network containment queries — and know why it
+can’t go directly on an <code>ip4</code> column, only an
+<code>ip4r</code> one.</li>
+<li>Aggregate events by subnet using both <code>ip4r</code>-native
+functions and the built-in <code>network()</code>/<code>masklen()</code>
+functions via a cast.</li>
+<li>Detect real conflicts between an allowlist and a blocklist using the
+overlap operator <code>&amp;&amp;</code>.</li>
+<li>Build a GiST-indexed function that resolves those conflicts and
+answers “is this IP blocked?” in one call.</li>
+<li><em>(Additional)</em> Implement a token-bucket rate limiter keyed on
+<code>ip4r</code>, applied at both the host and <code>/24</code>
+netblock level, and explain why distributed abuse needs the second
+bucket to be caught at all.</li>
+</ul>
+<hr />
+<h2 id="installation-6">Installation</h2>
+<div class="sourceCode" id="cb338"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb338-1"><a href="#cb338-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16-ip4r</span></code></pre></div>
+<p>Enable it. Like <code>pgvector</code> in Chapter 6,
+<code>ip4r</code>’s control file does not set
+<code>trusted = true</code>, so a regular database-owning role can’t
+self-serve this one either — it has to be done once, by a superuser:</p>
+<div class="sourceCode" id="cb339"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb339-1"><a href="#cb339-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> <span class="at">-u</span> postgres psql portsmith <span class="at">-c</span> <span class="st">&quot;CREATE EXTENSION ip4r;&quot;</span></span></code></pre></div>
+<p>Confirm it:</p>
+<div class="sourceCode" id="cb340"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb340-1"><a href="#cb340-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> extversion <span class="kw">FROM</span> pg_extension <span class="kw">WHERE</span> extname <span class="op">=</span> <span class="st">&#39;ip4r&#39;</span>;</span></code></pre></div>
+<pre><code> extversion
+------------
+ 2.4</code></pre>
+<blockquote>
+<p><strong>If it doesn’t show up:</strong> double-check which database
+you ran the <code>CREATE EXTENSION</code> against. <code>psql -l</code>
+lists every database on the cluster — it’s worth a glance if an
+extension you just enabled doesn’t appear where you expect it.</p>
+</blockquote>
+<hr />
+<h2 id="loading-the-data-6">Loading the Data</h2>
+<h3 id="run-the-seed-script-3">Run the seed script</h3>
+<div class="sourceCode" id="cb342"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb342-1"><a href="#cb342-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch07_seed.py</span></code></pre></div>
+<p>Expected output:</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 4 blocklist entries …
+Inserting 3 allowlist entries …
+Inserting 116 network events …
+Done — 116 rows in network_events, 4 blocklist entries, 3 allowlist entries.</code></pre>
+<h3 id="verify-the-load-6">Verify the load</h3>
+<p>Open <code>psql portsmith</code> and run these checks.</p>
+<p><strong>Check 1 — table structure:</strong></p>
+<div class="sourceCode" id="cb344"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb344-1"><a href="#cb344-1" aria-hidden="true" tabindex="-1"></a>\d network_events</span></code></pre></div>
+<pre><code>                                      Table &quot;public.network_events&quot;
+   Column    |           Type           | Collation | Nullable |                  Default
+-------------+--------------------------+-----------+----------+--------------------------------------------
+ id          | bigint                   |           | not null | nextval(&#39;network_events_id_seq&#39;::regclass)
+ event_type  | text                     |           | not null |
+ source_ip   | ip4                      |           | not null |
+ occurred_at | timestamp with time zone |           | not null |
+ detail      | text                     |           | not null |
+Indexes:
+    &quot;network_events_pkey&quot; PRIMARY KEY, btree (id)
+Check constraints:
+    &quot;network_events_event_type_check&quot; CHECK (event_type = ANY (ARRAY[&#39;login_success&#39;::text, &#39;login_failure&#39;::text, &#39;api_call&#39;::text, &#39;api_error&#39;::text]))</code></pre>
+<p><strong>Check 2 — event counts by type:</strong></p>
+<div class="sourceCode" id="cb346"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb346-1"><a href="#cb346-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> event_type, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> network_events <span class="kw">GROUP</span> <span class="kw">BY</span> event_type <span class="kw">ORDER</span> <span class="kw">BY</span> event_type;</span></code></pre></div>
+<pre><code>  event_type   | count
+---------------+-------
+ api_call      |    47
+ api_error     |     9
+ login_failure |    41
+ login_success |    19
+(4 rows)</code></pre>
+<p><strong>Check 3 — list counts:</strong></p>
+<div class="sourceCode" id="cb348"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb348-1"><a href="#cb348-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> blocklists;   <span class="co">-- 4</span></span>
+<span id="cb348-2"><a href="#cb348-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> allowlists;   <span class="co">-- 3</span></span></code></pre></div>
+<p>If all three match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-6">Exercises</h2>
+<hr />
+<h3 id="exercise-1-ip4r-vs.-the-built-in-inetcidr">Exercise 1 —
+<code>ip4r</code> vs. the Built-in
+<code>inet</code>/<code>cidr</code></h3>
+<p><strong>1.1 — Storage</strong></p>
+<div class="sourceCode" id="cb349"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb349-1"><a href="#cb349-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_column_size(<span class="st">&#39;203.0.113.5&#39;</span>:<span class="ch">:ip4</span>)      <span class="kw">AS</span> ip4_size,</span>
+<span id="cb349-2"><a href="#cb349-2" aria-hidden="true" tabindex="-1"></a>       pg_column_size(<span class="st">&#39;203.0.113.5&#39;</span>:<span class="ch">:inet</span>)     <span class="kw">AS</span> inet_size,</span>
+<span id="cb349-3"><a href="#cb349-3" aria-hidden="true" tabindex="-1"></a>       pg_column_size(<span class="st">&#39;203.0.113.0/24&#39;</span>:<span class="ch">:ip4r</span>)  <span class="kw">AS</span> ip4r_size,</span>
+<span id="cb349-4"><a href="#cb349-4" aria-hidden="true" tabindex="-1"></a>       pg_column_size(<span class="st">&#39;203.0.113.0/24&#39;</span>:<span class="ch">:cidr</span>)  <span class="kw">AS</span> cidr_size;</span></code></pre></div>
+<pre><code> ip4_size | inet_size | ip4r_size | cidr_size
+----------+-----------+-----------+-----------
+        4 |        10 |         8 |        10</code></pre>
+<p><code>ip4</code> is a fixed 4-byte integer — nothing but the address.
+<code>inet</code> costs 10 bytes because it’s a varlena type carrying an
+address family byte and a netmask alongside the 4 address bytes, general
+enough to also hold IPv6. <code>ip4r</code> stores a range as two 4-byte
+bounds (8 bytes) rather than a network+prefix pair, and
+<code>cidr</code> costs the same 10 bytes as <code>inet</code> for the
+same reason. At one row this is noise; at hundreds of millions of rows
+in a real event log, 4 bytes versus 10 is not.</p>
+<p><strong>1.2 — <code>cidr</code> is stricter than you might
+expect</strong></p>
+<div class="sourceCode" id="cb351"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb351-1"><a href="#cb351-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;192.168.1.5/24&#39;</span>:<span class="ch">:cidr</span>;</span></code></pre></div>
+<pre><code>ERROR:  invalid cidr value: &quot;192.168.1.5/24&quot;
+DETAIL:  Value has bits set to right of mask.</code></pre>
+<p><code>cidr</code> refuses any value where the host portion isn’t all
+zero for the given mask — it only accepts genuine network addresses.
+<code>inet</code> is more permissive and keeps the host bits as part of
+the value:</p>
+<div class="sourceCode" id="cb353"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb353-1"><a href="#cb353-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;192.168.1.5/24&#39;</span>:<span class="ch">:inet</span>;</span></code></pre></div>
+<pre><code>    inet
+----------------
+ 192.168.1.5/24</code></pre>
+<p><strong>1.3 — <code>ip4r</code> doesn’t require CIDR alignment at
+all</strong></p>
+<div class="sourceCode" id="cb355"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb355-1"><a href="#cb355-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;203.0.113.5-203.0.113.20&#39;</span>:<span class="ch">:ip4r</span>;</span></code></pre></div>
+<pre><code>          ip4r
+--------------------------
+ 203.0.113.5-203.0.113.20</code></pre>
+<div class="sourceCode" id="cb357"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb357-1"><a href="#cb357-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;203.0.113.5-203.0.113.20&#39;</span>:<span class="ch">:cidr</span>;</span></code></pre></div>
+<pre><code>ERROR:  invalid input syntax for type cidr: &quot;203.0.113.5-203.0.113.20&quot;</code></pre>
+<p>This is the real semantic difference, not just performance:
+<code>cidr</code> and <code>inet</code> can only represent power-of-two,
+mask-aligned networks. <code>ip4r</code> is a genuine range type — a
+start and an end bound, no requirement that they correspond to any CIDR
+block at all. A DHCP pool spanning <code>.5</code> through
+<code>.20</code> is a completely ordinary <code>ip4r</code> value and
+simply not expressible as a single <code>cidr</code>.</p>
+<p><strong>1.4 — The wider family</strong></p>
+<p><code>ip4r</code> (the extension) is not limited to IPv4 despite the
+name:</p>
+<div class="sourceCode" id="cb359"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb359-1"><a href="#cb359-1" aria-hidden="true" tabindex="-1"></a>\dx<span class="op">+</span> ip4r</span></code></pre></div>
+<p>lists casts and functions for <code>ip4</code>, <code>ip4r</code>,
+<code>ip6</code>, <code>ip6r</code>, and two polymorphic types,
+<code>ipaddress</code> and <code>iprange</code>, that accept either
+address family. This chapter sticks to IPv4 to match
+<code>network_events</code> and keep the examples concrete, but
+everything here has a direct IPv6 equivalent.</p>
+<hr />
+<h3 id="exercise-2-containment-and">Exercise 2 — Containment:
+<code>&gt;&gt;</code> and <code>&lt;&lt;=</code></h3>
+<p><strong>2.1 — “Does any blocklist entry contain this
+address?”</strong></p>
+<div class="sourceCode" id="cb360"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb360-1"><a href="#cb360-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, <span class="kw">category</span>, description</span>
+<span id="cb360-2"><a href="#cb360-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   blocklists</span>
+<span id="cb360-3"><a href="#cb360-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  cidr <span class="op">&gt;&gt;</span> <span class="st">&#39;203.0.113.150&#39;</span>:<span class="ch">:ip4</span>;</span></code></pre></div>
+<pre><code> id |    category     |                                          description
+----+-----------------+-----------------------------------------------------------------------------------------------
+  1 | known_malicious | Repeated brute-force login attempts against the resident portal, flagged by the security team
+  2 | botnet          | Subrange within 203.0.113.0/24 attributed to a specific credential-stuffing botnet
+(2 rows)</code></pre>
+<p><code>&gt;&gt;</code> means “left range contains right value.” Two
+rows come back, not one — <code>203.0.113.150</code> falls inside both
+the broad <code>203.0.113.0/24</code> entry <em>and</em> the narrower
+<code>203.0.113.128/26</code> botnet subrange nested inside it. Real
+blocklists routinely have this shape: a wide, low-confidence range
+alongside a narrow, high-confidence one carved out of it.</p>
+<p><strong>2.2 — The same check, written the other way
+around</strong></p>
+<div class="sourceCode" id="cb362"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb362-1"><a href="#cb362-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, <span class="kw">category</span>, description</span>
+<span id="cb362-2"><a href="#cb362-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   blocklists</span>
+<span id="cb362-3"><a href="#cb362-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="st">&#39;203.0.113.150&#39;</span>:<span class="ch">:ip4</span> <span class="op">&lt;&lt;=</span> cidr;</span></code></pre></div>
+<p>Identical result set. <code>&lt;&lt;=</code> means “left value is
+contained by (or equal to) right range” — <code>a &gt;&gt; b</code> and
+<code>b &lt;&lt;= a</code> are the same test from opposite sides. Which
+one reads more naturally depends on which value you think of as the
+“subject” of the query; both compile to the same containment check.</p>
+<p><strong>2.3 — Handle the multi-match case deliberately</strong></p>
+<p>Since Exercise 2.1 showed a single address can match more than one
+blocklist entry, any real lookup needs to decide what to do with that —
+return every match for an audit trail, or the most specific one for a
+quick yes/no. Exercise 6 builds the second.</p>
+<hr />
+<h3 id="exercise-3-gist-indexing-and-a-real-gotcha">Exercise 3 — GiST
+Indexing (and a Real Gotcha)</h3>
+<p><strong>3.1 — The unindexed cost</strong></p>
+<div class="sourceCode" id="cb363"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb363-1"><a href="#cb363-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb363-2"><a href="#cb363-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, event_type, source_ip</span>
+<span id="cb363-3"><a href="#cb363-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb363-4"><a href="#cb363-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  source_ip <span class="op">&lt;&lt;=</span> <span class="st">&#39;203.0.113.0/24&#39;</span>:<span class="ch">:ip4r</span>;</span></code></pre></div>
+<pre><code>                                                QUERY PLAN
+----------------------------------------------------------------------------------------------------------
+ Seq Scan on network_events  (cost=0.00..3.74 rows=1 width=44) (actual time=0.006..0.016 rows=38 loops=1)
+   Filter: ((source_ip)::ip4r &lt;&lt;= &#39;203.0.113.0/24&#39;::ip4r)
+   Rows Removed by Filter: 78</code></pre>
+<p>38 of 116 events fall inside that /24. At 116 rows this costs
+nothing; at production log volume, a sequential scan per lookup is
+exactly the bottleneck <code>ip4r</code> exists to remove.</p>
+<p><strong>3.2 — The naive index fails</strong></p>
+<div class="sourceCode" id="cb365"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb365-1"><a href="#cb365-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_network_events_source_ip</span>
+<span id="cb365-2"><a href="#cb365-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> network_events <span class="kw">USING</span> GIST (source_ip);</span></code></pre></div>
+<pre><code>ERROR:  data type ip4 has no default operator class for access method &quot;gist&quot;
+HINT:  You must specify an operator class for the index or define a default operator class for the data type.</code></pre>
+<p>This is worth sitting with rather than working around blindly:
+<code>ip4r</code> (the extension) ships a GiST operator class for
+<code>ip4r</code> (the <strong>range</strong> type) only.</p>
+<div class="sourceCode" id="cb367"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb367-1"><a href="#cb367-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> opcname, amname</span>
+<span id="cb367-2"><a href="#cb367-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_opclass oc <span class="kw">JOIN</span> pg_am am <span class="kw">ON</span> am.<span class="kw">oid</span> <span class="op">=</span> oc.opcmethod</span>
+<span id="cb367-3"><a href="#cb367-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  opcname ILIKE <span class="st">&#39;%ip4%&#39;</span>;</span></code></pre></div>
+<pre><code>    opcname     | amname
+----------------+--------
+ btree_ip4_ops  | btree
+ btree_ip4r_ops | btree
+ hash_ip4_ops   | hash
+ hash_ip4r_ops  | hash
+ gist_ip4r_ops  | gist</code></pre>
+<p><code>ip4</code> (a single address) has B-tree and hash opclasses for
+equality and ordering, but no GiST opclass at all — GiST is for indexing
+<em>containment and overlap</em>, which only makes sense for a range.
+<code>network_events.source_ip</code> is declared <code>ip4</code>, a
+plain address column, so there’s nothing there for GiST to build against
+directly.</p>
+<p><strong>3.3 — The fix: index the range-cast expression</strong></p>
+<div class="sourceCode" id="cb369"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb369-1"><a href="#cb369-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_network_events_source_ip</span>
+<span id="cb369-2"><a href="#cb369-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> network_events <span class="kw">USING</span> GIST ((source_ip:<span class="ch">:ip4r</span>));</span></code></pre></div>
+<p>Every <code>ip4</code> value casts losslessly to a single-address
+<code>ip4r</code> (a range whose start and end are the same address),
+which does have a GiST opclass. This is an <strong>expression
+index</strong> — it indexes the result of <code>source_ip::ip4r</code>,
+not the raw column — so queries have to use the same cast for the
+planner to recognize a match:</p>
+<div class="sourceCode" id="cb370"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb370-1"><a href="#cb370-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb370-2"><a href="#cb370-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb370-3"><a href="#cb370-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb370-4"><a href="#cb370-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, event_type, source_ip</span>
+<span id="cb370-5"><a href="#cb370-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb370-6"><a href="#cb370-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  source_ip:<span class="ch">:ip4r</span> <span class="op">&lt;&lt;=</span> <span class="st">&#39;203.0.113.0/24&#39;</span>:<span class="ch">:ip4r</span>;</span>
+<span id="cb370-7"><a href="#cb370-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb370-8"><a href="#cb370-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;</span></code></pre></div>
+<pre><code>                                                                  QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_network_events_source_ip on network_events  (cost=0.14..8.15 rows=1 width=44) (actual time=0.105..0.110 rows=38 loops=1)
+   Index Cond: ((source_ip)::ip4r &lt;&lt;= &#39;203.0.113.0/24&#39;::ip4r)</code></pre>
+<p>Same 38 rows, now via <code>Index Scan</code>. The lesson generalizes
+beyond <code>ip4r</code>: when a GiST opclass exists for a
+<em>range</em> type but your column stores <em>points</em>, an
+expression index bridges the gap — cast to the range type in both the
+index definition and every query that should use it.</p>
+<hr />
+<h3 id="exercise-4-aggregating-by-subnet">Exercise 4 — Aggregating by
+Subnet</h3>
+<p><strong>4.1 — The <code>ip4r</code>-native way</strong></p>
+<div class="sourceCode" id="cb372"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb372-1"><a href="#cb372-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> ip4r_net_prefix(source_ip, <span class="dv">24</span>) <span class="kw">AS</span> subnet_24, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> <span class="kw">events</span></span>
+<span id="cb372-2"><a href="#cb372-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb372-3"><a href="#cb372-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> subnet_24</span>
+<span id="cb372-4"><a href="#cb372-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">events</span> <span class="kw">DESC</span>, subnet_24;</span></code></pre></div>
+<pre><code>    subnet_24    | events
+-----------------+--------
+ 203.0.113.0/24  |     38
+ 192.0.2.0/24    |     31
+ 198.51.100.0/24 |     28
+ 240.1.2.0/24    |     11
+ 100.64.5.0/24   |      4
+ 100.64.9.0/24   |      4
+(6 rows)</code></pre>
+<p><code>ip4r_net_prefix(address, prefix_length)</code> computes the
+containing network for an address directly, staying entirely within
+<code>ip4r</code>’s own types — no cast round-trip needed.</p>
+<p><strong>4.2 — The same result via the built-in
+<code>network()</code>/<code>set_masklen()</code></strong></p>
+<p><code>ip4</code> casts directly to <code>cidr</code>, so the standard
+PostgreSQL network functions work too, if you’d rather not learn
+<code>ip4r</code>-specific function names:</p>
+<div class="sourceCode" id="cb374"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb374-1"><a href="#cb374-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">network</span>(set_masklen(source_ip:<span class="ch">:cidr</span>, <span class="dv">24</span>)) <span class="kw">AS</span> subnet_24, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> <span class="kw">events</span></span>
+<span id="cb374-2"><a href="#cb374-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb374-3"><a href="#cb374-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> subnet_24</span>
+<span id="cb374-4"><a href="#cb374-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">events</span> <span class="kw">DESC</span>, subnet_24;</span></code></pre></div>
+<p>Identical results. <code>set_masklen()</code> overrides the prefix
+length on a <code>cidr</code>/<code>inet</code> value, and
+<code>network()</code> zeroes out the host bits to return the network
+address — two built-in functions doing in two steps what
+<code>ip4r_net_prefix()</code> does in one.</p>
+<p><strong>4.3 — <code>masklen()</code> on the blocklist
+itself</strong></p>
+<div class="sourceCode" id="cb375"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb375-1"><a href="#cb375-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> cidr, masklen(cidr:<span class="ch">:cidr</span>) <span class="kw">AS</span> prefix_length, <span class="kw">category</span></span>
+<span id="cb375-2"><a href="#cb375-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   blocklists <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="kw">id</span>;</span></code></pre></div>
+<pre><code>       cidr       | prefix_length |      category
+------------------+---------------+--------------------
+ 203.0.113.0/24   |            24 | known_malicious
+ 203.0.113.128/26 |            26 | botnet
+ 240.1.2.0/25     |            25 | tor_exit_node
+ 198.51.100.0/28  |            28 | brute_force_source</code></pre>
+<p>Worth noticing as a pattern, not just a query result: the narrower
+the prefix (higher number, smaller range), the more specific and
+higher-confidence the category tends to be here — <code>/24</code> for a
+broad “something’s wrong in this range” flag, <code>/26</code> and
+<code>/28</code> for a credential-stuffing botnet and an automated
+feed’s specific finding. Range size is itself a signal about how much to
+trust an entry.</p>
+<hr />
+<h3
+id="exercise-5-overlap-detection-between-allow-and-block-lists">Exercise
+5 — Overlap Detection Between Allow and Block Lists</h3>
+<p><strong>5.1 — Find every conflict with
+<code>&amp;&amp;</code></strong></p>
+<div class="sourceCode" id="cb377"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb377-1"><a href="#cb377-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.<span class="kw">id</span> <span class="kw">AS</span> block_id, b.cidr <span class="kw">AS</span> blocked_range, b.<span class="kw">category</span>,</span>
+<span id="cb377-2"><a href="#cb377-2" aria-hidden="true" tabindex="-1"></a>       a.<span class="kw">id</span> <span class="kw">AS</span> allow_id, a.cidr <span class="kw">AS</span> allowed_range, a.description</span>
+<span id="cb377-3"><a href="#cb377-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   blocklists b</span>
+<span id="cb377-4"><a href="#cb377-4" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   allowlists a <span class="kw">ON</span> b.cidr &amp;&amp; a.cidr</span>
+<span id="cb377-5"><a href="#cb377-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> b.<span class="kw">id</span>, a.<span class="kw">id</span>;</span></code></pre></div>
+<pre><code> block_id |  blocked_range  |      category      | allow_id |  allowed_range  |                    description
+----------+-----------------+--------------------+----------+-----------------+----------------------------------------------------
+        4 | 198.51.100.0/28 | brute_force_source |        1 | 198.51.100.0/24 | Portsmith City Hall internal network and staff VPN
+(1 row)</code></pre>
+<p><code>&amp;&amp;</code> is the general overlap test — true if the two
+ranges share <em>any</em> address, regardless of which contains which.
+One real conflict: an automated brute-force detection feed flagged
+<code>198.51.100.0/28</code>, a sub-range that sits entirely inside the
+city’s own allowlisted VPN block. This is exactly the failure mode
+automated blocklist feeds produce in practice — someone’s VPN
+concentrator fails logins at a rate that looks like an attack from
+outside, and gets flagged from inside a range that was explicitly
+trusted.</p>
+<p><strong>5.2 — Confirm it isn’t hypothetical</strong></p>
+<div class="sourceCode" id="cb379"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb379-1"><a href="#cb379-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">DISTINCT</span> source_ip</span>
+<span id="cb379-2"><a href="#cb379-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb379-3"><a href="#cb379-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  source_ip:<span class="ch">:ip4r</span> <span class="op">&lt;&lt;=</span> <span class="st">&#39;198.51.100.0/28&#39;</span>:<span class="ch">:ip4r</span></span>
+<span id="cb379-4"><a href="#cb379-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> source_ip;</span></code></pre></div>
+<pre><code>   source_ip
+---------------
+ 198.51.100.5
+ 198.51.100.7
+ 198.51.100.12</code></pre>
+<p>Three real addresses in <code>network_events</code> sit inside the
+disputed range — this isn’t an edge case sitting unused in the blocklist
+table, it’s actively affecting real logged traffic from the city’s own
+network.</p>
+<hr />
+<h3 id="exercise-6-a-real-time-is-this-ip-blocked-function">Exercise 6 —
+A Real-Time “Is This IP Blocked?” Function</h3>
+<p><strong>6.1 — Index the lookup tables themselves</strong></p>
+<p>Exercise 3 needed an expression index because
+<code>network_events.source_ip</code> is <code>ip4</code> (a point).
+<code>blocklists.cidr</code> and <code>allowlists.cidr</code> are
+already <code>ip4r</code>, so they index directly, no casting
+required:</p>
+<div class="sourceCode" id="cb381"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb381-1"><a href="#cb381-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_blocklists_cidr <span class="kw">ON</span> blocklists <span class="kw">USING</span> GIST (cidr);</span>
+<span id="cb381-2"><a href="#cb381-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_allowlists_cidr <span class="kw">ON</span> allowlists <span class="kw">USING</span> GIST (cidr);</span></code></pre></div>
+<div class="sourceCode" id="cb382"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb382-1"><a href="#cb382-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb382-2"><a href="#cb382-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb382-3"><a href="#cb382-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb382-4"><a href="#cb382-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">category</span>, description <span class="kw">FROM</span> blocklists <span class="kw">WHERE</span> cidr <span class="op">&gt;&gt;</span> <span class="st">&#39;203.0.113.150&#39;</span>:<span class="ch">:ip4</span>;</span>
+<span id="cb382-5"><a href="#cb382-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb382-6"><a href="#cb382-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">on</span>;</span></code></pre></div>
+<pre><code>                                                           QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_blocklists_cidr on blocklists  (cost=0.13..8.15 rows=1 width=64) (actual time=0.073..0.074 rows=2 loops=1)
+   Index Cond: (cidr &gt;&gt; &#39;203.0.113.150&#39;::ip4r)</code></pre>
+<p><strong>6.2 — The function: allowlist wins</strong></p>
+<p>Exercise 5 found a real conflict. A production “is this blocked?”
+check has to resolve it one way, consistently — this function checks the
+allowlist <em>first</em> and short-circuits if it matches, so a trusted
+range is never blocked no matter what an automated feed says about a
+sub-range of it:</p>
+<div class="sourceCode" id="cb384"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb384-1"><a href="#cb384-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> is_blocked(check_ip ip4)</span>
+<span id="cb384-2"><a href="#cb384-2" aria-hidden="true" tabindex="-1"></a>RETURNS <span class="kw">TABLE</span> (blocked <span class="dt">BOOLEAN</span>, reason TEXT) <span class="kw">AS</span> $$</span>
+<span id="cb384-3"><a href="#cb384-3" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb384-4"><a href="#cb384-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">EXISTS</span> (<span class="kw">SELECT</span> <span class="dv">1</span> <span class="kw">FROM</span> allowlists <span class="kw">WHERE</span> cidr <span class="op">&gt;&gt;</span> check_ip) <span class="cf">THEN</span></span>
+<span id="cb384-5"><a href="#cb384-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span> <span class="kw">QUERY</span> <span class="kw">SELECT</span> <span class="kw">FALSE</span>, <span class="st">&#39;allowlisted&#39;</span>:<span class="ch">:TEXT</span>;</span>
+<span id="cb384-6"><a href="#cb384-6" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span>;</span>
+<span id="cb384-7"><a href="#cb384-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb384-8"><a href="#cb384-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb384-9"><a href="#cb384-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">QUERY</span></span>
+<span id="cb384-10"><a href="#cb384-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">TRUE</span>, b.<span class="kw">category</span> <span class="op">||</span> <span class="st">&#39;: &#39;</span> <span class="op">||</span> b.description</span>
+<span id="cb384-11"><a href="#cb384-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   blocklists b</span>
+<span id="cb384-12"><a href="#cb384-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  b.cidr <span class="op">&gt;&gt;</span> check_ip</span>
+<span id="cb384-13"><a href="#cb384-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">LIMIT</span>  <span class="dv">1</span>;</span>
+<span id="cb384-14"><a href="#cb384-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb384-15"><a href="#cb384-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NOT</span> FOUND <span class="cf">THEN</span></span>
+<span id="cb384-16"><a href="#cb384-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span> <span class="kw">QUERY</span> <span class="kw">SELECT</span> <span class="kw">FALSE</span>, <span class="st">&#39;not listed&#39;</span>:<span class="ch">:TEXT</span>;</span>
+<span id="cb384-17"><a href="#cb384-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb384-18"><a href="#cb384-18" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb384-19"><a href="#cb384-19" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql STABLE;</span></code></pre></div>
+<p><code>LIMIT 1</code> on the blocklist branch is deliberate — Exercise
+2 showed an address can match multiple blocklist entries, and for a
+yes/no gate one matching reason is enough; an audit tool would drop the
+<code>LIMIT</code> and return every match instead.</p>
+<p><strong>6.3 — Test it against every case this chapter
+built</strong></p>
+<div class="sourceCode" id="cb385"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb385-1"><a href="#cb385-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> is_blocked(<span class="st">&#39;203.0.113.150&#39;</span>);  <span class="co">-- plain blocklist match</span></span></code></pre></div>
+<pre><code> blocked |                                                     reason
+---------+----------------------------------------------------------------------------------------------------------------
+ t       | known_malicious: Repeated brute-force login attempts against the resident portal, flagged by the security team</code></pre>
+<div class="sourceCode" id="cb387"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb387-1"><a href="#cb387-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> is_blocked(<span class="st">&#39;198.51.100.7&#39;</span>);   <span class="co">-- the Exercise 5 conflict</span></span></code></pre></div>
+<pre><code> blocked |   reason
+---------+-------------
+ f       | allowlisted</code></pre>
+<p>Blocklisted <em>and</em> allowlisted, and the function correctly
+refuses to block it — exactly the resolution Exercise 5’s conflict
+needed.</p>
+<div class="sourceCode" id="cb389"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb389-1"><a href="#cb389-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> is_blocked(<span class="st">&#39;192.0.2.10&#39;</span>);     <span class="co">-- vendor allowlist, no conflict</span></span>
+<span id="cb389-2"><a href="#cb389-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> is_blocked(<span class="st">&#39;8.8.8.8&#39;</span>);        <span class="co">-- not on any list</span></span></code></pre></div>
+<pre><code> blocked |   reason
+---------+-------------
+ f       | allowlisted
+
+ blocked |   reason
+---------+------------
+ f       | not listed</code></pre>
+<p>Four calls, four distinct real outcomes, all backed by GiST-indexed
+lookups against tables that would scale to millions of blocklist entries
+without changing a line of this function.</p>
+<hr />
+<h3
+id="exercise-7-additional-rate-limiting-by-host-and-24-with-a-token-bucket">Exercise
+7 (Additional) — Rate Limiting by Host <em>and</em> <code>/24</code>
+with a Token Bucket</h3>
+<p>Blocklists are a permanent, deliberate verdict — someone reviewed a
+range and decided it’s hostile. Rate limiting is different: it’s a
+<em>temporary</em> throttle applied to traffic that isn’t necessarily
+malicious, just too frequent, and it needs to make that decision on
+every single request, fast. This exercise builds one of the most common
+shapes for it — a <strong>token bucket</strong> — and applies it at two
+levels at once: per individual host, and per <code>/24</code> netblock,
+because some abuse only shows up when you stop looking at hosts one at a
+time.</p>
+<p><strong>7.1 — The token bucket model</strong></p>
+<p>Each bucket has a <strong>capacity</strong> (the size of a burst it
+can absorb all at once) and a <strong>refill rate</strong> (tokens added
+per second, up to capacity). Every request tries to consume one token:
+if at least one is available, the request is allowed and a token is
+spent; if not, it’s denied. Tokens refill continuously based on real
+elapsed time, not on a fixed clock tick — a bucket that’s been idle for
+ten seconds has ten seconds’ worth of refill waiting, whether or not
+anything asked.</p>
+<p><strong>7.2 — Why two buckets, not one</strong></p>
+<p>A per-host limit alone has a blind spot: ten different addresses in
+the same <code>/24</code>, each individually staying just under the
+limit, add up to ten times the traffic that netblock was ever supposed
+to send — a classic shape for a botnet spread across one compromised
+network, or NAT’d traffic from behind a single gateway. A per-host
+bucket alone never trips. Checking a <em>second</em>, looser bucket
+keyed to the containing <code>/24</code> catches exactly that pattern,
+without needing to lower the per-host limit enough to hurt legitimate
+single users.</p>
+<p><strong>7.3 — Schema: bucket keyed by <code>ip4r</code>, not
+<code>ip4</code></strong></p>
+<div class="sourceCode" id="cb391"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb391-1"><a href="#cb391-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> rate_limit_buckets (</span>
+<span id="cb391-2"><a href="#cb391-2" aria-hidden="true" tabindex="-1"></a>    bucket      ip4r <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb391-3"><a href="#cb391-3" aria-hidden="true" tabindex="-1"></a>    capacity    <span class="dt">NUMERIC</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb391-4"><a href="#cb391-4" aria-hidden="true" tabindex="-1"></a>    refill_rate <span class="dt">NUMERIC</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb391-5"><a href="#cb391-5" aria-hidden="true" tabindex="-1"></a>    tokens      <span class="dt">NUMERIC</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb391-6"><a href="#cb391-6" aria-hidden="true" tabindex="-1"></a>    updated_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> clock_timestamp()</span>
+<span id="cb391-7"><a href="#cb391-7" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>Using <code>ip4r</code> as the key, rather than <code>ip4</code> plus
+a separate “is this a host or a netblock” flag, means a host bucket and
+a netblock bucket are just two different-sized ranges sharing one table
+and one lookup path — a host is stored as its <code>/32</code>, a
+netblock as its <code>/24</code>.</p>
+<p><strong>7.4 — The atomic refill-and-consume function</strong></p>
+<p>The refill math and the allow/deny decision have to happen as one
+atomic operation — two concurrent requests against the same bucket must
+not both read “4 tokens available” and both proceed, the same race
+Chapter 3 built <code>FOR UPDATE SKIP LOCKED</code> to avoid in the job
+queue. Here the fix is simpler — plain <code>FOR UPDATE</code>, no
+<code>SKIP LOCKED</code> — because a rate limit <em>should</em> make the
+second concurrent request wait its turn for the lock rather than skip
+ahead to a different row; there’s only one row per bucket, not a queue
+of interchangeable ones:</p>
+<div class="sourceCode" id="cb392"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb392-1"><a href="#cb392-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> try_consume_bucket(</span>
+<span id="cb392-2"><a href="#cb392-2" aria-hidden="true" tabindex="-1"></a>    target_bucket ip4r,</span>
+<span id="cb392-3"><a href="#cb392-3" aria-hidden="true" tabindex="-1"></a>    p_capacity    <span class="dt">NUMERIC</span>,</span>
+<span id="cb392-4"><a href="#cb392-4" aria-hidden="true" tabindex="-1"></a>    p_refill_rate <span class="dt">NUMERIC</span></span>
+<span id="cb392-5"><a href="#cb392-5" aria-hidden="true" tabindex="-1"></a>) RETURNS <span class="kw">TABLE</span> (allowed <span class="dt">BOOLEAN</span>, tokens_remaining <span class="dt">NUMERIC</span>) <span class="kw">AS</span> $$</span>
+<span id="cb392-6"><a href="#cb392-6" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb392-7"><a href="#cb392-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">INSERT</span> <span class="kw">INTO</span> rate_limit_buckets (bucket, capacity, refill_rate, tokens, updated_at)</span>
+<span id="cb392-8"><a href="#cb392-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">VALUES</span> (target_bucket, p_capacity, p_refill_rate, p_capacity, clock_timestamp())</span>
+<span id="cb392-9"><a href="#cb392-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> CONFLICT (bucket) DO <span class="kw">NOTHING</span>;</span>
+<span id="cb392-10"><a href="#cb392-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb392-11"><a href="#cb392-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">QUERY</span></span>
+<span id="cb392-12"><a href="#cb392-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WITH</span> refilled <span class="kw">AS</span> (</span>
+<span id="cb392-13"><a href="#cb392-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">SELECT</span> b.bucket,</span>
+<span id="cb392-14"><a href="#cb392-14" aria-hidden="true" tabindex="-1"></a>               <span class="fu">LEAST</span>(b.capacity, b.tokens <span class="op">+</span> b.refill_rate <span class="op">*</span></span>
+<span id="cb392-15"><a href="#cb392-15" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">EXTRACT</span>(EPOCH <span class="kw">FROM</span> (clock_timestamp() <span class="op">-</span> b.updated_at))) <span class="kw">AS</span> available</span>
+<span id="cb392-16"><a href="#cb392-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">FROM</span>   rate_limit_buckets b</span>
+<span id="cb392-17"><a href="#cb392-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">WHERE</span>  b.bucket <span class="op">=</span> target_bucket</span>
+<span id="cb392-18"><a href="#cb392-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">FOR</span> <span class="kw">UPDATE</span></span>
+<span id="cb392-19"><a href="#cb392-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb392-20"><a href="#cb392-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UPDATE</span> rate_limit_buckets u</span>
+<span id="cb392-21"><a href="#cb392-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SET</span>    tokens     <span class="op">=</span> <span class="cf">CASE</span> <span class="cf">WHEN</span> r.available <span class="op">&gt;=</span> <span class="dv">1</span> <span class="cf">THEN</span> r.available <span class="op">-</span> <span class="dv">1</span> <span class="cf">ELSE</span> r.available <span class="cf">END</span>,</span>
+<span id="cb392-22"><a href="#cb392-22" aria-hidden="true" tabindex="-1"></a>           updated_at <span class="op">=</span> clock_timestamp()</span>
+<span id="cb392-23"><a href="#cb392-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   refilled r</span>
+<span id="cb392-24"><a href="#cb392-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  u.bucket <span class="op">=</span> r.bucket</span>
+<span id="cb392-25"><a href="#cb392-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURNING</span> (r.available <span class="op">&gt;=</span> <span class="dv">1</span>), u.tokens;</span>
+<span id="cb392-26"><a href="#cb392-26" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb392-27"><a href="#cb392-27" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span></code></pre></div>
+<p>The <code>INSERT ... ON CONFLICT DO NOTHING</code> lazily creates a
+bucket at full capacity the first time an address is ever seen — no
+separate provisioning step. Note <code>clock_timestamp()</code>, not
+<code>now()</code>: this is the same gotcha from Chapter 3 —
+<code>now()</code> freezes at transaction start, which would make every
+refill calculation inside one transaction compute against the same
+frozen instant instead of real elapsed wall-clock time.</p>
+<p><strong>7.5 — Combine host and netblock into one check</strong></p>
+<div class="sourceCode" id="cb393"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb393-1"><a href="#cb393-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> check_rate_limit(check_ip ip4)</span>
+<span id="cb393-2"><a href="#cb393-2" aria-hidden="true" tabindex="-1"></a>RETURNS <span class="kw">TABLE</span> (allowed <span class="dt">BOOLEAN</span>, reason TEXT, host_tokens <span class="dt">NUMERIC</span>, netblock_tokens <span class="dt">NUMERIC</span>) <span class="kw">AS</span> $$</span>
+<span id="cb393-3"><a href="#cb393-3" aria-hidden="true" tabindex="-1"></a><span class="kw">DECLARE</span></span>
+<span id="cb393-4"><a href="#cb393-4" aria-hidden="true" tabindex="-1"></a>    host_result     <span class="dt">RECORD</span>;</span>
+<span id="cb393-5"><a href="#cb393-5" aria-hidden="true" tabindex="-1"></a>    netblock_result <span class="dt">RECORD</span>;</span>
+<span id="cb393-6"><a href="#cb393-6" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb393-7"><a href="#cb393-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- Host bucket: tight limit, catches a single misbehaving address.</span></span>
+<span id="cb393-8"><a href="#cb393-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">INTO</span> host_result</span>
+<span id="cb393-9"><a href="#cb393-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   try_consume_bucket(check_ip:<span class="ch">:ip4r</span>, <span class="dv">5</span>, <span class="dv">1</span>);</span>
+<span id="cb393-10"><a href="#cb393-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb393-11"><a href="#cb393-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NOT</span> host_result.allowed <span class="cf">THEN</span></span>
+<span id="cb393-12"><a href="#cb393-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span> <span class="kw">QUERY</span> <span class="kw">SELECT</span> <span class="kw">FALSE</span>, <span class="st">&#39;host limit exceeded&#39;</span>:<span class="ch">:TEXT</span>, host_result.tokens_remaining, <span class="kw">NULL</span>:<span class="ch">:NUMERIC</span>;</span>
+<span id="cb393-13"><a href="#cb393-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span>;</span>
+<span id="cb393-14"><a href="#cb393-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb393-15"><a href="#cb393-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb393-16"><a href="#cb393-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- Netblock bucket: looser limit, catches abuse spread across many</span></span>
+<span id="cb393-17"><a href="#cb393-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- hosts in the same /24, each individually within their own budget.</span></span>
+<span id="cb393-18"><a href="#cb393-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">INTO</span> netblock_result</span>
+<span id="cb393-19"><a href="#cb393-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   try_consume_bucket(ip4r_net_prefix(check_ip, <span class="dv">24</span>), <span class="dv">20</span>, <span class="dv">5</span>);</span>
+<span id="cb393-20"><a href="#cb393-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb393-21"><a href="#cb393-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NOT</span> netblock_result.allowed <span class="cf">THEN</span></span>
+<span id="cb393-22"><a href="#cb393-22" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span> <span class="kw">QUERY</span> <span class="kw">SELECT</span> <span class="kw">FALSE</span>, <span class="st">&#39;netblock limit exceeded&#39;</span>:<span class="ch">:TEXT</span>, host_result.tokens_remaining, netblock_result.tokens_remaining;</span>
+<span id="cb393-23"><a href="#cb393-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">RETURN</span>;</span>
+<span id="cb393-24"><a href="#cb393-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb393-25"><a href="#cb393-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb393-26"><a href="#cb393-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">QUERY</span> <span class="kw">SELECT</span> <span class="kw">TRUE</span>, <span class="st">&#39;ok&#39;</span>:<span class="ch">:TEXT</span>, host_result.tokens_remaining, netblock_result.tokens_remaining;</span>
+<span id="cb393-27"><a href="#cb393-27" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb393-28"><a href="#cb393-28" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span></code></pre></div>
+<p>The host bucket (capacity 5, refills 1/sec) is checked — and,
+critically, <em>consumed</em> — first. Only if the host bucket allows
+the request does the function go on to check the netblock bucket
+(capacity 20, refills 5/sec). This ordering is a real design decision,
+not an accident: it means a request that the netblock bucket ultimately
+rejects still spent a host token on the way there. The alternative —
+check both before consuming either — avoids that, at the cost of two
+extra reads per request. For a security throttle, spending a token on a
+request you were going to reject anyway is a rounding error; use
+whichever trade-off matches what you’re actually optimizing for.</p>
+<p><strong>7.6 — A single host bursting past its own limit</strong></p>
+<div class="sourceCode" id="cb394"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb394-1"><a href="#cb394-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> allowed, reason, <span class="fu">round</span>(host_tokens, <span class="dv">2</span>), <span class="fu">round</span>(netblock_tokens, <span class="dv">2</span>)</span>
+<span id="cb394-2"><a href="#cb394-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   check_rate_limit(<span class="st">&#39;203.0.113.5&#39;</span>);</span>
+<span id="cb394-3"><a href="#cb394-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- run six times in a row</span></span></code></pre></div>
+<pre><code> allowed |       reason         | host_tokens | netblock_tokens
+---------+----------------------+-------------+------------------
+ t       | ok                   |        4.00 |            19.00
+ t       | ok                   |        3.05 |            18.27
+ t       | ok                   |        2.09 |            17.45
+ t       | ok                   |        1.13 |            16.63
+ t       | ok                   |        0.17 |            15.83
+ f       | host limit exceeded  |        0.20 |</code></pre>
+<p>Five rapid calls spend the host bucket’s burst capacity of 5 (with a
+sliver of refill accumulating between each real request — these were
+genuinely separate round trips, not a batch); the sixth is denied,
+purely on the host bucket. The netblock bucket barely moved. (Your own
+numbers will differ in the small decimals — they depend on the exact
+wall-clock gap between your requests — but the
+allow/allow/allow/allow/allow/deny pattern will not.)</p>
+<p><strong>7.7 — Distributed abuse across a <code>/24</code>: the case
+this whole exercise exists for</strong></p>
+<p>Five different hosts in the same netblock, each making five rapid
+requests — each individually within its own host budget:</p>
+<div class="sourceCode" id="cb396"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb396-1"><a href="#cb396-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- for host in 203.0.113.10 .. 203.0.113.14, 5 calls each:</span></span>
+<span id="cb396-2"><a href="#cb396-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> allowed, reason, <span class="fu">round</span>(host_tokens, <span class="dv">2</span>), <span class="fu">round</span>(netblock_tokens, <span class="dv">2</span>)</span>
+<span id="cb396-3"><a href="#cb396-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   check_rate_limit(<span class="ch">:host</span>);</span></code></pre></div>
+<pre><code>     host       | allowed |         reason           | host_tokens | netblock_tokens
+-----------------+---------+--------------------------+-------------+------------------
+ 203.0.113.10   | t       | ok                       |        4.00 |            19.00
+ 203.0.113.10   | t       | ok                       |        3.04 |            18.19
+ 203.0.113.10   | t       | ok                       |        2.08 |            17.38
+ 203.0.113.10   | t       | ok                       |        1.11 |            16.57
+ 203.0.113.10   | t       | ok                       |        0.15 |            15.76
+ 203.0.113.11   | t       | ok                       |        4.00 |            14.94
+ 203.0.113.11   | t       | ok                       |        3.04 |            14.13
+ 203.0.113.11   | t       | ok                       |        2.07 |            13.32
+ 203.0.113.11   | t       | ok                       |        1.11 |            12.51
+ 203.0.113.11   | t       | ok                       |        0.15 |            11.70
+ 203.0.113.12   | t       | ok                       |        4.00 |            10.88
+ 203.0.113.12   | t       | ok                       |        3.04 |            10.07
+ 203.0.113.12   | t       | ok                       |        2.08 |             9.27
+ 203.0.113.12   | t       | ok                       |        1.11 |             8.46
+ 203.0.113.12   | t       | ok                       |        0.15 |             7.64
+ 203.0.113.13   | t       | ok                       |        4.00 |             6.82
+ 203.0.113.13   | t       | ok                       |        3.04 |             6.03
+ 203.0.113.13   | t       | ok                       |        2.08 |             5.23
+ 203.0.113.13   | t       | ok                       |        1.12 |             4.42
+ 203.0.113.13   | t       | ok                       |        0.16 |             3.62
+ 203.0.113.14   | t       | ok                       |        4.00 |             2.81
+ 203.0.113.14   | t       | ok                       |        3.04 |             2.02
+ 203.0.113.14   | t       | ok                       |        2.08 |             1.20
+ 203.0.113.14   | t       | ok                       |        1.11 |             0.38
+ 203.0.113.14   | f       | netblock limit exceeded  |        0.15 |             0.56</code></pre>
+<p>Read the <code>host_tokens</code> column top to bottom: <strong>every
+single request succeeds at the host level</strong> — no address ever
+exhausts its own bucket, each one’s burst-of-5 fits comfortably within
+its own limit every time. And yet the 25th request, from the fifth host,
+is denied — for <code>netblock limit exceeded</code>, not a host limit.
+Twenty-five individually reasonable requests from five individually
+well-behaved addresses added up to more than the <code>/24</code> as a
+whole was ever budgeted for, and the second bucket caught it. This is
+precisely the pattern a per-host-only rate limiter is structurally blind
+to.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-6">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ip4</code> / <code>ip4r</code></td>
+<td>Dedicated address and range types — 4 and 8 bytes, versus 10 for
+<code>inet</code>/<code>cidr</code></td>
+</tr>
+<tr class="even">
+<td><code>ip6</code> / <code>ip6r</code> / <code>ipaddress</code> /
+<code>iprange</code></td>
+<td>The same machinery for IPv6, and family-agnostic polymorphic
+types</td>
+</tr>
+<tr class="odd">
+<td><code>cidr</code></td>
+<td>Stricter than <code>inet</code> — rejects any value with host bits
+set past the mask</td>
+</tr>
+<tr class="even">
+<td><code>'a-b'::ip4r</code></td>
+<td>An arbitrary range, not required to be CIDR-aligned — something
+<code>cidr</code> cannot express at all</td>
+</tr>
+<tr class="odd">
+<td><code>a &gt;&gt; b</code> / <code>b &lt;&lt;= a</code></td>
+<td>Containment, read from either direction — “does <code>a</code>
+contain <code>b</code>?” / “is <code>b</code> contained by
+<code>a</code>?”</td>
+</tr>
+<tr class="even">
+<td><code>a &amp;&amp; b</code></td>
+<td>Overlap — true if two ranges share any address, regardless of which
+contains which</td>
+</tr>
+<tr class="odd">
+<td><code>GIST (col)</code> on <code>ip4r</code></td>
+<td>Fast containment/overlap lookups — but only for <code>ip4r</code>,
+<code>ip4</code> has no GiST opclass</td>
+</tr>
+<tr class="even">
+<td><code>GIST ((col::ip4r))</code> on <code>ip4</code></td>
+<td>The expression-index fix when your column stores points, not
+ranges</td>
+</tr>
+<tr class="odd">
+<td><code>ip4r_net_prefix(ip, n)</code></td>
+<td>Native way to compute the containing /n network for an address</td>
+</tr>
+<tr class="even">
+<td><code>network(set_masklen(col::cidr, n))</code></td>
+<td>The same computation via built-in
+<code>inet</code>/<code>cidr</code> functions</td>
+</tr>
+<tr class="odd">
+<td>Token bucket, keyed by <code>ip4r</code></td>
+<td>Rate limiting at both host (<code>/32</code>) and netblock
+(<code>/24</code>) scope from one table, catching distributed abuse a
+per-host limit alone can’t see</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that a
+blocklist and an allowlist are not just two tables you check in some
+order — they are two sources of truth that <em>will</em> disagree, and
+Exercise 5 found a real disagreement in four hand-written rows almost by
+accident. A security system that doesn’t actively check for that
+disagreement is trusting whichever list happens to get consulted first,
+silently. <code>&amp;&amp;</code> makes finding every such conflict a
+single query; <code>is_blocked()</code> makes resolving it a permanent,
+enforced policy instead of a hope.</p>
+<hr />
+<em>Going further: this chapter’s <code>is_blocked()</code> resolves
+conflicts with a fixed rule — allowlist always wins. A more nuanced
+system might weight by range specificity (Exercise 4’s observation that
+narrower ranges tend to be higher-confidence) or by how recently an
+entry was added. For very large blocklists — commercial
+threat-intelligence feeds run to millions of entries — also benchmark
+GiST against <code>ip4r</code>’s B-tree and hash opclasses for the
+access patterns that are pure equality or pure sorting rather than
+containment, since GiST is the right tool specifically for range
+queries, not a strictly faster B-tree replacement. And if this system
+needs to block traffic in real time rather than just log a verdict, the
+natural next step is exposing <code>is_blocked()</code> at the
+application’s edge — a reverse proxy or API gateway calling it per
+request — which is exactly the kind of function Chapter 10’s PostgREST
+chapter would expose as an RPC endpoint. The same is true of
+<code>check_rate_limit()</code> from Exercise 7 — a real deployment
+calls it once per incoming request, before any other work happens, and a
+single <code>rate_limit_buckets</code> table means every application
+server sees the same limits regardless of which one handled the last
+request, something an in-process rate limiter can’t offer without a
+shared store of its own. If per-request PL/pgSQL round trips ever become
+the bottleneck rather than the safeguard, that’s the point at which a
+dedicated in-memory limiter (Redis and similar) starts to earn its keep
+— but plenty of systems never reach the traffic level where that
+trade-off is worth the added moving part.</em>
 <div style="page-break-before: always;">
 
 </div>
