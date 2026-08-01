@@ -1,0 +1,14 @@
+{
+  "theme": "base",
+  "look": "handDrawn",
+  "handDrawnSeed": 1000,
+  "themeVariables": {
+    "fontFamily": "\"Comic Neue\", \"Trebuchet MS\", sans-serif",
+    "primaryColor": "#eee",
+    "primaryTextColor": "#000",
+    "primaryBorderColor": "#060",
+    "lineColor": "#090",
+    "secondaryColor": "#fff",
+    "tertiaryColor": "#fff"
+  }
+}

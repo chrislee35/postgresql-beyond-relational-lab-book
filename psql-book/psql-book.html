@@ -482,6 +482,55 @@ with a Token Bucket</a></li>
 id="toc-summary-what-you-should-now-know-6">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-8-declarative-partitioning-and-brin-indexes"
+id="toc-chapter-8-declarative-partitioning-and-brin-indexes">Chapter 8 —
+Declarative Partitioning and BRIN Indexes</a>
+<ul>
+<li><a href="#background-7" id="toc-background-7">Background</a></li>
+<li><a href="#the-scenario-7" id="toc-the-scenario-7">The
+Scenario</a></li>
+<li><a href="#exercise-goals-7" id="toc-exercise-goals-7">Exercise
+Goals</a></li>
+<li><a href="#installation-7"
+id="toc-installation-7">Installation</a></li>
+<li><a href="#loading-the-data-7" id="toc-loading-the-data-7">Loading
+the Data</a>
+<ul>
+<li><a href="#run-the-seed-script-4" id="toc-run-the-seed-script-4">Run
+the seed script</a></li>
+<li><a href="#pin-the-session-timezone-before-you-do-anything-else"
+id="toc-pin-the-session-timezone-before-you-do-anything-else">Pin the
+session timezone before you do anything else</a></li>
+<li><a href="#verify-the-load-7" id="toc-verify-the-load-7">Verify the
+load</a></li>
+</ul></li>
+<li><a href="#exercises-7" id="toc-exercises-7">Exercises</a>
+<ul>
+<li><a href="#exercise-1-designing-and-creating-the-partitioned-table"
+id="toc-exercise-1-designing-and-creating-the-partitioned-table">Exercise
+1 — Designing and Creating the Partitioned Table</a></li>
+<li><a
+href="#exercise-2-backfilling-and-watching-automatic-partition-routing"
+id="toc-exercise-2-backfilling-and-watching-automatic-partition-routing">Exercise
+2 — Backfilling and Watching Automatic Partition Routing</a></li>
+<li><a href="#exercise-3-partition-pruning-seen-in-explain"
+id="toc-exercise-3-partition-pruning-seen-in-explain">Exercise 3 —
+Partition Pruning, Seen in <code>EXPLAIN</code></a></li>
+<li><a href="#exercise-4-brin-vs.-b-tree-with-real-numbers"
+id="toc-exercise-4-brin-vs.-b-tree-with-real-numbers">Exercise 4 — BRIN
+vs. B-tree, With Real Numbers</a></li>
+<li><a href="#exercise-5-dropping-a-partition-vs.-delete"
+id="toc-exercise-5-dropping-a-partition-vs.-delete">Exercise 5 —
+Dropping a Partition vs. <code>DELETE</code></a></li>
+<li><a href="#exercise-6-combining-list-and-range-subpartitioning"
+id="toc-exercise-6-combining-list-and-range-subpartitioning">Exercise 6
+— Combining <code>LIST</code> and <code>RANGE</code>:
+Subpartitioning</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-7"
+id="toc-summary-what-you-should-now-know-7">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -6422,6 +6471,830 @@ the bottleneck rather than the safeguard, that’s the point at which a
 dedicated in-memory limiter (Redis and similar) starts to earn its keep
 — but plenty of systems never reach the traffic level where that
 trade-off is worth the added moving part.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-8-declarative-partitioning-and-brin-indexes">Chapter 8 —
+Declarative Partitioning and BRIN Indexes</h1>
+<blockquote>
+<p><em>“A table doesn’t get slow because it’s big. It gets slow because
+every query has to consider all of it — partitioning doesn’t shrink the
+table, it shrinks the part any single query has to look at.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-7">Background</h2>
+<p>Every chapter so far has reached for an extension —
+<code>pg_trgm</code>, <code>pgvector</code>, <code>ip4r</code> — to get
+a data type or index PostgreSQL doesn’t ship with. This chapter is
+different: declarative partitioning (since PostgreSQL 10) and BRIN
+indexes (since PostgreSQL 9.5) are both built-in core features. No
+<code>CREATE EXTENSION</code> anywhere in this chapter. What they solve
+isn’t “how do I store this,” it’s “how do I keep a table that never
+stops growing from turning every query, every index, and every
+maintenance operation into a scan of everything that has ever
+happened.”</p>
+<p><strong>Partitioning</strong> splits one logical table into many
+physical ones, each holding a slice of the rows — by date range, by
+category, by hash — while every query still just says
+<code>SELECT ... FROM sensor_readings</code>. The planner decides,
+before it reads a single row, which physical partitions could possibly
+contain a match and skips the rest entirely. That’s <strong>partition
+pruning</strong>, and it’s the entire value proposition: a query asking
+for one month of data out of a year doesn’t pay for the other eleven
+months, not even to rule them out.</p>
+<p><strong>BRIN</strong> (Block Range INdex) is a different kind of
+index for a specific shape of data: values that are large in volume but
+naturally correlated with physical storage order. A B-tree index stores
+an entry for every single row and costs roughly proportional to the row
+count. A BRIN index stores one small summary — just a min and max — per
+range of physical disk pages (128 pages by default), and costs almost
+nothing regardless of how many rows are in the table. The catch, and
+it’s a real one: BRIN only helps if physical order and value order
+actually correlate. For a table where rows are inserted in timestamp
+order and essentially never updated — exactly what an append-only sensor
+log looks like — the correlation is close to perfect, and that’s the
+case this chapter builds.</p>
+<hr />
+<h2 id="the-scenario-7">The Scenario</h2>
+<p>Portsmith has quietly wired up 120 sensors across the city —
+temperature sensors, traffic counters, and air quality monitors — all
+reporting on a schedule, all day, every day. A year of this is over ten
+million rows, and it only grows. The data starts life the way most
+time-series data actually starts: as one plain, unpartitioned table,
+because nobody provisions a partitioning scheme before they have a
+problem. This chapter is that problem arriving, and fixing it.</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sensors</code></td>
+<td>Metadata for all 120 sensors — type, label, neighborhood/street</td>
+</tr>
+<tr class="even">
+<td><code>sensor_readings_staging</code></td>
+<td>~10.5 million raw readings for 2024, as one unpartitioned table</td>
+</tr>
+<tr class="odd">
+<td><code>sensor_readings</code></td>
+<td><em>(built in this chapter)</em> the same data, partitioned by
+month</td>
+</tr>
+<tr class="even">
+<td><code>sensor_readings_by_type</code></td>
+<td><em>(built in this chapter)</em> a second copy, partitioned by type
+<em>and</em> month</td>
+</tr>
+</tbody>
+</table>
+<p><code>sensor_readings_staging</code> is the state the data starts in.
+Building <code>sensor_readings</code> from it — deciding the scheme,
+creating the partitions, backfilling — is the exercise, not something
+handed to you already done.</p>
+<hr />
+<h2 id="exercise-goals-7">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Design and create a range-partitioned table, and understand why the
+partition key has to be chosen before the first row is loaded, not
+after.</li>
+<li>Backfill a partitioned table from an existing unpartitioned one and
+confirm that PostgreSQL routes every row to the correct partition
+automatically.</li>
+<li>Read an <code>EXPLAIN</code> plan well enough to tell the difference
+between a query that touches one partition and one that touches all of
+them.</li>
+<li>Build a BRIN index and explain, using real numbers, why it can be
+hundreds of times smaller than a B-tree on the same column — and what it
+gives up to get there.</li>
+<li>Drop a month of data in milliseconds via <code>DROP TABLE</code> on
+a partition, and see exactly what that avoids compared to
+<code>DELETE</code> on an unpartitioned table.</li>
+<li>Combine two partitioning strategies — <code>LIST</code> over
+<code>RANGE</code> — into one table, and confirm the planner prunes on
+<em>both</em> dimensions at once.</li>
+</ul>
+<hr />
+<h2 id="installation-7">Installation</h2>
+<p>Nothing to install. <code>PARTITION BY</code> and
+<code>USING BRIN</code> are both part of core PostgreSQL — if
+<code>psql --version</code> says 10 or later for partitioning, or 9.5 or
+later for BRIN, you already have everything this chapter uses. (The
+Portsmith cluster is PostgreSQL 16, well past both.)</p>
+<hr />
+<h2 id="loading-the-data-7">Loading the Data</h2>
+<h3 id="run-the-seed-script-4">Run the seed script</h3>
+<div class="sourceCode" id="cb398"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb398-1"><a href="#cb398-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch08_seed.py</span></code></pre></div>
+<p>Expected output (the exact seconds will vary with your machine; the
+row counts will not):</p>
+<pre><code>Connecting to: dbname=portsmith
+Creating schema …
+Inserting 120 sensors …
+Generating and loading readings (this takes a few minutes) …
+  generated January 2024 — 892,800 rows
+  generated February 2024 — 835,200 rows
+  generated March 2024 — 892,800 rows
+  generated April 2024 — 864,000 rows
+  generated May 2024 — 892,800 rows
+  generated June 2024 — 864,000 rows
+  generated July 2024 — 892,800 rows
+  generated August 2024 — 892,800 rows
+  generated September 2024 — 864,000 rows
+  generated October 2024 — 892,800 rows
+  generated November 2024 — 864,000 rows
+  generated December 2024 — 892,800 rows
+Indexing staging table on recorded_at (mirrors a typical pre-partitioning table) …
+Done — 10,540,800 rows in sensor_readings_staging (131.3s to generate + load), 120 sensors.</code></pre>
+<p>Months vary in row count because February is shorter and because
+temperature/traffic sensors report every 5 minutes while air quality
+sensors report every 15 — not a bug, just three sensor types on three
+different schedules, same as a real deployment would have.</p>
+<h3 id="pin-the-session-timezone-before-you-do-anything-else">Pin the
+session timezone before you do anything else</h3>
+<div class="sourceCode" id="cb400"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb400-1"><a href="#cb400-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> timezone <span class="op">=</span> <span class="st">&#39;UTC&#39;</span>;</span></code></pre></div>
+<p>This matters more than it looks like it should.
+<code>TIMESTAMPTZ</code> values are stored as absolute instants, but a
+bound like <code>'2024-01-01'</code> in a
+<code>CREATE TABLE ... PARTITION OF ... FOR VALUES FROM (...)</code>
+clause gets interpreted relative to the session’s timezone <em>at the
+moment the partition is created</em>. Two people creating “the same”
+January partition in two different session timezones will get two
+different absolute boundaries. Run every example in this chapter in a
+UTC session — this <code>SET</code> at the top of each <code>psql</code>
+session is enough — and the partition boundaries and the displayed
+timestamps will both match what’s printed below exactly.</p>
+<h3 id="verify-the-load-7">Verify the load</h3>
+<p><strong>Check 1 — the metadata table:</strong></p>
+<div class="sourceCode" id="cb401"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb401-1"><a href="#cb401-1" aria-hidden="true" tabindex="-1"></a>\d sensors</span></code></pre></div>
+<pre><code>                 Table &quot;public.sensors&quot;
+    Column    |  Type   | Collation | Nullable | Default
+--------------+---------+-----------+----------+---------
+ id           | integer |           | not null |
+ sensor_type  | text    |           | not null |
+ label        | text    |           | not null |
+ neighborhood | text    |           | not null |
+Indexes:
+    &quot;sensors_pkey&quot; PRIMARY KEY, btree (id)
+Check constraints:
+    &quot;sensors_sensor_type_check&quot; CHECK (sensor_type = ANY (ARRAY[&#39;temperature&#39;::text, &#39;traffic&#39;::text, &#39;air_quality&#39;::text]))
+Referenced by:
+    TABLE &quot;sensor_readings_staging&quot; CONSTRAINT &quot;sensor_readings_staging_sensor_id_fkey&quot; FOREIGN KEY (sensor_id) REFERENCES sensors(id)</code></pre>
+<p><strong>Check 2 — the staging table structure:</strong></p>
+<div class="sourceCode" id="cb403"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb403-1"><a href="#cb403-1" aria-hidden="true" tabindex="-1"></a>\d sensor_readings_staging</span></code></pre></div>
+<pre><code>                             Table &quot;public.sensor_readings_staging&quot;
+    Column     |           Type           | Collation | Nullable |           Default
+---------------+--------------------------+-----------+----------+------------------------------
+ id            | bigint                   |           | not null | generated always as identity
+ sensor_id     | integer                  |           | not null |
+ sensor_type   | text                     |           | not null |
+ reading_value | double precision         |           | not null |
+ recorded_at   | timestamp with time zone |           | not null |
+Indexes:
+    &quot;idx_sensor_readings_staging_recorded_at&quot; btree (recorded_at)
+Check constraints:
+    &quot;sensor_readings_staging_sensor_type_check&quot; CHECK (sensor_type = ANY (ARRAY[&#39;temperature&#39;::text, &#39;traffic&#39;::text, &#39;air_quality&#39;::text]))
+Foreign-key constraints:
+    &quot;sensor_readings_staging_sensor_id_fkey&quot; FOREIGN KEY (sensor_id) REFERENCES sensors(id)</code></pre>
+<p>Note this table already has a B-tree index on
+<code>recorded_at</code> — a perfectly ordinary choice for “the column I
+filter on,” and exactly what a lot of real unpartitioned time-series
+tables look like right up until someone asks why disk usage keeps
+climbing.</p>
+<p><strong>Check 3 — sensor and reading counts by type:</strong></p>
+<div class="sourceCode" id="cb405"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb405-1"><a href="#cb405-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_type, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensors <span class="kw">GROUP</span> <span class="kw">BY</span> sensor_type <span class="kw">ORDER</span> <span class="kw">BY</span> sensor_type;</span></code></pre></div>
+<pre><code> sensor_type | count
+-------------+-------
+ air_quality |    30
+ temperature |    50
+ traffic     |    40
+(3 rows)</code></pre>
+<div class="sourceCode" id="cb407"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb407-1"><a href="#cb407-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_type, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings_staging <span class="kw">GROUP</span> <span class="kw">BY</span> sensor_type <span class="kw">ORDER</span> <span class="kw">BY</span> sensor_type;</span></code></pre></div>
+<pre><code> sensor_type |  count
+-------------+---------
+ air_quality | 1054080
+ temperature | 5270400
+ traffic     | 4216320
+(3 rows)</code></pre>
+<p>If these match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-7">Exercises</h2>
+<hr />
+<h3
+id="exercise-1-designing-and-creating-the-partitioned-table">Exercise 1
+— Designing and Creating the Partitioned Table</h3>
+<p><strong>1.1 — Choose the partition key up front</strong></p>
+<p>Partitioning isn’t something you bolt onto an existing table —
+<code>PARTITION BY</code> is part of <code>CREATE TABLE</code> and can’t
+be added with <code>ALTER TABLE</code> afterward. That means the
+decision has to be made before a single row is loaded into the
+partitioned structure, based on how the table will actually be queried.
+<code>sensor_readings</code> is queried almost exclusively by time range
+(“show me last week,” “roll up by month”), so
+<code>RANGE (recorded_at)</code>, monthly, is the natural key — coarse
+enough to keep the partition count manageable, fine enough that most
+queries touch only one or two partitions.</p>
+<p><strong>1.2 — Create the partitioned table and its monthly
+partitions</strong></p>
+<div class="sourceCode" id="cb409"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb409-1"><a href="#cb409-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings (</span>
+<span id="cb409-2"><a href="#cb409-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            BIGINT <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> IDENTITY,</span>
+<span id="cb409-3"><a href="#cb409-3" aria-hidden="true" tabindex="-1"></a>    sensor_id     <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> sensors(<span class="kw">id</span>),</span>
+<span id="cb409-4"><a href="#cb409-4" aria-hidden="true" tabindex="-1"></a>    sensor_type   TEXT <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb409-5"><a href="#cb409-5" aria-hidden="true" tabindex="-1"></a>                      <span class="kw">CHECK</span> (sensor_type <span class="kw">IN</span> (<span class="st">&#39;temperature&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;air_quality&#39;</span>)),</span>
+<span id="cb409-6"><a href="#cb409-6" aria-hidden="true" tabindex="-1"></a>    reading_value <span class="dt">DOUBLE</span> <span class="dt">PRECISION</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb409-7"><a href="#cb409-7" aria-hidden="true" tabindex="-1"></a>    recorded_at   TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb409-8"><a href="#cb409-8" aria-hidden="true" tabindex="-1"></a>) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
+<span id="cb409-9"><a href="#cb409-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb409-10"><a href="#cb409-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_01 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-01-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-02-01&#39;</span>);</span>
+<span id="cb409-11"><a href="#cb409-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_02 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-02-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-03-01&#39;</span>);</span>
+<span id="cb409-12"><a href="#cb409-12" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_03 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-03-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-04-01&#39;</span>);</span>
+<span id="cb409-13"><a href="#cb409-13" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_04 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-04-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-05-01&#39;</span>);</span>
+<span id="cb409-14"><a href="#cb409-14" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_05 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-05-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-06-01&#39;</span>);</span>
+<span id="cb409-15"><a href="#cb409-15" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_06 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-06-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-07-01&#39;</span>);</span>
+<span id="cb409-16"><a href="#cb409-16" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_07 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-07-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-08-01&#39;</span>);</span>
+<span id="cb409-17"><a href="#cb409-17" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_08 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-08-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-09-01&#39;</span>);</span>
+<span id="cb409-18"><a href="#cb409-18" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_09 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-09-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-10-01&#39;</span>);</span>
+<span id="cb409-19"><a href="#cb409-19" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_10 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-10-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-11-01&#39;</span>);</span>
+<span id="cb409-20"><a href="#cb409-20" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_11 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-11-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-12-01&#39;</span>);</span>
+<span id="cb409-21"><a href="#cb409-21" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_12 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-12-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2025-01-01&#39;</span>);</span>
+<span id="cb409-22"><a href="#cb409-22" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_default <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings <span class="kw">DEFAULT</span>;</span></code></pre></div>
+<p>Each <code>FOR VALUES FROM (...) TO (...)</code> is a half-open
+interval — inclusive of the lower bound, exclusive of the upper — so
+consecutive months tile the year with no gap and no overlap. The last
+one, <code>sensor_readings_default</code>, is not optional in any
+meaningful sense: without it, any row whose <code>recorded_at</code>
+doesn’t fall in one of the twelve defined ranges is simply rejected at
+insert time. With it, such a row is accepted and routed there instead —
+silently, unless you go looking. Exercise 2 finds a case where that’s
+exactly what happens.</p>
+<p><strong>1.3 — Confirm the structure</strong></p>
+<div class="sourceCode" id="cb410"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb410-1"><a href="#cb410-1" aria-hidden="true" tabindex="-1"></a>\d sensor_readings</span></code></pre></div>
+<pre><code>                           Partitioned table &quot;public.sensor_readings&quot;
+    Column     |           Type           | Collation | Nullable |           Default
+---------------+--------------------------+-----------+----------+------------------------------
+ id            | bigint                   |           | not null | generated always as identity
+ sensor_id     | integer                  |           | not null |
+ sensor_type   | text                     |           | not null |
+ reading_value | double precision         |           | not null |
+ recorded_at   | timestamp with time zone |           | not null |
+Partition key: RANGE (recorded_at)
+Check constraints:
+    &quot;sensor_readings_sensor_type_check&quot; CHECK (sensor_type = ANY (ARRAY[&#39;temperature&#39;::text, &#39;traffic&#39;::text, &#39;air_quality&#39;::text]))
+Foreign-key constraints:
+    &quot;sensor_readings_sensor_id_fkey&quot; FOREIGN KEY (sensor_id) REFERENCES sensors(id)
+Number of partitions: 13 (Use \d+ to list them.)</code></pre>
+<p><code>sensor_readings</code> itself has no storage of its own — it’s
+a routing target. Every row you insert into it physically lands in
+exactly one of the thirteen tables underneath.</p>
+<hr />
+<h3
+id="exercise-2-backfilling-and-watching-automatic-partition-routing">Exercise
+2 — Backfilling and Watching Automatic Partition Routing</h3>
+<p><strong>2.1 — Backfill from staging</strong></p>
+<div class="sourceCode" id="cb412"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb412-1"><a href="#cb412-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sensor_readings (sensor_id, sensor_type, reading_value, recorded_at)</span>
+<span id="cb412-2"><a href="#cb412-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_id, sensor_type, reading_value, recorded_at</span>
+<span id="cb412-3"><a href="#cb412-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings_staging;</span></code></pre></div>
+<pre><code>INSERT 0 10540800
+Time: 87814.162 ms (01:27.814)</code></pre>
+<p>One <code>INSERT ... SELECT</code>, no destination named beyond
+<code>sensor_readings</code> itself — PostgreSQL evaluates each row’s
+<code>recorded_at</code> against the partition bounds and routes it to
+the matching child table. Nothing in this statement says which of the
+thirteen tables any given row ends up in.</p>
+<p><strong>2.2 — Confirm the routing, per partition</strong></p>
+<div class="sourceCode" id="cb414"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb414-1"><a href="#cb414-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> tableoid:<span class="ch">:regclass</span> <span class="kw">AS</span> <span class="kw">partition</span>, <span class="fu">COUNT</span>(<span class="op">*</span>)</span>
+<span id="cb414-2"><a href="#cb414-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb414-3"><a href="#cb414-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> tableoid</span>
+<span id="cb414-4"><a href="#cb414-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>        partition        | count
+--------------------------+--------
+ sensor_readings_2024_01 | 892800
+ sensor_readings_2024_02 | 835200
+ sensor_readings_2024_03 | 892800
+ sensor_readings_2024_04 | 864000
+ sensor_readings_2024_05 | 892800
+ sensor_readings_2024_06 | 864000
+ sensor_readings_2024_07 | 892800
+ sensor_readings_2024_08 | 892800
+ sensor_readings_2024_09 | 864000
+ sensor_readings_2024_10 | 892800
+ sensor_readings_2024_11 | 864000
+ sensor_readings_2024_12 | 891648
+ sensor_readings_default |   1152
+(13 rows)</code></pre>
+<p><code>tableoid</code> is a hidden system column every table has, and
+on a partitioned table it tells you which physical partition a given row
+actually lives in — the only reliable way to ask “where did this row end
+up?” after the fact.</p>
+<p><strong>2.3 — The row count that should stop you</strong></p>
+<p>Every month has the row count you’d expect from Exercise 0’s per-type
+counts — except December, which is short exactly 1,152 rows, and
+<code>sensor_readings_default</code>, which has exactly 1,152 rows in
+it. That’s not a coincidence:</p>
+<div class="sourceCode" id="cb416"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb416-1"><a href="#cb416-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_id, <span class="fu">MIN</span>(recorded_at), <span class="fu">MAX</span>(recorded_at), <span class="fu">COUNT</span>(<span class="op">*</span>)</span>
+<span id="cb416-2"><a href="#cb416-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb416-3"><a href="#cb416-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  tableoid <span class="op">=</span> <span class="st">&#39;sensor_readings_default&#39;</span>:<span class="ch">:regclass</span></span>
+<span id="cb416-4"><a href="#cb416-4" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> sensor_id;</span></code></pre></div>
+<pre><code> sensor_id |          min           |          max           | count
+-----------+-------------------------+-------------------------+-------
+        17 | 2025-12-27 00:00:00+00 | 2025-12-31 23:55:00+00 |  1152</code></pre>
+<p>Sensor 17 — a temperature sensor — has a clock bug: for its last four
+days of reporting, it stamped its readings a full year fast. Nothing
+about the <code>INSERT</code> failed or warned; the rows are sitting
+exactly where the schema said out-of-range data should go. This is
+precisely the scenario a <code>DEFAULT</code> partition exists for, and
+precisely why “does the default partition have anything in it?” is worth
+checking after any real backfill, not just this synthetic one — it’s the
+difference between a sensor firmware bug you catch in five minutes and
+one you catch when someone asks why a report is missing a device.</p>
+<hr />
+<h3 id="exercise-3-partition-pruning-seen-in-explain">Exercise 3 —
+Partition Pruning, Seen in <code>EXPLAIN</code></h3>
+<p><strong>3.1 — A date-filtered query touches one
+partition</strong></p>
+<div class="sourceCode" id="cb418"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb418-1"><a href="#cb418-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb418-2"><a href="#cb418-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_type, <span class="fu">COUNT</span>(<span class="op">*</span>), <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>)</span>
+<span id="cb418-3"><a href="#cb418-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb418-4"><a href="#cb418-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-06-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-07-01&#39;</span></span>
+<span id="cb418-5"><a href="#cb418-5" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> sensor_type</span>
+<span id="cb418-6"><a href="#cb418-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> sensor_type;</span></code></pre></div>
+<pre><code> Finalize GroupAggregate  (cost=12411.99..12480.46 rows=200 width=72) (actual time=182.595..203.871 rows=3 loops=1)
+   Group Key: sensor_readings.sensor_type
+   Buffers: shared hit=106 read=7168, temp read=3264 written=3276
+   -&gt;  Gather Merge  (cost=12411.99..12473.96 rows=400 width=72) (actual time=152.757..203.835 rows=9 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         -&gt;  Partial GroupAggregate  (cost=11411.97..11427.77 rows=200 width=72) (actual time=98.794..149.785 rows=3 loops=3)
+               Group Key: sensor_readings.sensor_type
+               -&gt;  Sort  (cost=11411.97..11415.42 rows=1380 width=40) (actual time=93.166..120.544 rows=288000 loops=3)
+                     Sort Key: sensor_readings.sensor_type
+                     Sort Method: external merge  Disk: 8720kB
+                     -&gt;  Parallel Seq Scan on sensor_readings_2024_06 sensor_readings  (cost=0.00..11340.00 rows=1380 width=40) (actual time=0.034..37.199 rows=288000 loops=3)
+                           Filter: ((recorded_at &gt;= &#39;2024-06-01 00:00:00+00&#39;::timestamp with time zone) AND (recorded_at &lt; &#39;2024-07-01 00:00:00+00&#39;::timestamp with time zone))
+ Planning Time: 6.417 ms
+ Execution Time: 205.458 ms</code></pre>
+<p>The <code>GROUP BY sensor_type</code> on top adds a sort and some
+parallel-worker bookkeeping that isn’t the point here — the line that
+matters is <code>Parallel Seq Scan on sensor_readings_2024_06</code>,
+singular. Eleven other monthly partitions and the default partition
+exist; none of them appear anywhere in this plan. The planner threw them
+out during planning, before execution ever started, based purely on the
+<code>WHERE</code> clause matching only June’s range.</p>
+<p><strong>3.2 — The same query, no date filter, for
+contrast</strong></p>
+<div class="sourceCode" id="cb420"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb420-1"><a href="#cb420-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span></span>
+<span id="cb420-2"><a href="#cb420-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_type, <span class="fu">COUNT</span>(<span class="op">*</span>)</span>
+<span id="cb420-3"><a href="#cb420-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb420-4"><a href="#cb420-4" aria-hidden="true" tabindex="-1"></a><span class="kw">GROUP</span>  <span class="kw">BY</span> sensor_type;</span></code></pre></div>
+<pre><code> Finalize GroupAggregate  (cost=156197.01..156247.68 rows=200 width=40)
+   -&gt;  Gather Merge  (cost=156197.01..156243.68 rows=400 width=40)
+         -&gt;  Sort  (cost=155196.99..155197.49 rows=200 width=40)
+               -&gt;  Partial HashAggregate  (cost=155187.34..155189.34 rows=200 width=40)
+                     -&gt;  Parallel Append  (cost=0.00..138351.15 rows=3367238 width=32)
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_01 sensor_readings_1  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_03 sensor_readings_3  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_05 sensor_readings_5  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_07 sensor_readings_7  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_08 sensor_readings_8  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_10 sensor_readings_10 ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_12 sensor_readings_12 ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_04 sensor_readings_4  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_06 sensor_readings_6  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_09 sensor_readings_9  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_11 sensor_readings_11 ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_2024_02 sensor_readings_2  ...
+                           -&gt;  Parallel Seq Scan on sensor_readings_default sensor_readings_13 ...</code></pre>
+<p>With nothing to prune on, every one of the thirteen partitions shows
+up as its own <code>Parallel Seq Scan</code> under a
+<code>Parallel Append</code>. This is the direct, visible contrast:
+pruning isn’t a performance optimization happening invisibly under the
+hood, it’s a specific number of <code>Seq Scan</code> lines disappearing
+from the plan, and you can watch it happen by adding or removing a date
+filter on the exact same query.</p>
+<hr />
+<h3 id="exercise-4-brin-vs.-b-tree-with-real-numbers">Exercise 4 — BRIN
+vs. B-tree, With Real Numbers</h3>
+<p><strong>4.1 — Why this data is a good fit for BRIN</strong></p>
+<p>BRIN’s usefulness rests entirely on physical/value correlation — do
+rows with nearby <code>recorded_at</code> values actually sit near each
+other on disk? Since this data was generated and loaded in chronological
+order and never updated, it should be close to perfectly correlated:</p>
+<div class="sourceCode" id="cb422"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb422-1"><a href="#cb422-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ANALYZE</span> sensor_readings;</span>
+<span id="cb422-2"><a href="#cb422-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb422-3"><a href="#cb422-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> tablename, attname, correlation, n_distinct</span>
+<span id="cb422-4"><a href="#cb422-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_stats</span>
+<span id="cb422-5"><a href="#cb422-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  tablename <span class="op">=</span> <span class="st">&#39;sensor_readings_2024_09&#39;</span> <span class="kw">AND</span> attname <span class="op">=</span> <span class="st">&#39;recorded_at&#39;</span>;</span></code></pre></div>
+<pre><code>        tablename        |   attname   | correlation | n_distinct
+--------------------------+-------------+-------------+------------
+ sensor_readings_2024_09 | recorded_at |  0.99979776 |       8622</code></pre>
+<p><code>correlation</code> ranges from -1 to 1; <code>0.9998</code> is
+as close to “physically sorted by this column” as real data gets. This
+is the number that decides whether BRIN is a good idea here — not the
+row count, not the table size.</p>
+<p><strong>4.2 — Build both indexes on one partition, compare cost to
+build and size</strong></p>
+<div class="sourceCode" id="cb424"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb424-1"><a href="#cb424-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_sr_2024_09_brin  <span class="kw">ON</span> sensor_readings_2024_09 <span class="kw">USING</span> BRIN (recorded_at);</span>
+<span id="cb424-2"><a href="#cb424-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_sr_2024_09_btree <span class="kw">ON</span> sensor_readings_2024_09 <span class="kw">USING</span> BTREE (recorded_at);</span></code></pre></div>
+<pre><code>CREATE INDEX
+Time: 122.619 ms
+CREATE INDEX
+Time: 249.923 ms</code></pre>
+<div class="sourceCode" id="cb426"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb426-1"><a href="#cb426-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> relname, pg_size_pretty(pg_relation_size(<span class="kw">oid</span>)) <span class="kw">AS</span> index_size</span>
+<span id="cb426-2"><a href="#cb426-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_class</span>
+<span id="cb426-3"><a href="#cb426-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  relname <span class="kw">IN</span> (<span class="st">&#39;idx_sr_2024_09_brin&#39;</span>, <span class="st">&#39;idx_sr_2024_09_btree&#39;</span>);</span></code></pre></div>
+<pre><code>       relname        | index_size
+-----------------------+------------
+ idx_sr_2024_09_brin  | 24 kB
+ idx_sr_2024_09_btree | 5800 kB</code></pre>
+<p>864,000 rows in this partition. The B-tree costs 5.8 MB — one entry
+per row, roughly what you’d expect. The BRIN index costs 24 KB:
+<strong>about 240 times smaller</strong>, because it isn’t storing one
+entry per row, it’s storing one min/max pair per 128-page block range —
+a few thousand summaries instead of 864,000 index entries. It also built
+about twice as fast. Neither number changes much if the table has a
+hundred million rows instead of 864,000; a B-tree’s cost scales with row
+count, BRIN’s scales with table <em>pages</em>, and
+pages-per-block-range is fixed.</p>
+<p><strong>4.3 — What that size difference costs you at query
+time</strong></p>
+<p>Force each index in turn and run the same narrow range query — one
+day out of the month:</p>
+<div class="sourceCode" id="cb428"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb428-1"><a href="#cb428-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb428-2"><a href="#cb428-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> idx_sr_2024_09_btree;  <span class="co">-- isolate the BRIN index</span></span>
+<span id="cb428-3"><a href="#cb428-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb428-4"><a href="#cb428-4" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb428-5"><a href="#cb428-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>), <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>)</span>
+<span id="cb428-6"><a href="#cb428-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings_2024_09</span>
+<span id="cb428-7"><a href="#cb428-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-09-15&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-09-16&#39;</span>;</span></code></pre></div>
+<pre><code> Aggregate  (cost=7818.29..7818.30 rows=1 width=40) (actual time=7.350..7.351 rows=1 loops=1)
+   Buffers: shared hit=9 read=384
+   -&gt;  Bitmap Heap Scan on sensor_readings_2024_09  (cost=19.27..7674.10 rows=28836 width=8) (actual time=0.635..5.708 rows=28800 loops=1)
+         Recheck Cond: ((recorded_at &gt;= &#39;2024-09-15 00:00:00+00&#39;::timestamp with time zone) AND (recorded_at &lt; &#39;2024-09-16 00:00:00+00&#39;::timestamp with time zone))
+         Rows Removed by Index Recheck: 17280
+         Heap Blocks: lossy=384
+         Buffers: shared hit=9 read=384
+         -&gt;  Bitmap Index Scan on idx_sr_2024_09_brin  (cost=0.00..12.06 rows=30322 width=0) (actual time=0.060..0.060 rows=3840 loops=1)
+               Index Cond: ((recorded_at &gt;= &#39;2024-09-15 00:00:00+00&#39;::timestamp with time zone) AND (recorded_at &lt; &#39;2024-09-16 00:00:00+00&#39;::timestamp with time zone))
+ Execution Time: 7.493 ms</code></pre>
+<p><code>Heap Blocks: lossy=384</code> and
+<code>Rows Removed by Index Recheck: 17280</code> are BRIN being honest
+about what it is: a <strong>lossy</strong> index. It doesn’t know which
+rows in a matching block range satisfy the condition, only that the
+range’s min/max <em>could</em> contain a match — so it hands back every
+block in range and PostgreSQL rechecks the actual condition row by row
+once the blocks are read. That recheck cost is real, and it’s the trade
+for the 240x smaller index.</p>
+<p>Now the B-tree, same query:</p>
+<div class="sourceCode" id="cb430"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb430-1"><a href="#cb430-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> idx_sr_2024_09_brin;</span>
+<span id="cb430-2"><a href="#cb430-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_sr_2024_09_btree <span class="kw">ON</span> sensor_readings_2024_09 <span class="kw">USING</span> BTREE (recorded_at);</span>
+<span id="cb430-3"><a href="#cb430-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb430-4"><a href="#cb430-4" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb430-5"><a href="#cb430-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>), <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>)</span>
+<span id="cb430-6"><a href="#cb430-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings_2024_09</span>
+<span id="cb430-7"><a href="#cb430-7" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-09-15&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-09-16&#39;</span>;</span></code></pre></div>
+<pre><code> Aggregate  (cost=1076.88..1076.89 rows=1 width=40) (actual time=5.781..5.782 rows=1 loops=1)
+   Buffers: shared hit=384 read=27
+   -&gt;  Index Scan using idx_sr_2024_09_btree on sensor_readings_2024_09  (cost=0.42..932.69 rows=28836 width=8) (actual time=0.055..3.552 rows=28800 loops=1)
+         Index Cond: ((recorded_at &gt;= &#39;2024-09-15 00:00:00+00&#39;::timestamp with time zone) AND (recorded_at &lt; &#39;2024-09-16 00:00:00+00&#39;::timestamp with time zone))
+ Execution Time: 5.850 ms</code></pre>
+<p>5.85 ms for the B-tree against 7.49 ms for BRIN — the B-tree is
+genuinely a bit faster here, exact and recheck-free by construction. But
+look at what each one costs to get that: 5.8 MB of index versus 24 KB,
+on <em>one month</em> of <em>one partition</em>. At the scale this
+chapter’s title implies — many partitions, much more than a year of data
+— a B-tree on every partition’s timestamp column stops being “a bit more
+disk” and starts being a meaningful fraction of the table’s own size,
+while BRIN stays essentially free. For an append-only, time-correlated
+column like this one, that trade is rarely close.</p>
+<p><strong>4.4 — Keep the BRIN index, drop the comparison
+B-tree</strong></p>
+<div class="sourceCode" id="cb432"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb432-1"><a href="#cb432-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> idx_sr_2024_09_btree;</span>
+<span id="cb432-2"><a href="#cb432-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_sr_2024_09_brin <span class="kw">ON</span> sensor_readings_2024_09 <span class="kw">USING</span> BRIN (recorded_at);</span>
+<span id="cb432-3"><a href="#cb432-3" aria-hidden="true" tabindex="-1"></a><span class="kw">RESET</span> enable_seqscan;</span></code></pre></div>
+<p>Recreate this same <code>USING BRIN (recorded_at)</code> index on
+every other monthly partition before moving on — Exercise 5 will drop
+one of them whole, and Exercise 6 revisits the size question at the
+whole-table level.</p>
+<hr />
+<h3 id="exercise-5-dropping-a-partition-vs.-delete">Exercise 5 —
+Dropping a Partition vs. <code>DELETE</code></h3>
+<p><strong>5.1 — Time the unpartitioned way:
+<code>DELETE</code></strong></p>
+<p><code>sensor_readings_staging</code> is still sitting there,
+unpartitioned, exactly as it was before this chapter touched anything.
+Delete a month’s worth of rows from it the only way an unpartitioned
+table allows:</p>
+<div class="sourceCode" id="cb433"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb433-1"><a href="#cb433-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DELETE</span> <span class="kw">FROM</span> sensor_readings_staging</span>
+<span id="cb433-2"><a href="#cb433-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-01-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-02-01&#39;</span>;</span></code></pre></div>
+<pre><code>DELETE 892800
+Time: 815.293 ms</code></pre>
+<p><strong>5.2 — Time the partitioned way:
+<code>DROP TABLE</code></strong></p>
+<div class="sourceCode" id="cb435"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb435-1"><a href="#cb435-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> sensor_readings_2024_01;</span></code></pre></div>
+<pre><code>DROP TABLE
+Time: 17.489 ms</code></pre>
+<p>Same amount of data — the January 2024 slice, 892,800 rows either way
+— and dropping the partition is roughly <strong>47 times faster</strong>
+than deleting the equivalent rows. That gap isn’t a fluke of this
+particular run: it’s two operations of fundamentally different cost.
+<code>DELETE</code> is an MVCC operation — PostgreSQL has to visit every
+matching row, mark each one dead, and write a WAL record for each one,
+transaction-safely, one row at a time. <code>DROP TABLE</code> on a
+partition is a catalog operation — it removes one entry saying “this
+table is part of that partition set” and unlinks the file. No row is
+individually touched because no row was individually anything; the whole
+partition was always one physical object.</p>
+<p><strong>5.3 — The part <code>DELETE</code> doesn’t
+finish</strong></p>
+<div class="sourceCode" id="cb437"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb437-1"><a href="#cb437-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> n_live_tup, n_dead_tup, pg_size_pretty(pg_relation_size(<span class="st">&#39;sensor_readings_staging&#39;</span>))</span>
+<span id="cb437-2"><a href="#cb437-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_stat_user_tables</span>
+<span id="cb437-3"><a href="#cb437-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="st">&#39;sensor_readings_staging&#39;</span>;</span></code></pre></div>
+<pre><code> n_live_tup | n_dead_tup | pg_size_pretty
+------------+------------+----------------
+    9648230 |     892800 | 687 MB</code></pre>
+<p>892,800 dead tuples, exactly matching what was just deleted — and the
+table is still 687 MB, unchanged, because <code>DELETE</code> doesn’t
+reclaim disk space, it just marks rows as no-longer-visible. Getting
+that space back needs a <code>VACUUM</code> (or <code>VACUUM FULL</code>
+to actually shrink the file), which is its own I/O-heavy pass over the
+table, usually running sometime later via autovacuum rather than as part
+of the <code>DELETE</code> itself. <code>DROP TABLE</code> skipped all
+of this — there is no bloat to vacuum, because there’s no table left to
+have any.</p>
+<p><strong>5.4 — A gotcha worth knowing about before it surprises
+you</strong></p>
+<div class="sourceCode" id="cb439"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb439-1"><a href="#cb439-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(pg_total_relation_size(<span class="st">&#39;sensor_readings&#39;</span>));</span></code></pre></div>
+<pre><code> pg_size_pretty
+----------------
+ 0 bytes</code></pre>
+<p>That’s not an error and the data is not gone —
+<code>pg_total_relation_size()</code> on a <em>partitioned</em> table
+reports only the parent’s own storage, and a partitioned table’s parent
+has none; all the bytes live in the child partitions. To get the real
+total, sum across the children:</p>
+<div class="sourceCode" id="cb441"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb441-1"><a href="#cb441-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(<span class="fu">SUM</span>(pg_total_relation_size(inhrelid))) <span class="kw">AS</span> total_size</span>
+<span id="cb441-2"><a href="#cb441-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_inherits</span>
+<span id="cb441-3"><a href="#cb441-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  inhparent <span class="op">=</span> <span class="st">&#39;sensor_readings&#39;</span>:<span class="ch">:regclass</span>;</span></code></pre></div>
+<pre><code> total_size
+------------
+ 629 MB</code></pre>
+<p><strong>5.5 — Clean up the staging table</strong></p>
+<p>It’s done its job — everything from here on works from
+<code>sensor_readings</code>:</p>
+<div class="sourceCode" id="cb443"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb443-1"><a href="#cb443-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> sensor_readings_staging;</span></code></pre></div>
+<hr />
+<h3 id="exercise-6-combining-list-and-range-subpartitioning">Exercise 6
+— Combining <code>LIST</code> and <code>RANGE</code>:
+Subpartitioning</h3>
+<p><strong>6.1 — Why one partition key isn’t always enough</strong></p>
+<p><code>sensor_readings</code> prunes beautifully on date, but a query
+that also filters on <code>sensor_type</code> — “just the traffic
+sensors” — still has to scan a whole month’s worth of every sensor type,
+because <code>sensor_type</code> isn’t part of the partition key at all.
+PostgreSQL allows a second level: partition by
+<code>LIST (sensor_type)</code> at the top, then partition <em>each of
+those</em> by <code>RANGE (recorded_at)</code> underneath — a partition
+of a partition, usually called subpartitioning. Two routing decisions,
+made independently, before a row ever reaches physical storage:</p>
+<p><img src="imgs/ch08_subpartitioning.svg" alt="Partition tree: sensor_readings_by_type partitioned by LIST(sensor_type) into three branches (temperature, traffic, air_quality), each further partitioned by RANGE(recorded_at) into three monthly leaf partitions"/></p>
+<p>The root and the three type branches hold no data of their own — they
+exist purely to route a row one level further down. Only the nine boxes
+at the bottom are real tables with real storage, and every one of this
+chapter’s rows lives in exactly one of them, decided first by
+<code>sensor_type</code>, then by which month <code>recorded_at</code>
+falls in.</p>
+<p><strong>6.2 — Build the two-level hierarchy</strong></p>
+<div class="sourceCode" id="cb444"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb444-1"><a href="#cb444-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_by_type (</span>
+<span id="cb444-2"><a href="#cb444-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            BIGINT <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> IDENTITY,</span>
+<span id="cb444-3"><a href="#cb444-3" aria-hidden="true" tabindex="-1"></a>    sensor_id     <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb444-4"><a href="#cb444-4" aria-hidden="true" tabindex="-1"></a>    sensor_type   TEXT <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb444-5"><a href="#cb444-5" aria-hidden="true" tabindex="-1"></a>                      <span class="kw">CHECK</span> (sensor_type <span class="kw">IN</span> (<span class="st">&#39;temperature&#39;</span>, <span class="st">&#39;traffic&#39;</span>, <span class="st">&#39;air_quality&#39;</span>)),</span>
+<span id="cb444-6"><a href="#cb444-6" aria-hidden="true" tabindex="-1"></a>    reading_value <span class="dt">DOUBLE</span> <span class="dt">PRECISION</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb444-7"><a href="#cb444-7" aria-hidden="true" tabindex="-1"></a>    recorded_at   TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb444-8"><a href="#cb444-8" aria-hidden="true" tabindex="-1"></a>) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">LIST</span> (sensor_type);</span>
+<span id="cb444-9"><a href="#cb444-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb444-10"><a href="#cb444-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_temperature <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings_by_type</span>
+<span id="cb444-11"><a href="#cb444-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">IN</span> (<span class="st">&#39;temperature&#39;</span>) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
+<span id="cb444-12"><a href="#cb444-12" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_traffic <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings_by_type</span>
+<span id="cb444-13"><a href="#cb444-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">IN</span> (<span class="st">&#39;traffic&#39;</span>) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
+<span id="cb444-14"><a href="#cb444-14" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_air_quality <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings_by_type</span>
+<span id="cb444-15"><a href="#cb444-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">IN</span> (<span class="st">&#39;air_quality&#39;</span>) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
+<span id="cb444-16"><a href="#cb444-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb444-17"><a href="#cb444-17" aria-hidden="true" tabindex="-1"></a><span class="co">-- Three months of subpartitions under each type branch:</span></span>
+<span id="cb444-18"><a href="#cb444-18" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_temperature_2024_04 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_temperature <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-04-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-05-01&#39;</span>);</span>
+<span id="cb444-19"><a href="#cb444-19" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_temperature_2024_05 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_temperature <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-05-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-06-01&#39;</span>);</span>
+<span id="cb444-20"><a href="#cb444-20" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_temperature_2024_06 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_temperature <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-06-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-07-01&#39;</span>);</span>
+<span id="cb444-21"><a href="#cb444-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb444-22"><a href="#cb444-22" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_traffic_2024_04 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_traffic <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-04-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-05-01&#39;</span>);</span>
+<span id="cb444-23"><a href="#cb444-23" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_traffic_2024_05 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_traffic <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-05-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-06-01&#39;</span>);</span>
+<span id="cb444-24"><a href="#cb444-24" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_traffic_2024_06 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_traffic <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-06-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-07-01&#39;</span>);</span>
+<span id="cb444-25"><a href="#cb444-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb444-26"><a href="#cb444-26" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_air_quality_2024_04 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_air_quality <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-04-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-05-01&#39;</span>);</span>
+<span id="cb444-27"><a href="#cb444-27" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_air_quality_2024_05 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_air_quality <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-05-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-06-01&#39;</span>);</span>
+<span id="cb444-28"><a href="#cb444-28" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> srbt_air_quality_2024_06 <span class="kw">PARTITION</span> <span class="kw">OF</span> srbt_air_quality <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-06-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-07-01&#39;</span>);</span></code></pre></div>
+<p>Three months only, and only as a working example — building out all
+twelve for all three types is the same pattern repeated, not a new idea,
+and this chapter’s disk budget would rather spend on data than on empty
+demonstration partitions.</p>
+<p><strong>6.3 — Backfill from <code>sensor_readings</code> and inspect
+the tree</strong></p>
+<div class="sourceCode" id="cb445"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb445-1"><a href="#cb445-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sensor_readings_by_type (sensor_id, sensor_type, reading_value, recorded_at)</span>
+<span id="cb445-2"><a href="#cb445-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_id, sensor_type, reading_value, recorded_at</span>
+<span id="cb445-3"><a href="#cb445-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb445-4"><a href="#cb445-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-04-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-07-01&#39;</span>;</span></code></pre></div>
+<pre><code>INSERT 0 2620800
+Time: 3389.698 ms (00:03.390)</code></pre>
+<div class="sourceCode" id="cb447"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb447-1"><a href="#cb447-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> relid:<span class="ch">:regclass</span> <span class="kw">AS</span> relation, parentrelid:<span class="ch">:regclass</span> <span class="kw">AS</span> <span class="kw">parent</span>, isleaf, <span class="kw">level</span></span>
+<span id="cb447-2"><a href="#cb447-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_partition_tree(<span class="st">&#39;sensor_readings_by_type&#39;</span>)</span>
+<span id="cb447-3"><a href="#cb447-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="kw">level</span>, <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>         relation         |         parent          | isleaf | level
+--------------------------+-------------------------+--------+-------
+ sensor_readings_by_type  |                         | f      |     0
+ srbt_air_quality         | sensor_readings_by_type | f      |     1
+ srbt_temperature         | sensor_readings_by_type | f      |     1
+ srbt_traffic             | sensor_readings_by_type | f      |     1
+ srbt_air_quality_2024_04 | srbt_air_quality        | t      |     2
+ srbt_air_quality_2024_05 | srbt_air_quality        | t      |     2
+ srbt_air_quality_2024_06 | srbt_air_quality        | t      |     2
+ srbt_temperature_2024_04 | srbt_temperature        | t      |     2
+ srbt_temperature_2024_05 | srbt_temperature        | t      |     2
+ srbt_temperature_2024_06 | srbt_temperature        | t      |     2
+ srbt_traffic_2024_04     | srbt_traffic            | t      |     2
+ srbt_traffic_2024_05     | srbt_traffic            | t      |     2
+ srbt_traffic_2024_06     | srbt_traffic            | t      |     2
+(13 rows)</code></pre>
+<p><code>pg_partition_tree()</code> is the built-in way to see this
+shape directly instead of inferring it from table names: one root, three
+<code>LIST</code> branches at level 1, nine <code>RANGE</code> leaves at
+level 2 — every row actually lives in one of those nine leaf tables,
+never in an intermediate one.</p>
+<p><strong>6.4 — Confirm pruning happens on both dimensions at
+once</strong></p>
+<div class="sourceCode" id="cb449"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb449-1"><a href="#cb449-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS)</span>
+<span id="cb449-2"><a href="#cb449-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>), <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>)</span>
+<span id="cb449-3"><a href="#cb449-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   sensor_readings_by_type</span>
+<span id="cb449-4"><a href="#cb449-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  sensor_type <span class="op">=</span> <span class="st">&#39;traffic&#39;</span></span>
+<span id="cb449-5"><a href="#cb449-5" aria-hidden="true" tabindex="-1"></a><span class="kw">AND</span>    recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-05-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-06-01&#39;</span>;</span></code></pre></div>
+<pre><code> Finalize Aggregate  (cost=6794.58..6794.60 rows=1 width=40) (actual time=37.692..40.669 rows=1 loops=1)
+   -&gt;  Gather  (cost=6794.47..6794.58 rows=1 width=40) (actual time=37.612..40.655 rows=2 loops=1)
+         Workers Planned: 1
+         -&gt;  Partial Aggregate  (cost=5794.47..5794.48 rows=1 width=40) (actual time=36.350..36.351 rows=1 loops=2)
+               -&gt;  Parallel Seq Scan on srbt_traffic_2024_05 sensor_readings_by_type  (cost=0.00..5794.45 rows=4 width=8) (actual time=0.018..26.204 rows=178560 loops=2)
+                     Filter: ((recorded_at &gt;= &#39;2024-05-01 00:00:00+00&#39;::timestamp with time zone) AND (recorded_at &lt; &#39;2024-06-01 00:00:00+00&#39;::timestamp with time zone) AND (sensor_type = &#39;traffic&#39;::text))
+ Execution Time: 40.738 ms</code></pre>
+<p>One line, <code>Parallel Seq Scan on srbt_traffic_2024_05</code>, out
+of the nine leaf partitions that exist. The
+<code>sensor_type = 'traffic'</code> predicate pruned two of the three
+top-level branches before the range predicate even got involved, and the
+range predicate then pruned two of that branch’s three months. Both
+partition keys did real work on this single query, independently, in the
+same plan.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-7">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>PARTITION BY RANGE (col)</code></td>
+<td>Split a table into physical children by value range on one column —
+the whole table stays queryable as one name</td>
+</tr>
+<tr class="even">
+<td><code>FOR VALUES FROM (...) TO (...)</code></td>
+<td>Half-open interval defining one range partition’s bounds</td>
+</tr>
+<tr class="odd">
+<td><code>... DEFAULT</code> partition</td>
+<td>Catches any row that doesn’t match a defined range — without one,
+out-of-range inserts are rejected outright</td>
+</tr>
+<tr class="even">
+<td><code>tableoid::regclass</code></td>
+<td>Ask which physical partition a given row actually lives in</td>
+</tr>
+<tr class="odd">
+<td>Partition pruning</td>
+<td>The planner drops non-matching partitions from the plan
+<em>before</em> execution, visible as missing <code>Seq Scan</code>
+lines in <code>EXPLAIN</code></td>
+</tr>
+<tr class="even">
+<td><code>USING BRIN (col)</code></td>
+<td>Index storing one min/max summary per block range — tiny and cheap,
+but only useful when physical and value order correlate</td>
+</tr>
+<tr class="odd">
+<td><code>correlation</code> in <code>pg_stats</code></td>
+<td>The number that tells you whether BRIN is actually a good idea for a
+given column</td>
+</tr>
+<tr class="even">
+<td><code>DROP TABLE</code> on a partition</td>
+<td>Metadata-only, near-instant removal of a whole partition’s worth of
+data — no per-row MVCC cost, no bloat to vacuum afterward</td>
+</tr>
+<tr class="odd">
+<td><code>pg_total_relation_size()</code> on a partitioned table</td>
+<td>Reports the (empty) parent only — sum over <code>pg_inherits</code>
+for the real total</td>
+</tr>
+<tr class="even">
+<td><code>PARTITION BY LIST</code> over
+<code>PARTITION BY RANGE</code></td>
+<td>Subpartitioning — two partition keys, pruned independently, in one
+query plan</td>
+</tr>
+<tr class="odd">
+<td><code>pg_partition_tree()</code></td>
+<td>Walk a partition hierarchy — root, branches, and leaves — as a query
+instead of by table-naming convention</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+partitioning and indexing solve different halves of the same problem,
+and BRIN sits exactly at their intersection. Partition pruning throws
+away whole partitions the planner can prove are irrelevant, cutting the
+search space by orders of magnitude before a single row is touched. BRIN
+then indexes what’s left almost for free, precisely because append-only,
+time-ordered data — the same shape of data that makes range partitioning
+by date the obvious choice — is also the shape that makes a
+physically-correlated, lossy index a good trade instead of a bad one.
+Neither technique is really “for time-series data” in the abstract; both
+are for data whose physical order already tells you something true about
+its values, and this chapter’s sensor readings happen to be exactly
+that.</p>
+<hr />
+<em>Going further: hand-writing twelve
+<code>CREATE TABLE ... PARTITION OF</code> statements a year, forever,
+is exactly the kind of recurring maintenance that Chapter 19’s
+<code>pg_cron</code> is suited to automate — schedule a monthly job that
+creates next month’s partition before it’s needed and, if a retention
+policy allows it, drops the oldest one the same way Exercise 5 did by
+hand. In production this whole lifecycle — creation, retention, even the
+migration of aging partitions to cheaper storage — is usually handled by
+the <code>pg_partman</code> extension rather than bespoke scripts;
+everything in this chapter is what <code>pg_partman</code> is automating
+under the hood, which is worth knowing before reaching for it, not
+instead of. <code>sensor_readings</code> also isn’t done being useful:
+Chapter 9’s materialized views roll it up into daily summaries without
+re-scanning raw readings each time, Chapter 11’s window functions
+compute rolling averages and day-over-day deltas across it, and Chapter
+16 adds a generated <code>reading_date</code> column to make date-only
+grouping cheaper still. And a caution in the other direction — BRIN is
+not a free upgrade for every index. A column with low correlation (a
+randomly- assigned <code>sensor_id</code>, say, rather than an
+ever-increasing timestamp) gets none of BRIN’s benefit and most of a
+sequential scan’s cost, because every block range ends up spanning the
+entire value domain. Check <code>correlation</code> before reaching for
+BRIN, the same way Exercise 4 did here — it’s a bet on the physical
+shape of your data, not a strictly smaller B-tree.</em>
 <div style="page-break-before: always;">
 
 </div>

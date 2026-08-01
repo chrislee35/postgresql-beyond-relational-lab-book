@@ -13,8 +13,18 @@ all: $(OUTDIR) html pdf epub
 $(OUTDIR):
 	mkdir $(OUTDIR)
 
+# Render Mermaid diagram sources (diagrams/*.mmd) to SVG in imgs/, forest theme
+DIAGRAM_SRC := $(wildcard diagrams/*.mmd)
+DIAGRAM_SVG := $(patsubst diagrams/%.mmd,imgs/%.svg,$(DIAGRAM_SRC))
+
+imgs/%.svg: diagrams/%.mmd diagrams/mermaid.config.json
+	mermaidx -i $< -o $@ -c diagrams/mermaid.config.json
+
+.PHONY: diagrams
+diagrams: $(DIAGRAM_SVG)
+
 # Combine all markdown files into a single one
-$(OUTPUT).md: $(INPUT) | $(OUTDIR)
+$(OUTPUT).md: $(INPUT) diagrams | $(OUTDIR)
 	mkdir -p $(OUTDIR)/imgs $(OUTDIR)/css
 	rm -rf $(OUTPUT).md
 	for file in $(INPUT); do \

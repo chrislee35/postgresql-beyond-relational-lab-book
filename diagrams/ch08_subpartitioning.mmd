@@ -1,0 +1,15 @@
+graph TD
+    Root["sensor_readings_by_type<br/>PARTITION BY LIST (sensor_type)"]
+
+    Root -->|temperature| Temp["srbt_temperature<br/>PARTITION BY RANGE (recorded_at)"]
+    Root -->|traffic| Traffic["srbt_traffic<br/>PARTITION BY RANGE (recorded_at)"]
+    Root -->|air_quality| Air["srbt_air_quality<br/>PARTITION BY RANGE (recorded_at)"]
+
+    Temp --> T04["srbt_temperature_2024_04"]
+    Temp --> T05["srbt_temperature_2024_05"]
+
+    Traffic --> Tr04["srbt_traffic_2024_04"]
+    Traffic --> Tr05["srbt_traffic_2024_05"]
+
+    Air --> A04["srbt_air_quality_2024_04"]
+    Air --> A05["srbt_air_quality_2024_05"]
