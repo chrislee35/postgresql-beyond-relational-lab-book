@@ -1,0 +1,13 @@
+graph TD
+    Start["details -> 'hours' -> 'sun'"]
+    Start --> KeyCheck{"Does the 'sun' key exist?"}
+
+    KeyCheck -->|No, key missing| SqlNull["Returns SQL NULL<br/>jsonb_typeof = NULL"]
+    KeyCheck -->|Yes, key present| ValueCheck{"What's the value?"}
+
+    ValueCheck -->|"JSON null (closed)"| JsonNull["Returns JSONB null<br/>jsonb_typeof = 'null'"]
+    ValueCheck -->|"real object (open)"| JsonObj["Returns JSONB object<br/>jsonb_typeof = 'object'"]
+
+    SqlNull --> R1["IS NOT NULL -> FALSE"]
+    JsonNull --> R2["IS NOT NULL -> TRUE  (the gotcha)"]
+    JsonObj --> R3["IS NOT NULL -> TRUE"]

@@ -441,6 +441,8 @@ anywhere in this plan. The planner threw them out during planning, before
 execution ever started, based purely on the `WHERE` clause matching only
 June's range.
 
+<img src="imgs/ch08_partition_pruning.svg" alt="Timeline of the 12 monthly partitions from 2024_01 through 2024_12. Only 2024_06 is highlighted as scanned, matching the WHERE clause's June date range; the other eleven are greyed out as pruned"/>
+
 **3.2 — The same query, no date filter, for contrast**
 
 ```sql

@@ -462,6 +462,10 @@ That is what happens for the five accommodation businesses: `details ->
 'hours'` returns `{"reception": "..."}`, and then `-> 'sun'` on that object
 finds no such key and returns SQL `NULL`, so `IS NOT NULL` is `FALSE`.
 
+The same logic, traced as a flowchart instead of read as prose:
+
+<img src="imgs/ch01_null_vs_null.svg" alt="Flowchart: does the JSONB key exist? If not, SQL NULL. If it exists, what's the value — JSON null (the gotcha: IS NOT NULL is still TRUE) or a real object (IS NOT NULL is TRUE, correctly)"/>
+
 To correctly distinguish the three states, use `jsonb_typeof()`:
 
 | State | `details -> 'hours' -> 'sun'` | `jsonb_typeof(...)` | `IS NOT NULL` |

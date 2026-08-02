@@ -920,9 +920,12 @@ which documents a real user actually finds.
 | `CREATE TEXT SEARCH DICTIONARY ... (STOPWORDS = ...)` + `CREATE TEXT SEARCH CONFIGURATION` | Build a custom configuration with domain-specific stopwords |
 
 **The key design insight** from this chapter is that full-text search is not
-one function call — it's a pipeline (tokenize → stem → filter stopwords)
-that you can inspect at every stage with `ts_debug`, store the output of
-with a maintained column and a GIN index, query against with two very
+one function call — it's a pipeline:
+
+<img src="imgs/ch04_search_pipeline.svg" alt="Flowchart: raw text flows through tokenize (split into words, lowercase, strip punctuation), then stem (reduce to root form), then filter stopwords (discard low-information words), producing a tsvector"/>
+
+You can inspect every stage of that pipeline with `ts_debug`, store its
+output with a maintained column and a GIN index, query against it with two very
 different trade-offs (`to_tsquery` for precision, `plainto_tsquery` for
 safety), and tune for your specific corpus by swapping the stopword list —
 exactly the kind of tuning a generic search engine bolted on top of your

@@ -1,0 +1,21 @@
+graph TB
+    subgraph Summary["hand-maintained<br/>summary table"]
+        direction LR
+        SW["app code writes it,<br/>same txn as source data"] --> SS["always in sync -<br/>you own every line"]
+    end
+
+    subgraph MatView["MATERIALIZED VIEW"]
+        direction LR
+        MS["stored snapshot<br/>(reads: instant)"]
+        MRef(["REFRESH<br/>(you decide when)"])
+        MRef -.-> MS
+    end
+
+    subgraph View["plain VIEW"]
+        direction LR
+        VQ["SELECT ..."] --> VR["query re-runs<br/>on every single read"]
+    end
+
+    style View fill:none,stroke:none
+    style MatView fill:none,stroke:none
+    style Summary fill:none,stroke:none

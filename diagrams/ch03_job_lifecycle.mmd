@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> queued : seeded / inserted
+
+    queued --> in_progress : claim (FOR UPDATE SKIP LOCKED)
+    in_progress --> completed : worker succeeds
+    in_progress --> queued : reclaim sweep (stalled, attempts < max_attempts)
+    in_progress --> dead_letter_jobs : reclaim sweep (stalled, attempts = max_attempts)
+
+    completed --> [*]
+    dead_letter_jobs --> [*]

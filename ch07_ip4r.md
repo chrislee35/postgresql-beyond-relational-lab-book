@@ -306,6 +306,8 @@ one — `203.0.113.150` falls inside both the broad `203.0.113.0/24` entry
 Real blocklists routinely have this shape: a wide, low-confidence range
 alongside a narrow, high-confidence one carved out of it.
 
+<img src="imgs/ch07_cidr_nesting.svg" alt="Number-line diagram showing 203.0.113.0/24 as a wide range and 203.0.113.128/26 as a narrower range nested inside it, with the address 203.0.113.150 landing inside both at once"/>
+
 **2.2 — The same check, written the other way around**
 
 ```sql
@@ -690,6 +692,12 @@ from behind a single gateway. A per-host bucket alone never trips.
 Checking a *second*, looser bucket keyed to the containing `/24` catches
 exactly that pattern, without needing to lower the per-host limit enough
 to hurt legitimate single users.
+
+<img src="imgs/ch07_token_bucket.svg" alt="Flowchart: an incoming request checks the host bucket first; if no token is available it's denied with host limit exceeded; if a host token is consumed, it then checks the netblock bucket; if no netblock token is available it's denied with netblock limit exceeded; otherwise both buckets are decremented and the request is allowed"/>
+
+`check_rate_limit()`, built below, is exactly this diagram: the host
+bucket is checked — and consumed — first, and only a request that clears
+it goes on to spend a netblock token too.
 
 **7.3 — Schema: bucket keyed by `ip4r`, not `ip4`**
 

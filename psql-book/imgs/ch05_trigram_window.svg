@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="630" height="440" viewBox="0 0 630 440">
+<rect width="630" height="440" fill="white"/>
+<style>text { font-family: "Comic Neue", "Trebuchet MS", sans-serif; }</style>
+<text x="100" y="18" font-size="14" fill="#333">padded string: two leading spaces, one trailing space</text>
+<rect x="100" y="30" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="51.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="30" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="51.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="30" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="51.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="30" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="51.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="100" y="88" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="117.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">·</text>
+<rect x="134" y="88" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="151.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">·</text>
+<rect x="168" y="88" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="185.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="88" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="109.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="88" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="109.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="109.0" font-size="15" fill="#13540c">&quot;  e&quot;</text>
+<text x="560" y="109.0" font-size="12" fill="#777">window 1</text>
+<rect x="100" y="128" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="149.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="128" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="151.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">·</text>
+<rect x="168" y="128" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="185.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="128" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="219.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="128" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="128" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="128" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="128" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="128" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="149.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="128" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="149.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="149.0" font-size="15" fill="#13540c">&quot; el&quot;</text>
+<text x="560" y="149.0" font-size="12" fill="#777">window 2</text>
+<rect x="100" y="168" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="189.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="168" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="189.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="168" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="185.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="168" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="219.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="168" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="253.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="168" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="168" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="168" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="168" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="189.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="168" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="189.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="189.0" font-size="15" fill="#13540c">ele</text>
+<text x="560" y="189.0" font-size="12" fill="#777">window 3</text>
+<rect x="100" y="208" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="229.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="208" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="229.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="208" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="208" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="219.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="208" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="253.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="208" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="287.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="208" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="208" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="208" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="229.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="208" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="229.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="229.0" font-size="15" fill="#13540c">lea</text>
+<text x="560" y="229.0" font-size="12" fill="#777">window 4</text>
+<rect x="100" y="248" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="269.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="248" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="269.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="248" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="248" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="248" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="253.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="248" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="287.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="248" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="321.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="248" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="355.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="248" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="269.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="248" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="269.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="269.0" font-size="15" fill="#13540c">ean</text>
+<text x="560" y="269.0" font-size="12" fill="#777">window 5</text>
+<rect x="100" y="288" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="309.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="288" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="309.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="288" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="288" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="288" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="288" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="287.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="288" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="321.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="288" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="355.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="288" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="389.0" y="309.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="288" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="309.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="309.0" font-size="15" fill="#13540c">ano</text>
+<text x="560" y="309.0" font-size="12" fill="#777">window 6</text>
+<rect x="100" y="328" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="349.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="328" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="349.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="328" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="328" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="328" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="328" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="328" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="321.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="328" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="355.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="328" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="389.0" y="349.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="328" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="423.0" y="349.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<text x="470" y="349.0" font-size="15" fill="#13540c">nor</text>
+<text x="560" y="349.0" font-size="12" fill="#777">window 7</text>
+<rect x="100" y="368" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="117.0" y="389.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="134" y="368" width="34" height="32" fill="#f5f5f5" stroke="#999" stroke-width="1"/><text x="151.0" y="389.0" text-anchor="middle" font-size="15" fill="#999">·</text>
+<rect x="168" y="368" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="185.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="202" y="368" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="219.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">l</text>
+<rect x="236" y="368" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="253.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">e</text>
+<rect x="270" y="368" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="287.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">a</text>
+<rect x="304" y="368" width="34" height="32" fill="white" stroke="#999" stroke-width="1"/><text x="321.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">n</text>
+<rect x="338" y="368" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="355.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">o</text>
+<rect x="372" y="368" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="389.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">r</text>
+<rect x="406" y="368" width="34" height="32" fill="#cde498" stroke="#13540c" stroke-width="2"/><text x="423.0" y="389.0" text-anchor="middle" font-size="15" fill="#000">·</text>
+<text x="470" y="389.0" font-size="15" fill="#13540c">&quot;or &quot;</text>
+<text x="560" y="389.0" font-size="12" fill="#777">window 8</text>
+<text x="100" y="426" font-size="12" fill="#777">10 characters, 8 overlapping windows of 3 (10 - 3 + 1)</text>
+</svg>

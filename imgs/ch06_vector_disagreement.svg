@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="520" viewBox="0 0 640 520">
+<rect width="640" height="520" fill="white"/>
+<style>text { font-family: "Comic Neue", "Trebuchet MS", sans-serif; }</style>
+<defs><marker id="arrowQ" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#13540c"/></marker><marker id="arrowA" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#a04000"/></marker><marker id="arrowB" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#1a4a7a"/></marker></defs>
+<text x="20" y="26" font-size="16" fill="#333">L2 distance says B is closer. Cosine distance says A is closer.</text>
+<line x1="20" y1="400" x2="620" y2="400" stroke="#ccc" stroke-width="1"/>
+<line x1="120" y1="20" x2="120" y2="500" stroke="#ccc" stroke-width="1"/>
+<circle cx="250" cy="400" r="65.0" fill="none" stroke="#1a4a7a" stroke-width="1.5" stroke-dasharray="5 4"/>
+<path d="M 160 400 A 40 40 0 0 0 155.8 382.1" fill="none" stroke="#777" stroke-width="1.5"/>
+<text x="172" y="386" font-size="13" fill="#777">angle to B</text>
+<circle cx="120" cy="400" r="3" fill="#333"/>
+<text x="106" y="418" font-size="13" fill="#333">origin</text>
+<line x1="120" y1="400" x2="250" y2="400" stroke="#13540c" stroke-width="3" marker-end="url(#arrowQ)"/>
+<text x="258" y="392" font-size="15" fill="#13540c">query [1,0]</text>
+<line x1="120" y1="400" x2="380" y2="400" stroke="#a04000" stroke-width="3" marker-end="url(#arrowA)"/>
+<text x="388" y="392" font-size="15" fill="#a04000">A [2,0] — same direction, 2x length</text>
+<line x1="120" y1="400" x2="250" y2="335.0" stroke="#1a4a7a" stroke-width="3" marker-end="url(#arrowB)"/>
+<text x="258" y="333.0" font-size="15" fill="#1a4a7a">B [1,0.5] — different angle, similar length</text>
+<rect x="20" y="440" width="600" height="66" fill="#f5f5f5" stroke="#999"/>
+<text x="32" y="464" font-size="14" fill="#333">L2 (&lt;-&gt;):   dist(Q,A) = 1.0   dist(Q,B) = 0.5   &#8594; B is closer</text>
+<text x="32" y="488" font-size="14" fill="#333">cosine (&lt;=&gt;): dist(Q,A) = 0.0   dist(Q,B) = 0.1056 &#8594; A is closer</text>
+</svg>

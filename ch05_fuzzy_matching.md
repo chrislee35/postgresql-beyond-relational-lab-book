@@ -205,6 +205,8 @@ each get their own distinguishing trigram (`"  e"` marks "starts with e";
 start or end still register as different rather than accidentally looking
 identical in the middle.
 
+<img src="imgs/ch05_trigram_window.svg" alt="A 3-character window sliding one position at a time across the padded string '  eleanor ', producing the 8 overlapping trigrams: '  e', ' el', ele, lea, ean, ano, nor, 'or '"/>
+
 **1.2 — `similarity()`: how much overlap, as a fraction**
 
 ```sql

@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant A as Session A
+    participant DB as jobs table
+    participant B as Session B
+
+    Note over A,B: Scenario 1 - FOR UPDATE SKIP LOCKED
+    A->>DB: BEGIN
+    A->>DB: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 5
+    DB-->>A: rows 1-5 (locked, txn open)
+    B->>DB: BEGIN
+    B->>DB: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 5
+    Note right of B: rows 1-5 locked - skip them, don't wait
+    DB-->>B: rows 6-10 (locked)
+    Note over A,B: Neither session blocks
+    A->>DB: COMMIT
+    B->>DB: COMMIT
+
+    Note over A,B: Scenario 2 - plain FOR UPDATE
+    A->>DB: BEGIN
+    A->>DB: SELECT ... FOR UPDATE LIMIT 5
+    DB-->>A: rows 1-5 (locked, txn open)
+    B->>DB: BEGIN
+    B->>DB: SELECT ... FOR UPDATE LIMIT 5
+    Note right of B: rows 1-5 locked - wait for them
+    A->>DB: COMMIT
+    DB-->>B: rows 1-5 (same rows, now released)
+    Note over A,B: Session B sat blocked the whole time

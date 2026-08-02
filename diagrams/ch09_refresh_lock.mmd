@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant A as Session A
+    participant MV as mv_sensor_daily
+    participant B as Session B
+
+    Note over A,B: Scenario 1 - plain REFRESH
+    A->>MV: BEGIN
+    A->>MV: SELECT ... (AccessShareLock held)
+    MV-->>A: rows returned, txn still open
+    B->>MV: REFRESH MATERIALIZED VIEW mv_sensor_daily
+    Note right of B: needs AccessExclusiveLock -<br/>conflicts with A's lock, must wait
+    A->>MV: COMMIT
+    MV-->>B: refresh completes
+    Note over A,B: Session B sat blocked the whole time
+
+    Note over A,B: Scenario 2 - REFRESH ... CONCURRENTLY
+    A->>MV: BEGIN
+    A->>MV: SELECT ... (AccessShareLock held)
+    MV-->>A: rows returned, txn still open
+    B->>MV: REFRESH MATERIALIZED VIEW CONCURRENTLY mv_sensor_daily
+    Note right of B: needs only ExclusiveLock -<br/>compatible with AccessShareLock
+    MV-->>B: refresh completes immediately
+    Note over A,B: Neither session blocks
+    A->>MV: COMMIT

@@ -1,0 +1,13 @@
+graph TD
+    Req["incoming request<br/>from check_ip"]
+    HostCheck{"host bucket<br/>(/32, capacity 5,<br/>refill 1/sec)<br/>token available?"}
+    NetCheck{"netblock bucket<br/>(/24, capacity 20,<br/>refill 5/sec)<br/>token available?"}
+    Deny1["deny<br/>'host limit exceeded'"]
+    Deny2["deny<br/>'netblock limit exceeded'"]
+    Allow["allow<br/>both buckets decremented"]
+
+    Req --> HostCheck
+    HostCheck -->|no, host token spent| Deny1
+    HostCheck -->|yes, consume 1 host token| NetCheck
+    NetCheck -->|no, netblock token spent| Deny2
+    NetCheck -->|yes, consume 1 netblock token| Allow

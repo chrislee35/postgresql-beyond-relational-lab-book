@@ -506,6 +506,10 @@ That is what happens for the five accommodation businesses: `details ->
 'hours'` returns `{"reception": "..."}`, and then `-> 'sun'` on that object
 finds no such key and returns SQL `NULL`, so `IS NOT NULL` is `FALSE`.
 
+The same logic, traced as a flowchart instead of read as prose:
+
+<img src="imgs/ch01_null_vs_null.svg" alt="Flowchart: does the JSONB key exist? If not, SQL NULL. If it exists, what's the value — JSON null (the gotcha: IS NOT NULL is still TRUE) or a real object (IS NOT NULL is TRUE, correctly)"/>
+
 To correctly distinguish the three states, use `jsonb_typeof()`:
 
 | State | `details -> 'hours' -> 'sun'` | `jsonb_typeof(...)` | `IS NOT NULL` |
@@ -970,6 +974,13 @@ declared neighbourhood, and cannot measure distances.
 
 This chapter adds a point geometry to every business record, then introduces
 three new spatial tables:
+
+<img src="imgs/portsmith_map.svg" alt="Map of Portsmith showing its six neighbourhoods, six parks, road network, and business locations, rendered directly from the PostGIS data this chapter loads"/>
+
+*Portsmith's six neighbourhoods, parks, and featured businesses — rendered
+directly from this chapter's own `neighborhoods`, `parks`, and `businesses`
+tables via `utils/render_map.py`. Every shape and dot on this map is a row
+you're about to query.*
 
 | Table                  | Geometry type | What it holds                              |
 |------------------------|---------------|--------------------------------------------|
@@ -1885,6 +1896,16 @@ failing.
 | `claimed_by` / `claimed_at` | Which worker has the job, and since when          |
 | `heartbeat_at` | Updated periodically by the worker while it holds the job       |
 
+The `status` column's life cycle, drawn out — this is what Exercises 2
+through 5 each implement one piece of:
+
+<img src="imgs/ch03_job_lifecycle.svg" alt="State diagram: queued transitions to in_progress on claim; in_progress transitions to completed on worker success, back to queued on a reclaim sweep if attempts are below max_attempts, or to dead_letter_jobs on a reclaim sweep if attempts are exhausted"/>
+
+Every arrow here is a specific query you'll write by hand later in this
+chapter — there's no hidden state machine enforcing this, just the
+`status` column, the claim query, and the reclaim sweep agreeing on what
+each value means.
+
 No extensions are required for this chapter — everything here is built on
 core PostgreSQL locking semantics.
 
@@ -2325,7 +2346,9 @@ five rows Session A had, now that they're unlocked again:
 This is the difference in one sentence: **plain `FOR UPDATE` serializes
 workers through the lock; `SKIP LOCKED` lets them fan out across the
 table.** For a job queue, you always want the latter — a blocked worker is
-a wasted worker.
+a wasted worker. Both runs side by side, as a timeline:
+
+<img src="imgs/ch03_skip_locked.svg" alt="Sequence diagram: with FOR UPDATE SKIP LOCKED, Session A claims rows 1-5 and Session B immediately claims rows 6-10 with neither session blocking; with plain FOR UPDATE, Session B blocks after requesting rows 1-5 until Session A commits, then receives the same rows 1-5"/>
 
 **3.3 — Real concurrent workers with `ch03_worker.py`**
 
@@ -3610,9 +3633,12 @@ which documents a real user actually finds.
 | `CREATE TEXT SEARCH DICTIONARY ... (STOPWORDS = ...)` + `CREATE TEXT SEARCH CONFIGURATION` | Build a custom configuration with domain-specific stopwords |
 
 **The key design insight** from this chapter is that full-text search is not
-one function call — it's a pipeline (tokenize → stem → filter stopwords)
-that you can inspect at every stage with `ts_debug`, store the output of
-with a maintained column and a GIN index, query against with two very
+one function call — it's a pipeline:
+
+<img src="imgs/ch04_search_pipeline.svg" alt="Flowchart: raw text flows through tokenize (split into words, lowercase, strip punctuation), then stem (reduce to root form), then filter stopwords (discard low-information words), producing a tsvector"/>
+
+You can inspect every stage of that pipeline with `ts_debug`, store its
+output with a maintained column and a GIN index, query against it with two very
 different trade-offs (`to_tsquery` for precision, `plainto_tsquery` for
 safety), and tune for your specific corpus by swapping the stopword list —
 exactly the kind of tuning a generic search engine bolted on top of your
@@ -3844,6 +3870,8 @@ each get their own distinguishing trigram (`"  e"` marks "starts with e";
 `"or "` marks "ends with or"), so two strings that only differ at the very
 start or end still register as different rather than accidentally looking
 identical in the middle.
+
+<img src="imgs/ch05_trigram_window.svg" alt="A 3-character window sliding one position at a time across the padded string '  eleanor ', producing the 8 overlapping trigrams: '  e', ' el', ele, lea, ean, ano, nor, 'or '"/>
 
 **1.2 — `similarity()`: how much overlap, as a fraction**
 
@@ -4816,6 +4844,14 @@ B is `0.1056` away. Neither operator is "wrong"; they're answering
 different questions. L2 asks "how far apart are these points." Cosine asks
 "how similarly are these vectors oriented, regardless of scale."
 
+<img src="imgs/ch06_vector_disagreement.svg" alt="2D vector diagram: query vector [1,0], candidate A [2,0] pointing in the same direction at twice the length, candidate B [1,0.5] pointing at a different angle but similar length. A dashed circle around the query shows B sitting on the L2-distance boundary while A sits outside it, so L2 ranks B closer; the angle between query and B shows why cosine ranks A closer instead"/>
+
+A sits exactly on the query's own line (the overlap in the diagram above
+*is* "same direction, twice the length"), which is why its cosine distance
+is zero. The dashed circle is centered on the query with radius equal to
+B's L2 distance — B sits right on that boundary, while A sits well outside
+it, which is the straight-line sense in which B is "closer."
+
 **2.3 — Why this chapter normalizes, and what that buys you**
 
 `ch06_embed_documents.py` calls `model.encode(texts,
@@ -4956,6 +4992,8 @@ worst case; it's what `ivfflat.probes = 1` actually does: it searches only
 the single cluster closest to the query and simply never looks at the
 other 49, even though some of the true nearest neighbors live in a
 different cluster.
+
+<img src="imgs/ch06_ivfflat_clustering.svg" alt="Diagram of five vector clusters. The query vector sits inside cluster A, which probes=1 searches. The true nearest neighbor actually sits just across the boundary in adjacent cluster E, which is never searched, so it's missed entirely"/>
 
 > **A note on reproducing these exact numbers:** IVFFlat's clustering step
 > uses k-means with a random initialization at *index build* time — even
@@ -5526,6 +5564,9 @@ This is the entire mechanism. There is no fine-tuning, no special API,
 nothing model-specific — "retrieval-augmented generation" is a prompt
 template plus a database query, which is exactly why it was worth showing
 you the whole thing at this level rather than reaching for a framework.
+The whole chapter, end to end:
+
+<img src="imgs/ch06_rag_pipeline.svg" alt="Pipeline diagram: retrieval half (source documents chunked, embedded, stored in portsmith_rag, searched by cosine distance against the user question) feeds into the generation half (prompt template combining context and question, sent to Ollama's llama3.1:8b, producing the generated answer)"/>
 
 ---
 
@@ -5850,6 +5891,8 @@ one — `203.0.113.150` falls inside both the broad `203.0.113.0/24` entry
 *and* the narrower `203.0.113.128/26` botnet subrange nested inside it.
 Real blocklists routinely have this shape: a wide, low-confidence range
 alongside a narrow, high-confidence one carved out of it.
+
+<img src="imgs/ch07_cidr_nesting.svg" alt="Number-line diagram showing 203.0.113.0/24 as a wide range and 203.0.113.128/26 as a narrower range nested inside it, with the address 203.0.113.150 landing inside both at once"/>
 
 **2.2 — The same check, written the other way around**
 
@@ -6235,6 +6278,12 @@ from behind a single gateway. A per-host bucket alone never trips.
 Checking a *second*, looser bucket keyed to the containing `/24` catches
 exactly that pattern, without needing to lower the per-host limit enough
 to hurt legitimate single users.
+
+<img src="imgs/ch07_token_bucket.svg" alt="Flowchart: an incoming request checks the host bucket first; if no token is available it's denied with host limit exceeded; if a host token is consumed, it then checks the netblock bucket; if no netblock token is available it's denied with netblock limit exceeded; otherwise both buckets are decremented and the request is allowed"/>
+
+`check_rate_limit()`, built below, is exactly this diagram: the host
+bucket is checked — and consumed — first, and only a request that clears
+it goes on to spend a netblock token too.
 
 **7.3 — Schema: bucket keyed by `ip4r`, not `ip4`**
 
@@ -6918,6 +6967,8 @@ monthly partitions and the default partition exist; none of them appear
 anywhere in this plan. The planner threw them out during planning, before
 execution ever started, based purely on the `WHERE` clause matching only
 June's range.
+
+<img src="imgs/ch08_partition_pruning.svg" alt="Timeline of the 12 monthly partitions from 2024_01 through 2024_12. Only 2024_06 is highlighted as scanned, matching the WHERE clause's June date range; the other eleven are greyed out as pruned"/>
 
 **3.2 — The same query, no date filter, for contrast**
 

@@ -45,7 +45,7 @@ conventions used throughout the book.
 | 6 | Vector Search: `pgvector` for Embeddings | IVFFlat, HNSW, hybrid search |
 | 7 | IP and Network Filtering: `ip4r` | CIDR containment, blocklist lookups |
 | 8 | Declarative Partitioning and BRIN Indexes | Range partitions, partition pruning |
-| 9 | Materialized Views | Concurrent refresh, chained rollups |
+| 9 | [Materialized Views](ch09_materialized_views.md) | Concurrent refresh, chained rollups |
 | 10 | PostgREST: A Web-Native REST API | RLS, RPC endpoints, role-based access |
 | 11 | Window Functions: Analytics Beyond `GROUP BY` | `RANK`, `LAG`, rolling averages, gaps & islands |
 | 12 | Recursive CTEs: Graphs and Hierarchies | Tree traversal, shortest path, cycle detection |

@@ -427,6 +427,14 @@ B is `0.1056` away. Neither operator is "wrong"; they're answering
 different questions. L2 asks "how far apart are these points." Cosine asks
 "how similarly are these vectors oriented, regardless of scale."
 
+<img src="imgs/ch06_vector_disagreement.svg" alt="2D vector diagram: query vector [1,0], candidate A [2,0] pointing in the same direction at twice the length, candidate B [1,0.5] pointing at a different angle but similar length. A dashed circle around the query shows B sitting on the L2-distance boundary while A sits outside it, so L2 ranks B closer; the angle between query and B shows why cosine ranks A closer instead"/>
+
+A sits exactly on the query's own line (the overlap in the diagram above
+*is* "same direction, twice the length"), which is why its cosine distance
+is zero. The dashed circle is centered on the query with radius equal to
+B's L2 distance — B sits right on that boundary, while A sits well outside
+it, which is the straight-line sense in which B is "closer."
+
 **2.3 — Why this chapter normalizes, and what that buys you**
 
 `ch06_embed_documents.py` calls `model.encode(texts,
@@ -567,6 +575,8 @@ worst case; it's what `ivfflat.probes = 1` actually does: it searches only
 the single cluster closest to the query and simply never looks at the
 other 49, even though some of the true nearest neighbors live in a
 different cluster.
+
+<img src="imgs/ch06_ivfflat_clustering.svg" alt="Diagram of five vector clusters. The query vector sits inside cluster A, which probes=1 searches. The true nearest neighbor actually sits just across the boundary in adjacent cluster E, which is never searched, so it's missed entirely"/>
 
 > **A note on reproducing these exact numbers:** IVFFlat's clustering step
 > uses k-means with a random initialization at *index build* time — even
@@ -1137,6 +1147,9 @@ This is the entire mechanism. There is no fine-tuning, no special API,
 nothing model-specific — "retrieval-augmented generation" is a prompt
 template plus a database query, which is exactly why it was worth showing
 you the whole thing at this level rather than reaching for a framework.
+The whole chapter, end to end:
+
+<img src="imgs/ch06_rag_pipeline.svg" alt="Pipeline diagram: retrieval half (source documents chunked, embedded, stored in portsmith_rag, searched by cosine distance against the user question) feeds into the generation half (prompt template combining context and question, sent to Ollama's llama3.1:8b, producing the generated answer)"/>
 
 ---
 

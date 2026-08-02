@@ -1,0 +1,8 @@
+graph LR
+    Raw["raw text<br/>'The council voted<br/>to approve funding'"]
+    Tok["tokenize<br/>split into words,<br/>lowercase, strip punctuation"]
+    Stem["stem<br/>reduce to root form<br/>voted -> vote"]
+    Stop["filter stopwords<br/>the, to -> discarded<br/>(empty lexeme)"]
+    Vec["tsvector<br/>'council':2 'vote':3<br/>'approv':5 'fund':6"]
+
+    Raw --> Tok --> Stem --> Stop --> Vec

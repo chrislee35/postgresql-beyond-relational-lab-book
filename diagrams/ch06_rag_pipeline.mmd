@@ -1,0 +1,24 @@
+graph LR
+    subgraph Retrieval
+        Docs["source documents<br/>(data/rag_docs/*.txt)"]
+        Chunk["chunk<br/>overlapping word-count windows"]
+        Embed["embed<br/>all-MiniLM-L6-v2"]
+        Store["portsmith_rag table<br/>vector(384), HNSW index"]
+        Search["cosine-distance<br/>top-K search"]
+        Docs --> Chunk --> Embed --> Store
+        Question["user question"] --> Search
+        Store --> Search
+    end
+
+    subgraph Generation
+        Prompt["prompt template<br/>context + question"]
+        LLM["Ollama<br/>llama3.1:8b"]
+        Answer["generated answer"]
+        Prompt --> LLM --> Answer
+    end
+
+    Search --> Prompt
+
+    style Retrieval fill:none,stroke:none
+    style Generation fill:none,stroke:none
+

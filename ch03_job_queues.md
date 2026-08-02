@@ -55,6 +55,16 @@ failing.
 | `claimed_by` / `claimed_at` | Which worker has the job, and since when          |
 | `heartbeat_at` | Updated periodically by the worker while it holds the job       |
 
+The `status` column's life cycle, drawn out — this is what Exercises 2
+through 5 each implement one piece of:
+
+<img src="imgs/ch03_job_lifecycle.svg" alt="State diagram: queued transitions to in_progress on claim; in_progress transitions to completed on worker success, back to queued on a reclaim sweep if attempts are below max_attempts, or to dead_letter_jobs on a reclaim sweep if attempts are exhausted"/>
+
+Every arrow here is a specific query you'll write by hand later in this
+chapter — there's no hidden state machine enforcing this, just the
+`status` column, the claim query, and the reclaim sweep agreeing on what
+each value means.
+
 No extensions are required for this chapter — everything here is built on
 core PostgreSQL locking semantics.
 
@@ -495,7 +505,9 @@ five rows Session A had, now that they're unlocked again:
 This is the difference in one sentence: **plain `FOR UPDATE` serializes
 workers through the lock; `SKIP LOCKED` lets them fan out across the
 table.** For a job queue, you always want the latter — a blocked worker is
-a wasted worker.
+a wasted worker. Both runs side by side, as a timeline:
+
+<img src="imgs/ch03_skip_locked.svg" alt="Sequence diagram: with FOR UPDATE SKIP LOCKED, Session A claims rows 1-5 and Session B immediately claims rows 6-10 with neither session blocking; with plain FOR UPDATE, Session B blocks after requesting rows 1-5 until Session A commits, then receives the same rows 1-5"/>
 
 **3.3 — Real concurrent workers with `ch03_worker.py`**
 

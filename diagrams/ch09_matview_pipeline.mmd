@@ -1,0 +1,17 @@
+graph LR
+    SR["sensor_readings<br/>9,648,000 rows<br/>(sensor 17's bad<br/>2025 rows included)"]
+    MVD["mv_sensor_daily<br/>1,010 rows<br/>(5 stray 2025 days)"]
+    MVM["mv_sensor_monthly<br/>34 rows<br/>(spurious 2025-12 row)"]
+
+    SR -->|"GROUP BY<br/>day, type"| MVD
+    MVD -->|"GROUP BY<br/>month, type"| MVM
+
+    R1(["① REFRESH CONCURRENTLY<br/>mv_sensor_daily"])
+    R2(["② REFRESH CONCURRENTLY<br/>mv_sensor_monthly"])
+
+    R1 -.-> MVD
+    R2 -.-> MVM
+    MVD -.->|"no automatic cascade -<br/>step 2 must be run by hand"| R2
+
+    classDef anomaly fill:#3a1500,stroke:#c66,color:#fca;
+    class MVM anomaly;

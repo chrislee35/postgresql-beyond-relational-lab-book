@@ -37,6 +37,13 @@ declared neighbourhood, and cannot measure distances.
 This chapter adds a point geometry to every business record, then introduces
 three new spatial tables:
 
+<img src="imgs/portsmith_map.svg" alt="Map of Portsmith showing its six neighbourhoods, six parks, road network, and business locations, rendered directly from the PostGIS data this chapter loads"/>
+
+*Portsmith's six neighbourhoods, parks, and featured businesses — rendered
+directly from this chapter's own `neighborhoods`, `parks`, and `businesses`
+tables via `utils/render_map.py`. Every shape and dot on this map is a row
+you're about to query.*
+
 | Table                  | Geometry type | What it holds                              |
 |------------------------|---------------|--------------------------------------------|
 | `neighborhoods`        | `POLYGON`     | Boundary polygons for Portsmith's six neighbourhoods |
