@@ -1,0 +1,22 @@
+graph LR
+    subgraph Fixed["security_invoker = true"]
+        direction LR
+        F1["request as web_resident<br/>JWT: resident_id = 1"] --> F2["api.residents evaluated as<br/>the INVOKER: web_resident"]
+        F2 --> F3["RLS policy checked<br/>against: web_resident"]
+        F3 --> F4["id = 1, from the<br/>JWT's resident_id claim"]
+        F4 --> F5["exactly 1 row returned"]
+    end
+
+    subgraph Default["default view (security_invoker = false)"]
+        direction LR
+        D1["request as web_resident<br/>JWT: resident_id = 1"] --> D2["api.residents evaluated as<br/>its OWNER: postgres"]
+        D2 --> D3["RLS policy checked<br/>against: postgres"]
+        D3 --> D4["postgres is a superuser -<br/>RLS bypassed, no exceptions"]
+        D4 --> D5["ALL 58 rows returned"]
+    end
+
+    classDef anomaly fill:#3a1500,stroke:#c66,color:#fca;
+    class D5 anomaly;
+
+    style Fixed fill:none,stroke:none
+    style Default fill:none,stroke:none

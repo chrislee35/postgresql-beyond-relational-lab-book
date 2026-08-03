@@ -1,0 +1,17 @@
+graph TD
+    Req(["request arrives"]) --> G1
+
+    G1{"① grant on the view or function<br/>SELECT / INSERT / EXECUTE<br/>e.g. GRANT INSERT ON api.jobs"}
+    G1 -->|missing| D1["42501<br/>permission denied for<br/>view / function"]
+    G1 -->|granted| G2
+
+    G2{"② grant on the underlying object<br/>e.g. USAGE ON jobs_id_seq<br/>SELECT (id, full_name, ...) ON residents<br/>SELECT ON business_names"}
+    G2 -->|missing| D2["42501<br/>permission denied for<br/>table / sequence"]
+    G2 -->|granted| G3
+
+    G3{"③ RLS policy, if enabled<br/>e.g. resident_self_only ON residents"}
+    G3 -->|row doesn't match| D3["200 OK, body: []<br/>(not an error)"]
+    G3 -->|row matches| OK["200 / 201<br/>correctly scoped rows"]
+
+    classDef anomaly fill:#3a1500,stroke:#c66,color:#fca;
+    class D1,D2 anomaly;
