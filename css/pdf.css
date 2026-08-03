@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-
 /* Base styling */
 body {
-  font-family: 'Poppins', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-family: Ubuntu, Roboto, sans-serif;
   line-height: 1.6;
   font-size: 1rem;
   color: #000000;
-  margin: 1rem;
+  margin: 0.1rem;
 }
 
 /* Headings */
@@ -37,8 +35,8 @@ h1:first-of-type {
 /* Optional: code blocks */
 pre, code {
   background: #f8f8f8;
-  font-family: monospace;
-  font-size: 0.9rem;
+  font-family: 'RobotoMono Nerd Font', monospace;
+  font-size: 0.75rem;
   padding: 0.1em 0.1em;
   border-radius: 4px;
 }

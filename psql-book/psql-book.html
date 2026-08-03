@@ -632,6 +632,59 @@ Endpoint for Fuzzy Search</a></li>
 id="toc-summary-what-you-should-now-know-9">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-11-window-functions-analytics-beyond-group-by"
+id="toc-chapter-11-window-functions-analytics-beyond-group-by">Chapter
+11 — Window Functions: Analytics Beyond <code>GROUP BY</code></a>
+<ul>
+<li><a href="#background-10" id="toc-background-10">Background</a>
+<ul>
+<li><a href="#four-pieces-defined-before-you-see-them-used"
+id="toc-four-pieces-defined-before-you-see-them-used">Four pieces,
+defined before you see them used</a></li>
+</ul></li>
+<li><a href="#the-scenario-10" id="toc-the-scenario-10">The
+Scenario</a></li>
+<li><a href="#exercise-goals-10" id="toc-exercise-goals-10">Exercise
+Goals</a></li>
+<li><a href="#installation-10"
+id="toc-installation-10">Installation</a></li>
+<li><a href="#loading-the-data-10" id="toc-loading-the-data-10">Loading
+the Data</a>
+<ul>
+<li><a href="#pin-the-session-timezone-1"
+id="toc-pin-the-session-timezone-1">Pin the session timezone</a></li>
+<li><a href="#verify-the-prerequisites-1"
+id="toc-verify-the-prerequisites-1">Verify the prerequisites</a></li>
+</ul></li>
+<li><a href="#exercises-10" id="toc-exercises-10">Exercises</a>
+<ul>
+<li><a href="#exercise-1-the-mental-model-traced-by-hand"
+id="toc-exercise-1-the-mental-model-traced-by-hand">Exercise 1 — The
+Mental Model, Traced By Hand</a></li>
+<li><a href="#exercise-2-ranking-businesses-within-their-neighbourhood"
+id="toc-exercise-2-ranking-businesses-within-their-neighbourhood">Exercise
+2 — Ranking Businesses Within Their Neighbourhood</a></li>
+<li><a href="#exercise-3-a-7-day-rolling-average-on-sensor_readings"
+id="toc-exercise-3-a-7-day-rolling-average-on-sensor_readings">Exercise
+3 — A 7-Day Rolling Average on <code>sensor_readings</code></a></li>
+<li><a href="#exercise-4-laglead-comparing-a-row-to-its-neighbour"
+id="toc-exercise-4-laglead-comparing-a-row-to-its-neighbour">Exercise 4
+— <code>LAG()</code>/<code>LEAD()</code>: Comparing a Row to Its
+Neighbour</a></li>
+<li><a
+href="#exercise-5-gaps-and-islands-detecting-sessions-in-network_events"
+id="toc-exercise-5-gaps-and-islands-detecting-sessions-in-network_events">Exercise
+5 — Gaps and Islands: Detecting Sessions in
+<code>network_events</code></a></li>
+<li><a
+href="#exercise-6-running-total-and-percentage-of-category-total-together"
+id="toc-exercise-6-running-total-and-percentage-of-category-total-together">Exercise
+6 — Running Total and Percentage-of-Category-Total, Together</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-10"
+id="toc-summary-what-you-should-now-know-10">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -8969,6 +9022,921 @@ privilege system — <code>SELECT</code>, <code>UPDATE</code>, and
 way <code>INSERT</code> was here — is worth a deliberate read through
 the <code>GRANT</code> documentation before exposing any table this way
 for real, well beyond what one chapter’s exercises can cover.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-11-window-functions-analytics-beyond-group-by">Chapter
+11 — Window Functions: Analytics Beyond <code>GROUP BY</code></h1>
+<blockquote>
+<p><em>“<code>GROUP BY</code> answers a question by throwing away the
+rows that don’t fit in the answer. A window function answers the same
+question and keeps every row anyway.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-10">Background</h2>
+<p>If you’ve used <code>GROUP BY</code>, you already know the shape of
+the problem this chapter solves — and the shape of its one real
+limitation. <code>GROUP BY</code> answers “what’s the average rating per
+neighbourhood?” by collapsing every business in a neighbourhood down
+into a single output row: you get the average, but every individual
+business that went into computing it is gone from the result. Most of
+the time that’s exactly what you want. But plenty of real questions
+don’t fit that shape: “how does each business’s rating compare to its
+neighbourhood’s average, <em>while still showing me every
+business</em>?” “What’s this business’s running revenue total, quarter
+by quarter, without collapsing the quarters together?”
+<code>GROUP BY</code> cannot answer either one — the instant it groups,
+the individual rows that made up the group are gone for good.</p>
+<p>A <strong>window function</strong> answers a
+<code>GROUP BY</code>-shaped question without paying that price. It
+looks at a set of rows related to the current row — its “window” —
+computes something over them, and attaches the result to the current
+row, which survives, completely unchanged, right alongside every other
+row. Nothing collapses. Start with 48 rows, end with 48 rows, every one
+of them now carrying an answer that depended on looking at some of its
+neighbours.</p>
+<p>That’s the single idea this entire chapter builds on, and it’s worth
+sitting with before touching any syntax:</p>
+<blockquote>
+<p><strong><code>GROUP BY</code> reduces row count. A window function
+never does.</strong></p>
+</blockquote>
+<h3 id="four-pieces-defined-before-you-see-them-used">Four pieces,
+defined before you see them used</h3>
+<p>Every example below is built from four ingredients. Knowing what each
+one means in plain language first should make the SQL read as sentences
+instead of unfamiliar syntax:</p>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 78%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Piece</th>
+<th>Plain-language meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>OVER (...)</code></td>
+<td>“Compute this using a window of related rows, not just this one
+row.” Attached after a function call — <code>AVG(x) OVER (...)</code> —
+it’s what turns an ordinary aggregate into a window function. An empty
+<code>OVER ()</code> means “the window is every row in the result.”</td>
+</tr>
+<tr class="even">
+<td><code>PARTITION BY col</code></td>
+<td>“Only look at rows that share this row’s value of <code>col</code>.”
+The window equivalent of <code>GROUP BY</code> — it restricts <em>which
+rows count</em>, without collapsing any of them.</td>
+</tr>
+<tr class="odd">
+<td><code>ORDER BY col</code> <em>(written inside
+<code>OVER (...)</code>)</em></td>
+<td>“Put the rows in this order before computing.” This ordering lives
+entirely inside the window — it’s unrelated to the query’s own outer
+<code>ORDER BY</code>, and the two are free to differ or even
+conflict.</td>
+</tr>
+<tr class="even">
+<td>frame clause —
+e.g. <code>ROWS BETWEEN 6 PRECEDING AND CURRENT ROW</code></td>
+<td>Out of the rows the partition and ordering make available,
+<em>exactly which ones</em> count toward this specific row’s
+calculation.</td>
+</tr>
+</tbody>
+</table>
+<p>Exercise 1 walks through all four, one at a time, against a dataset
+small enough to check by hand — five numbers, no Portsmith backstory
+required, so the mechanics stay in view before any real data shows
+up.</p>
+<hr />
+<h2 id="the-scenario-10">The Scenario</h2>
+<p>This chapter doesn’t tell one Portsmith story — it reuses four
+different tables to show that window functions are a general-purpose
+tool, not a feature tied to any one kind of data:</p>
+<table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 16%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Source</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>businesses</code></td>
+<td>Chapter 1</td>
+<td>Ranking businesses within their own neighbourhood</td>
+</tr>
+<tr class="even">
+<td><code>sensor_readings</code></td>
+<td>Chapter 8</td>
+<td>7-day rolling averages and day-over-day change</td>
+</tr>
+<tr class="odd">
+<td><code>network_events</code></td>
+<td>Chapter 7</td>
+<td>Detecting login “sessions” via gaps and islands</td>
+</tr>
+<tr class="even">
+<td><code>business_revenue</code></td>
+<td><em>(new, this chapter)</em></td>
+<td>Running totals and percentage-of-category-total</td>
+</tr>
+</tbody>
+</table>
+<p><code>business_revenue</code> is the one genuinely new thing here — a
+small, synthetic quarterly revenue figure for each of the 48 businesses
+from Chapter 1, built specifically so Exercise 6 has real running-total
+and percentage-of-partition data to work with.</p>
+<hr />
+<h2 id="exercise-goals-10">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Explain, without looking anything up, why
+<code>AVG(x) OVER ()</code> returns a value on every row while
+<code>AVG(x)</code> with <code>GROUP BY</code> returns one row — and
+predict, for any <code>OVER (...)</code> clause, exactly which rows are
+“in the window” for a given output row.</li>
+<li>Rank rows within groups with <code>RANK()</code> and
+<code>DENSE_RANK()</code>, and state precisely how the two disagree the
+moment there’s a tie.</li>
+<li>Write an explicit frame clause to compute a rolling average, and
+explain why adding <code>ORDER BY</code> to a window — with no frame
+clause at all — silently changes the default frame.</li>
+<li>Use <code>LAG()</code>/<code>LEAD()</code> to compare a row to its
+neighbour without a self-join.</li>
+<li>Recognize the “gaps and islands” pattern and use it to turn a raw
+event stream into sessions.</li>
+<li>Combine two different <code>PARTITION BY</code> scopes — one for a
+running total, one for a percentage-of-total — in a single
+<code>SELECT</code>.</li>
+</ul>
+<hr />
+<h2 id="installation-10">Installation</h2>
+<p>Nothing to install. Window functions have been part of core
+PostgreSQL since version 8.4 (2009) — no extension, no
+configuration.</p>
+<hr />
+<h2 id="loading-the-data-10">Loading the Data</h2>
+<p>This chapter needs Chapters 1, 7, and 8’s data, plus one new small
+table:</p>
+<div class="sourceCode" id="cb554"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb554-1"><a href="#cb554-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py   <span class="co"># businesses</span></span>
+<span id="cb554-2"><a href="#cb554-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch07_seed.py   <span class="co"># network_events</span></span>
+<span id="cb554-3"><a href="#cb554-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch08_seed.py   <span class="co"># sensors, then run Chapter 8&#39;s own exercises</span></span>
+<span id="cb554-4"><a href="#cb554-4" aria-hidden="true" tabindex="-1"></a>                            <span class="co"># through Exercise 2 to get sensor_readings populated</span></span>
+<span id="cb554-5"><a href="#cb554-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch11_seed.py   <span class="co"># business_revenue (new this chapter)</span></span></code></pre></div>
+<p><code>business_revenue</code> only needs <code>businesses</code> to
+already exist — it doesn’t depend on Chapters 7 or 8 at all.</p>
+<h3 id="pin-the-session-timezone-1">Pin the session timezone</h3>
+<div class="sourceCode" id="cb555"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb555-1"><a href="#cb555-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> timezone <span class="op">=</span> <span class="st">&#39;UTC&#39;</span>;</span></code></pre></div>
+<p>Same reason as Chapter 8: Exercises 3 and 4 group
+<code>sensor_readings</code> by
+<code>date_trunc('day', recorded_at)</code>, and a day boundary computed
+in any timezone other than UTC quietly buckets a different set of
+5-minute readings into “Feb 1” than the ones this chapter’s numbers were
+computed from — not a rounding difference, a genuinely different
+average, since each bucket ends up averaging different rows entirely.
+Run this at the top of every session in this chapter, including the psql
+session that runs the prerequisite check below, or Exercises 3 and 4’s
+numbers won’t match what’s printed here even though the query is
+identical.</p>
+<h3 id="verify-the-prerequisites-1">Verify the prerequisites</h3>
+<div class="sourceCode" id="cb556"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb556-1"><a href="#cb556-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;businesses&#39;</span> <span class="kw">AS</span> <span class="kw">table</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> businesses</span>
+<span id="cb556-2"><a href="#cb556-2" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;network_events&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> network_events</span>
+<span id="cb556-3"><a href="#cb556-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;sensor_readings&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings</span>
+<span id="cb556-4"><a href="#cb556-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;business_revenue&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> business_revenue;</span></code></pre></div>
+<pre><code>       table       |  count
+--------------------+---------
+ businesses         |      48
+ network_events      |     116
+ sensor_readings     | 9648000
+ business_revenue    |     192
+(4 rows)</code></pre>
+<p>If all four match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-10">Exercises</h2>
+<hr />
+<h3 id="exercise-1-the-mental-model-traced-by-hand">Exercise 1 — The
+Mental Model, Traced By Hand</h3>
+<p>Forget Portsmith for a moment. Here are five temperature readings
+from one morning:</p>
+<div class="sourceCode" id="cb558"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb558-1"><a href="#cb558-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb558-2"><a href="#cb558-2" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>),</span>
+<span id="cb558-3"><a href="#cb558-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>),</span>
+<span id="cb558-4"><a href="#cb558-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb558-5"><a href="#cb558-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;09:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">58.2</span>),</span>
+<span id="cb558-6"><a href="#cb558-6" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;10:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">60.5</span>)</span>
+<span id="cb558-7"><a href="#cb558-7" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(reading_time, temp_f);</span></code></pre></div>
+<pre><code> reading_time | temp_f
+--------------+--------
+ 06:00:00     |   52.1
+ 07:00:00     |   53.4
+ 08:00:00     |   55.8
+ 09:00:00     |   58.2
+ 10:00:00     |   60.5
+(5 rows)</code></pre>
+<p>Five rows in, five rows to reason about. Keep this exact dataset in
+mind for everything below.</p>
+<p><strong>1.1 — <code>GROUP BY</code> collapses; <code>OVER ()</code>
+doesn’t</strong></p>
+<div class="sourceCode" id="cb560"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb560-1"><a href="#cb560-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">AVG</span>(temp_f) <span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb560-2"><a href="#cb560-2" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>), (<span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>), (<span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb560-3"><a href="#cb560-3" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;09:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">58.2</span>), (<span class="st">&#39;10:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">60.5</span>)</span>
+<span id="cb560-4"><a href="#cb560-4" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(reading_time, temp_f);</span></code></pre></div>
+<pre><code>         avg
+---------------------
+ 56.0000000000000000
+(1 row)</code></pre>
+<p>Five rows go in, one number comes out. That’s the
+<code>AVG(temp_f)</code> you already know. Now the window version — same
+aggregate, same result, one difference:</p>
+<div class="sourceCode" id="cb562"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb562-1"><a href="#cb562-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> reading_time, temp_f,</span>
+<span id="cb562-2"><a href="#cb562-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">AVG</span>(temp_f) <span class="kw">OVER</span> ():<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> morning_avg</span>
+<span id="cb562-3"><a href="#cb562-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb562-4"><a href="#cb562-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>), (<span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>), (<span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb562-5"><a href="#cb562-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;09:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">58.2</span>), (<span class="st">&#39;10:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">60.5</span>)</span>
+<span id="cb562-6"><a href="#cb562-6" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(reading_time, temp_f);</span></code></pre></div>
+<pre><code> reading_time | temp_f | morning_avg
+--------------+--------+-------------
+ 06:00:00     |   52.1 |       56.00
+ 07:00:00     |   53.4 |       56.00
+ 08:00:00     |   55.8 |       56.00
+ 09:00:00     |   58.2 |       56.00
+ 10:00:00     |   60.5 |       56.00
+(5 rows)</code></pre>
+<p>Five rows go in, five rows come out — every one of them now carrying
+<code>56.00</code>, the exact number <code>GROUP BY</code> gave you,
+just not at the cost of the other four rows. An empty
+<code>OVER ()</code> means “the window is every row here,” so every row
+gets the same whole-set average stamped onto it. This is the entire idea
+from the Background section, now sitting in front of you as actual
+output: nothing collapsed.</p>
+<p><strong>1.2 — The gotcha: adding <code>ORDER BY</code> silently
+changes the frame</strong></p>
+<p>Now add one thing — <code>ORDER BY reading_time</code>,
+<em>inside</em> the <code>OVER (...)</code>:</p>
+<div class="sourceCode" id="cb564"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb564-1"><a href="#cb564-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> reading_time, temp_f,</span>
+<span id="cb564-2"><a href="#cb564-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">AVG</span>(temp_f) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_time):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> running_avg</span>
+<span id="cb564-3"><a href="#cb564-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb564-4"><a href="#cb564-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>), (<span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>), (<span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb564-5"><a href="#cb564-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;09:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">58.2</span>), (<span class="st">&#39;10:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">60.5</span>)</span>
+<span id="cb564-6"><a href="#cb564-6" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(reading_time, temp_f);</span></code></pre></div>
+<pre><code> reading_time | temp_f | running_avg
+--------------+--------+-------------
+ 06:00:00     |   52.1 |       52.10
+ 07:00:00     |   53.4 |       52.75
+ 08:00:00     |   55.8 |       53.77
+ 09:00:00     |   58.2 |       54.88
+ 10:00:00     |   60.5 |       56.00
+(5 rows)</code></pre>
+<p>Same function, same data, completely different numbers — and only the
+<em>last</em> row still shows <code>56.00</code>. This is the single
+most common surprise in all of window functions, so it’s worth tracing
+exactly what changed, row by row:</p>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 10%" />
+<col style="width: 51%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>reading_time</code></th>
+<th><code>temp_f</code></th>
+<th>rows actually included in this row’s window</th>
+<th><code>running_avg</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>06:00</td>
+<td>52.1</td>
+<td><code>[06:00]</code></td>
+<td>52.10</td>
+</tr>
+<tr class="even">
+<td>07:00</td>
+<td>53.4</td>
+<td><code>[06:00, 07:00]</code></td>
+<td>52.75</td>
+</tr>
+<tr class="odd">
+<td>08:00</td>
+<td>55.8</td>
+<td><code>[06:00, 07:00, 08:00]</code></td>
+<td>53.77</td>
+</tr>
+<tr class="even">
+<td>09:00</td>
+<td>58.2</td>
+<td><code>[06:00, 07:00, 08:00, 09:00]</code></td>
+<td>54.88</td>
+</tr>
+<tr class="odd">
+<td>10:00</td>
+<td>60.5</td>
+<td><code>[06:00, 07:00, 08:00, 09:00, 10:00]</code></td>
+<td>56.00</td>
+</tr>
+</tbody>
+</table>
+<p>Adding <code>ORDER BY</code> to a window did not just sort the rows —
+it silently changed <em>how many rows count</em> for each one, from
+“every row” down to “every row up to and including this one.” That’s
+PostgreSQL’s default frame the moment a window has an
+<code>ORDER BY</code> and no explicit frame clause:
+<code>RANGE UNBOUNDED PRECEDING AND CURRENT ROW</code>, i.e., a running
+calculation. Without <code>ORDER BY</code>, there’s nothing to run
+<em>up to</em>, so the default frame is the whole partition instead,
+which is exactly what 1.1’s flat <code>56.00</code> was. Nothing in the
+syntax announces this change — <code>ORDER BY</code> looks like it
+should only affect display order, and inside a window it affects
+something much bigger. Committing this one rule to memory now will save
+you from debugging a “wrong” running total later that was never actually
+wrong, just unexpectedly running.</p>
+<p><img src="imgs/ch11_frame_default.svg" alt="Two rows of boxes compared: with OVER() and no ORDER BY, every one of the five readings attaches the same flat value, 56.00, the whole-partition average; with OVER(ORDER BY reading_time), each reading attaches a different, growing value as the default frame silently switches from the whole partition to a running calculation up to and including the current row"/></p>
+<p><strong>1.3 — <code>PARTITION BY</code>: independent windows, still
+no collapsing</strong></p>
+<p>Add a second sensor to the tiny dataset:</p>
+<div class="sourceCode" id="cb566"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb566-1"><a href="#cb566-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_label, reading_time, temp_f,</span>
+<span id="cb566-2"><a href="#cb566-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">AVG</span>(temp_f) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> sensor_label <span class="kw">ORDER</span> <span class="kw">BY</span> reading_time):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> running_avg</span>
+<span id="cb566-3"><a href="#cb566-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb566-4"><a href="#cb566-4" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Temp-01&#39;</span>, <span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>), (<span class="st">&#39;Temp-01&#39;</span>, <span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>), (<span class="st">&#39;Temp-01&#39;</span>, <span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb566-5"><a href="#cb566-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;Temp-02&#39;</span>, <span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">48.9</span>), (<span class="st">&#39;Temp-02&#39;</span>, <span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">49.5</span>), (<span class="st">&#39;Temp-02&#39;</span>, <span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">50.1</span>)</span>
+<span id="cb566-6"><a href="#cb566-6" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(sensor_label, reading_time, temp_f)</span>
+<span id="cb566-7"><a href="#cb566-7" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> sensor_label, reading_time;</span></code></pre></div>
+<pre><code> sensor_label | reading_time | temp_f | running_avg
+--------------+--------------+--------+-------------
+ Temp-01      | 06:00:00     |   52.1 |       52.10
+ Temp-01      | 07:00:00     |   53.4 |       52.75
+ Temp-01      | 08:00:00     |   55.8 |       53.77
+ Temp-02      | 06:00:00     |   48.9 |       48.90
+ Temp-02      | 07:00:00     |   49.5 |       49.20
+ Temp-02      | 08:00:00     |   50.1 |       49.50</code></pre>
+<p><code>Temp-01</code>‘s running average never sees
+<code>Temp-02</code>’s numbers, and vice versa —
+<code>PARTITION BY</code> walled the two sensors off into completely
+independent windows, the same way <code>GROUP BY sensor_label</code>
+would have, except both sensors’ six rows are all still here. This is
+<code>PARTITION BY</code> doing to a window exactly what it would do to
+a <code>GROUP BY</code>: split the data into groups — just without ever
+throwing a row away.</p>
+<p><strong>1.4 — An explicit frame clause: precise control</strong></p>
+<p>1.2’s running average grows to include more and more history as it
+goes — by the last row, it’s averaging all five readings. A
+<strong>rolling</strong> average instead asks “the last <em>N</em>
+readings only,” which needs an explicit frame clause instead of relying
+on the default:</p>
+<div class="sourceCode" id="cb568"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb568-1"><a href="#cb568-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> reading_time, temp_f,</span>
+<span id="cb568-2"><a href="#cb568-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">AVG</span>(temp_f) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_time</span>
+<span id="cb568-3"><a href="#cb568-3" aria-hidden="true" tabindex="-1"></a>                                <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="dv">1</span> <span class="kw">PRECEDING</span> <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span>):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> rolling_2</span>
+<span id="cb568-4"><a href="#cb568-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> (<span class="kw">VALUES</span></span>
+<span id="cb568-5"><a href="#cb568-5" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;06:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">52.1</span>), (<span class="st">&#39;07:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">53.4</span>), (<span class="st">&#39;08:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">55.8</span>),</span>
+<span id="cb568-6"><a href="#cb568-6" aria-hidden="true" tabindex="-1"></a>    (<span class="st">&#39;09:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">58.2</span>), (<span class="st">&#39;10:00&#39;</span>:<span class="ch">:time</span>, <span class="fl">60.5</span>)</span>
+<span id="cb568-7"><a href="#cb568-7" aria-hidden="true" tabindex="-1"></a>) <span class="kw">AS</span> t(reading_time, temp_f);</span></code></pre></div>
+<pre><code> reading_time | temp_f | rolling_2
+--------------+--------+-----------
+ 06:00:00     |   52.1 |     52.10
+ 07:00:00     |   53.4 |     52.75
+ 08:00:00     |   55.8 |     54.60
+ 09:00:00     |   58.2 |     57.00
+ 10:00:00     |   60.5 |     59.35</code></pre>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 65%" />
+<col style="width: 15%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>reading_time</code></th>
+<th>rows in this row’s window
+(<code>1 PRECEDING AND CURRENT ROW</code>)</th>
+<th><code>rolling_2</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>06:00</td>
+<td><code>[06:00]</code> — no prior row exists yet, so just itself</td>
+<td>52.10</td>
+</tr>
+<tr class="even">
+<td>07:00</td>
+<td><code>[06:00, 07:00]</code></td>
+<td>52.75</td>
+</tr>
+<tr class="odd">
+<td>08:00</td>
+<td><code>[07:00, 08:00]</code></td>
+<td>54.60</td>
+</tr>
+<tr class="even">
+<td>09:00</td>
+<td><code>[08:00, 09:00]</code></td>
+<td>57.00</td>
+</tr>
+<tr class="odd">
+<td>10:00</td>
+<td><code>[09:00, 10:00]</code></td>
+<td>59.35</td>
+</tr>
+</tbody>
+</table>
+<p><img src="imgs/ch11_frame_sliding.svg" alt="Three snapshots of the same five readings, each highlighting a different pair of boxes in green as the current row's window: for current row 07:00 the window covers 06:00-07:00, for 08:00 it covers 07:00-08:00, and for 09:00 it covers 08:00-09:00 — the two-box window sliding one step to the right each time, never including anything outside that pair"/></p>
+<p>The window is now a fixed-size sliding pair, not an ever-growing
+history — <code>08:00</code>’s value depends on <code>07:00</code> and
+<code>08:00</code> only, never <code>06:00</code>.
+<code>ROWS BETWEEN 1 PRECEDING AND CURRENT ROW</code> is deliberately
+the same shape of clause Exercise 3 uses next, just with a smaller
+number: this tiny example <em>is</em> a 2-reading rolling average, and
+Exercise 3 is nothing more than this same idea with
+<code>6 PRECEDING</code> and real sensor data behind it.</p>
+<hr />
+<h3
+id="exercise-2-ranking-businesses-within-their-neighbourhood">Exercise 2
+— Ranking Businesses Within Their Neighbourhood</h3>
+<p><strong>2.1 — <code>RANK()</code> and <code>DENSE_RANK()</code>, side
+by side</strong></p>
+<div class="sourceCode" id="cb570"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb570-1"><a href="#cb570-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, neighbourhood, (details<span class="op">-&gt;&gt;</span><span class="st">&#39;rating&#39;</span>):<span class="ch">:numeric</span> <span class="kw">AS</span> rating,</span>
+<span id="cb570-2"><a href="#cb570-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">RANK</span>()       <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> neighbourhood <span class="kw">ORDER</span> <span class="kw">BY</span> (details<span class="op">-&gt;&gt;</span><span class="st">&#39;rating&#39;</span>):<span class="ch">:numeric</span> <span class="kw">DESC</span>) <span class="kw">AS</span> <span class="fu">rank</span>,</span>
+<span id="cb570-3"><a href="#cb570-3" aria-hidden="true" tabindex="-1"></a>       <span class="fu">DENSE_RANK</span>() <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> neighbourhood <span class="kw">ORDER</span> <span class="kw">BY</span> (details<span class="op">-&gt;&gt;</span><span class="st">&#39;rating&#39;</span>):<span class="ch">:numeric</span> <span class="kw">DESC</span>) <span class="kw">AS</span> <span class="fu">dense_rank</span></span>
+<span id="cb570-4"><a href="#cb570-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   businesses</span>
+<span id="cb570-5"><a href="#cb570-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  neighbourhood <span class="kw">IN</span> (<span class="st">&#39;Harbour District&#39;</span>, <span class="st">&#39;Riverside&#39;</span>)</span>
+<span id="cb570-6"><a href="#cb570-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> neighbourhood, rating <span class="kw">DESC</span>;</span></code></pre></div>
+<pre><code>            name             |  neighbourhood   | rating | rank | dense_rank
+------------------------------+------------------+--------+------+------------
+ Lighthouse Bookshop          | Harbour District |    5.0 |    1 |          1
+ Portsmith Fish Market        | Harbour District |    4.8 |    2 |          2
+ Saltbox Gallery              | Harbour District |    4.7 |    3 |          3
+ Mariners Rest B&amp;B            | Harbour District |    4.7 |    3 |          3
+ Harbour View Theater         | Harbour District |    4.6 |    5 |          4
+ Tidal Wave Surf Shop         | Harbour District |    4.5 |    6 |          5
+ The Gilded Clam              | Harbour District |    4.5 |    6 |          5
+ Harbour Inn                  | Harbour District |    4.3 |    8 |          6
+ Anchor &amp; Oar Tavern          | Harbour District |    4.1 |    9 |          7
+ River Bend Bakery            | Riverside        |    4.8 |    1 |          1
+ Portsmith Veterinary Clinic  | Riverside        |    4.8 |    1 |          1
+ Dr. Chen Dentistry           | Riverside        |    4.7 |    3 |          2
+ Quay Street Deli             | Riverside        |    4.6 |    4 |          3
+ The Art Depot                | Riverside        |    4.6 |    4 |          3
+ Thai Orchid                  | Riverside        |    4.5 |    6 |          4
+ The Riverside Vegan          | Riverside        |    4.5 |    6 |          4
+ Riverside Cinema             | Riverside        |    4.4 |    8 |          5
+ Portsmith Pharmacy           | Riverside        |    4.3 |    9 |          6
+(18 rows)</code></pre>
+<p>(<code>Lighthouse Bookshop</code>’s <code>5.0</code> is Chapter 1,
+Exercise 5’s <code>jsonb_set</code> update — if you’re seeing
+<code>4.9</code> instead, that exercise hasn’t run yet in this database,
+which is fine; the ranking logic below is identical either way.)</p>
+<p><strong>2.2 — Reading the tie exactly</strong></p>
+<p>Look at Harbour District’s two businesses tied at <code>4.7</code>:
+both get <code>rank = 3</code>. The next business down, at
+<code>4.6</code>, gets <code>rank = 5</code> under <code>RANK()</code> —
+<code>4</code> is simply never used, because two rows already claimed
+“3rd place” and <code>RANK()</code> counts every row ahead of you, ties
+included. <code>DENSE_RANK()</code> disagrees on principle: it counts
+<em>distinct rating values</em> seen so far, so <code>4.6</code> is the
+4th distinct value in the list and gets <code>dense_rank = 4</code>, no
+gap. Neither is “more correct” — <code>RANK()</code> answers “how many
+businesses rate at or above me,” <code>DENSE_RANK()</code> answers “how
+many distinct rating tiers are at or above me” — but they give a
+different answer to “who’s in 4th place” the moment any tie exists, and
+Riverside’s <code>4.8</code> tie two rows later shows the same split
+happening again.</p>
+<hr />
+<h3 id="exercise-3-a-7-day-rolling-average-on-sensor_readings">Exercise
+3 — A 7-Day Rolling Average on <code>sensor_readings</code></h3>
+<p><strong>3.1 — Aggregate to daily first</strong></p>
+<p><code>sensor_readings</code> reports every five minutes — a rolling
+average over raw readings would be a rolling average of noise. Roll up
+to one row per day first, the same shape of query Chapter 9 turned into
+a materialized view, just computed directly here instead:</p>
+<div class="sourceCode" id="cb572"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb572-1"><a href="#cb572-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> daily <span class="kw">AS</span> (</span>
+<span id="cb572-2"><a href="#cb572-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> date_trunc(<span class="st">&#39;day&#39;</span>, recorded_at):<span class="ch">:date</span> <span class="kw">AS</span> reading_day,</span>
+<span id="cb572-3"><a href="#cb572-3" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> daily_avg</span>
+<span id="cb572-4"><a href="#cb572-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb572-5"><a href="#cb572-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  sensor_id <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb572-6"><a href="#cb572-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">AND</span>    recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-02-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-02-15&#39;</span></span>
+<span id="cb572-7"><a href="#cb572-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GROUP</span>  <span class="kw">BY</span> <span class="dv">1</span></span>
+<span id="cb572-8"><a href="#cb572-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb572-9"><a href="#cb572-9" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> daily <span class="kw">ORDER</span> <span class="kw">BY</span> reading_day;</span></code></pre></div>
+<pre><code> reading_day | daily_avg
+-------------+-----------
+ 2024-02-01  |     42.46
+ 2024-02-02  |     42.37
+ 2024-02-03  |     42.37
+ 2024-02-04  |     42.40
+ 2024-02-05  |     42.32
+ 2024-02-06  |     42.43
+ 2024-02-07  |     42.43
+ 2024-02-08  |     42.38
+ 2024-02-09  |     42.29
+ 2024-02-10  |     42.40
+ 2024-02-11  |     42.45
+ 2024-02-12  |     42.48
+ 2024-02-13  |     42.40
+ 2024-02-14  |     42.41
+(14 rows)</code></pre>
+<p>Sensor 1 over the first two weeks of February — the month right after
+Chapter 8’s dropped January partition, well clear of it. Check
+<code>sensors</code> and this is genuinely <code>Temp-01</code>, the
+same sensor Exercise 1.3’s toy example was named after — the tiny
+hand-crafted dataset was standing in for exactly this real one.</p>
+<p><strong>3.2 — Layer the rolling average on top</strong></p>
+<div class="sourceCode" id="cb574"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb574-1"><a href="#cb574-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> daily <span class="kw">AS</span> (</span>
+<span id="cb574-2"><a href="#cb574-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> date_trunc(<span class="st">&#39;day&#39;</span>, recorded_at):<span class="ch">:date</span> <span class="kw">AS</span> reading_day,</span>
+<span id="cb574-3"><a href="#cb574-3" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> daily_avg</span>
+<span id="cb574-4"><a href="#cb574-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb574-5"><a href="#cb574-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  sensor_id <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb574-6"><a href="#cb574-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">AND</span>    recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-02-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-02-15&#39;</span></span>
+<span id="cb574-7"><a href="#cb574-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GROUP</span>  <span class="kw">BY</span> <span class="dv">1</span></span>
+<span id="cb574-8"><a href="#cb574-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb574-9"><a href="#cb574-9" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> reading_day, daily_avg,</span>
+<span id="cb574-10"><a href="#cb574-10" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">AVG</span>(daily_avg) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_day</span>
+<span id="cb574-11"><a href="#cb574-11" aria-hidden="true" tabindex="-1"></a>                                   <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="dv">6</span> <span class="kw">PRECEDING</span> <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span>):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> rolling_7day_avg</span>
+<span id="cb574-12"><a href="#cb574-12" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   daily</span>
+<span id="cb574-13"><a href="#cb574-13" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> reading_day;</span></code></pre></div>
+<pre><code> reading_day | daily_avg | rolling_7day_avg
+-------------+-----------+-------------------
+ 2024-02-01  |     42.46 |             42.46
+ 2024-02-02  |     42.37 |             42.42
+ 2024-02-03  |     42.37 |             42.40
+ 2024-02-04  |     42.40 |             42.40
+ 2024-02-05  |     42.32 |             42.38
+ 2024-02-06  |     42.43 |             42.39
+ 2024-02-07  |     42.43 |             42.40
+ 2024-02-08  |     42.38 |             42.39
+ 2024-02-09  |     42.29 |             42.37
+ 2024-02-10  |     42.40 |             42.38
+ 2024-02-11  |     42.45 |             42.39
+ 2024-02-12  |     42.48 |             42.41
+ 2024-02-13  |     42.40 |             42.40
+ 2024-02-14  |     42.41 |             42.40
+(14 rows)</code></pre>
+<p><code>6 PRECEDING AND CURRENT ROW</code> is 7 rows total — the exact
+same shape as Exercise 1.4’s <code>1 PRECEDING AND CURRENT ROW</code>,
+just sized for a week instead of a pair. Watch the first week build up
+exactly like 1.4’s first row did: Feb 1 has no prior days, so its
+“7-day” average is really a 1-day average; Feb 2 averages 2 days; the
+window doesn’t reach a true 7 full days until Feb 7.
+<code>ROWS BETWEEN ... PRECEDING</code> never errors when fewer rows
+exist than requested — it just uses whatever’s actually available, which
+is worth knowing before trusting the first few values of any rolling
+window on real data.</p>
+<hr />
+<h3 id="exercise-4-laglead-comparing-a-row-to-its-neighbour">Exercise 4
+— <code>LAG()</code>/<code>LEAD()</code>: Comparing a Row to Its
+Neighbour</h3>
+<p><strong>4.1 — Day-over-day change, without a self-join</strong></p>
+<div class="sourceCode" id="cb576"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb576-1"><a href="#cb576-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> daily <span class="kw">AS</span> (</span>
+<span id="cb576-2"><a href="#cb576-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> date_trunc(<span class="st">&#39;day&#39;</span>, recorded_at):<span class="ch">:date</span> <span class="kw">AS</span> reading_day,</span>
+<span id="cb576-3"><a href="#cb576-3" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(<span class="fu">AVG</span>(reading_value):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> daily_avg</span>
+<span id="cb576-4"><a href="#cb576-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   sensor_readings</span>
+<span id="cb576-5"><a href="#cb576-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  sensor_id <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb576-6"><a href="#cb576-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">AND</span>    recorded_at <span class="op">&gt;=</span> <span class="st">&#39;2024-02-01&#39;</span> <span class="kw">AND</span> recorded_at <span class="op">&lt;</span> <span class="st">&#39;2024-02-15&#39;</span></span>
+<span id="cb576-7"><a href="#cb576-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GROUP</span>  <span class="kw">BY</span> <span class="dv">1</span></span>
+<span id="cb576-8"><a href="#cb576-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb576-9"><a href="#cb576-9" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> reading_day, daily_avg,</span>
+<span id="cb576-10"><a href="#cb576-10" aria-hidden="true" tabindex="-1"></a>       <span class="fu">LAG</span>(daily_avg) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_day) <span class="kw">AS</span> prev_day_avg,</span>
+<span id="cb576-11"><a href="#cb576-11" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>((daily_avg <span class="op">-</span> <span class="fu">LAG</span>(daily_avg) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_day)):<span class="ch">:numeric</span>, <span class="dv">2</span>) <span class="kw">AS</span> day_over_day_change,</span>
+<span id="cb576-12"><a href="#cb576-12" aria-hidden="true" tabindex="-1"></a>       <span class="fu">LEAD</span>(daily_avg) <span class="kw">OVER</span> (<span class="kw">ORDER</span> <span class="kw">BY</span> reading_day) <span class="kw">AS</span> next_day_avg</span>
+<span id="cb576-13"><a href="#cb576-13" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   daily</span>
+<span id="cb576-14"><a href="#cb576-14" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> reading_day</span>
+<span id="cb576-15"><a href="#cb576-15" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">6</span>;</span></code></pre></div>
+<pre><code> reading_day | daily_avg | prev_day_avg | day_over_day_change | next_day_avg
+-------------+-----------+--------------+----------------------+---------------
+ 2024-02-01  |     42.46 |              |                      |         42.37
+ 2024-02-02  |     42.37 |        42.46 |                -0.09 |         42.37
+ 2024-02-03  |     42.37 |        42.37 |                 0.00 |         42.40
+ 2024-02-04  |     42.40 |        42.37 |                 0.03 |         42.32
+ 2024-02-05  |     42.32 |        42.40 |                -0.08 |         42.43
+ 2024-02-06  |     42.43 |        42.32 |                 0.11 |         42.43
+(6 rows)</code></pre>
+<p><code>LAG(col)</code> reaches one row backward in the window’s order;
+<code>LEAD(col)</code> reaches one row forward. Both are just
+<code>AVG(...) OVER (...)</code>’s siblings — ordinary window functions,
+not aggregates, so they don’t need a frame clause at all. February 1st
+has no prior day, so <code>prev_day_avg</code> and
+<code>day_over_day_change</code> are both <code>NULL</code> for it — not
+zero, not an error, genuinely unknown, exactly the way a self-join
+against “yesterday” would also come up empty for the very first row.
+Before this chapter, the only way to compare a row to its neighbour was
+a self-join on <code>date - 1 = date</code>;
+<code>LAG()</code>/<code>LEAD()</code> is that same comparison with no
+join at all.</p>
+<hr />
+<h3
+id="exercise-5-gaps-and-islands-detecting-sessions-in-network_events">Exercise
+5 — Gaps and Islands: Detecting Sessions in
+<code>network_events</code></h3>
+<p><strong>5.1 — The pattern, in words before SQL</strong></p>
+<p>“Gaps and islands” names a specific two-step trick: find the
+<em>gaps</em> (where consecutive rows, for the same actor, are far
+enough apart in time to count as separate events), then turn the space
+between gaps into <em>islands</em> (contiguous runs, numbered, that
+become your sessions). Step one is <code>LAG()</code> from Exercise 4.
+Step two is a cumulative <code>SUM()</code> — a running total of “did a
+new island start yet,” which is exactly Exercise 1.2’s running-total
+behavior, repurposed as a counter instead of an average.</p>
+<p><strong>5.2 — Step one: flag where each session starts</strong></p>
+<div class="sourceCode" id="cb578"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb578-1"><a href="#cb578-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> source_ip, event_type, occurred_at,</span>
+<span id="cb578-2"><a href="#cb578-2" aria-hidden="true" tabindex="-1"></a>       (occurred_at <span class="op">-</span> <span class="fu">LAG</span>(occurred_at) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> source_ip <span class="kw">ORDER</span> <span class="kw">BY</span> occurred_at))</span>
+<span id="cb578-3"><a href="#cb578-3" aria-hidden="true" tabindex="-1"></a>         <span class="op">&gt;</span> <span class="dt">interval</span> <span class="st">&#39;5 minutes&#39;</span> <span class="kw">AS</span> is_new_session</span>
+<span id="cb578-4"><a href="#cb578-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   network_events</span>
+<span id="cb578-5"><a href="#cb578-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  source_ip <span class="kw">IN</span> (<span class="st">&#39;192.0.2.47&#39;</span>, <span class="st">&#39;192.0.2.151&#39;</span>)</span>
+<span id="cb578-6"><a href="#cb578-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> source_ip, occurred_at;</span></code></pre></div>
+<pre><code>  source_ip  | event_type |      occurred_at       | is_new_session
+-------------+------------+-------------------------+-----------------
+ 192.0.2.47  | api_call   | 2024-03-10 00:18:00-05 |
+ 192.0.2.47  | api_call   | 2024-03-10 00:20:00-05 | f
+ 192.0.2.47  | api_call   | 2024-03-10 00:28:00-05 | t
+ 192.0.2.47  | api_call   | 2024-03-10 00:36:00-05 | t
+ 192.0.2.47  | api_call   | 2024-03-10 00:38:00-05 | f
+ 192.0.2.151 | api_call   | 2024-03-09 23:53:00-05 |
+ 192.0.2.151 | api_call   | 2024-03-09 23:55:00-05 | f
+ 192.0.2.151 | api_call   | 2024-03-09 23:56:00-05 | f
+ 192.0.2.151 | api_error  | 2024-03-10 00:00:00-05 | f
+ 192.0.2.151 | api_call   | 2024-03-10 00:07:00-05 | t
+ 192.0.2.151 | api_call   | 2024-03-10 00:12:00-05 | f</code></pre>
+<p>A 5-minute threshold: <code>192.0.2.47</code>’s second event lands 2
+minutes after its first (<code>f</code>, still the same visit), but its
+third lands 8 minutes after that (<code>t</code> — long enough to count
+as a new visit). The first row for any IP has nothing before it, so
+<code>LAG()</code> returns <code>NULL</code> and the comparison is
+<code>NULL</code>, not <code>true</code> or <code>false</code> — handled
+explicitly in the next step.</p>
+<p><strong>5.3 — Step two: turn the flags into session
+numbers</strong></p>
+<div class="sourceCode" id="cb580"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb580-1"><a href="#cb580-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> gapped <span class="kw">AS</span> (</span>
+<span id="cb580-2"><a href="#cb580-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> source_ip, event_type, occurred_at,</span>
+<span id="cb580-3"><a href="#cb580-3" aria-hidden="true" tabindex="-1"></a>           (occurred_at <span class="op">-</span> <span class="fu">LAG</span>(occurred_at) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> source_ip <span class="kw">ORDER</span> <span class="kw">BY</span> occurred_at))</span>
+<span id="cb580-4"><a href="#cb580-4" aria-hidden="true" tabindex="-1"></a>             <span class="op">&gt;</span> <span class="dt">interval</span> <span class="st">&#39;5 minutes&#39;</span> <span class="kw">AS</span> is_new_session</span>
+<span id="cb580-5"><a href="#cb580-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   network_events</span>
+<span id="cb580-6"><a href="#cb580-6" aria-hidden="true" tabindex="-1"></a>),</span>
+<span id="cb580-7"><a href="#cb580-7" aria-hidden="true" tabindex="-1"></a>islands <span class="kw">AS</span> (</span>
+<span id="cb580-8"><a href="#cb580-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> source_ip, event_type, occurred_at,</span>
+<span id="cb580-9"><a href="#cb580-9" aria-hidden="true" tabindex="-1"></a>           <span class="fu">SUM</span>(<span class="cf">CASE</span> <span class="cf">WHEN</span> is_new_session <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">FALSE</span> <span class="cf">THEN</span> <span class="dv">1</span> <span class="cf">ELSE</span> <span class="dv">0</span> <span class="cf">END</span>)</span>
+<span id="cb580-10"><a href="#cb580-10" aria-hidden="true" tabindex="-1"></a>             <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> source_ip <span class="kw">ORDER</span> <span class="kw">BY</span> occurred_at) <span class="kw">AS</span> session_num</span>
+<span id="cb580-11"><a href="#cb580-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   gapped</span>
+<span id="cb580-12"><a href="#cb580-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb580-13"><a href="#cb580-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> source_ip, session_num, event_type, occurred_at</span>
+<span id="cb580-14"><a href="#cb580-14" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   islands</span>
+<span id="cb580-15"><a href="#cb580-15" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  source_ip <span class="kw">IN</span> (<span class="st">&#39;192.0.2.47&#39;</span>, <span class="st">&#39;192.0.2.151&#39;</span>)</span>
+<span id="cb580-16"><a href="#cb580-16" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> source_ip, occurred_at;</span></code></pre></div>
+<pre><code>  source_ip  | session_num | event_type |      occurred_at
+-------------+-------------+------------+-------------------------
+ 192.0.2.47  |           1 | api_call   | 2024-03-10 00:18:00-05
+ 192.0.2.47  |           1 | api_call   | 2024-03-10 00:20:00-05
+ 192.0.2.47  |           2 | api_call   | 2024-03-10 00:28:00-05
+ 192.0.2.47  |           3 | api_call   | 2024-03-10 00:36:00-05
+ 192.0.2.47  |           3 | api_call   | 2024-03-10 00:38:00-05
+ 192.0.2.151 |           1 | api_call   | 2024-03-09 23:53:00-05
+ 192.0.2.151 |           1 | api_call   | 2024-03-09 23:55:00-05
+ 192.0.2.151 |           1 | api_call   | 2024-03-09 23:56:00-05
+ 192.0.2.151 |           1 | api_error  | 2024-03-10 00:00:00-05
+ 192.0.2.151 |           2 | api_call   | 2024-03-10 00:07:00-05
+ 192.0.2.151 |           2 | api_call   | 2024-03-10 00:12:00-05</code></pre>
+<p><code>IS NOT FALSE</code> — not <code>= true</code> — is what makes a
+row’s own first event (where <code>is_new_session</code> is
+<code>NULL</code>) correctly count as the start of session 1 instead of
+silently vanishing from every sum downstream; <code>NULL = true</code>
+and <code>NULL AND anything</code> are both <code>NULL</code> in SQL’s
+three-valued logic, never <code>true</code>, so a plain
+<code>WHEN is_new_session THEN 1</code> would skip every partition’s
+opening row. <code>192.0.2.47</code> splits into three short sessions;
+<code>192.0.2.151</code> splits into two. Neither IP did anything
+unusual — the same <code>api_call</code>s, just separated by an 8- and a
+7-minute pause respectively, long enough to cross this query’s 5-minute
+line.</p>
+<p><strong>5.4 — Roll it up</strong></p>
+<div class="sourceCode" id="cb582"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb582-1"><a href="#cb582-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> gapped <span class="kw">AS</span> (</span>
+<span id="cb582-2"><a href="#cb582-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> source_ip, occurred_at,</span>
+<span id="cb582-3"><a href="#cb582-3" aria-hidden="true" tabindex="-1"></a>           (occurred_at <span class="op">-</span> <span class="fu">LAG</span>(occurred_at) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> source_ip <span class="kw">ORDER</span> <span class="kw">BY</span> occurred_at))</span>
+<span id="cb582-4"><a href="#cb582-4" aria-hidden="true" tabindex="-1"></a>             <span class="op">&gt;</span> <span class="dt">interval</span> <span class="st">&#39;5 minutes&#39;</span> <span class="kw">AS</span> is_new_session</span>
+<span id="cb582-5"><a href="#cb582-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   network_events</span>
+<span id="cb582-6"><a href="#cb582-6" aria-hidden="true" tabindex="-1"></a>),</span>
+<span id="cb582-7"><a href="#cb582-7" aria-hidden="true" tabindex="-1"></a>islands <span class="kw">AS</span> (</span>
+<span id="cb582-8"><a href="#cb582-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> source_ip, occurred_at,</span>
+<span id="cb582-9"><a href="#cb582-9" aria-hidden="true" tabindex="-1"></a>           <span class="fu">SUM</span>(<span class="cf">CASE</span> <span class="cf">WHEN</span> is_new_session <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">FALSE</span> <span class="cf">THEN</span> <span class="dv">1</span> <span class="cf">ELSE</span> <span class="dv">0</span> <span class="cf">END</span>)</span>
+<span id="cb582-10"><a href="#cb582-10" aria-hidden="true" tabindex="-1"></a>             <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> source_ip <span class="kw">ORDER</span> <span class="kw">BY</span> occurred_at) <span class="kw">AS</span> session_num</span>
+<span id="cb582-11"><a href="#cb582-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   gapped</span>
+<span id="cb582-12"><a href="#cb582-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb582-13"><a href="#cb582-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="kw">DISTINCT</span> source_ip)            <span class="kw">AS</span> distinct_ips,</span>
+<span id="cb582-14"><a href="#cb582-14" aria-hidden="true" tabindex="-1"></a>       <span class="fu">COUNT</span>(<span class="kw">DISTINCT</span> (source_ip, session_num)) <span class="kw">AS</span> total_sessions</span>
+<span id="cb582-15"><a href="#cb582-15" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   islands;</span></code></pre></div>
+<pre><code> distinct_ips | total_sessions
+--------------+-----------------
+           51 |             66
+(1 row)</code></pre>
+<p>51 distinct IPs produced 66 sessions — 15 of them split into more
+than one visit under this threshold. Change
+<code>interval '5 minutes'</code> to <code>interval '10 minutes'</code>
+(the longest gap that exists anywhere in this dataset, per Chapter 7’s
+generator) and every one of those 66 collapses back down to exactly 51:
+the threshold you choose <em>is</em> the definition of “one visit,” and
+this query has no way of knowing which threshold is right for your
+actual users — that’s a judgment call the data alone can’t make for
+you.</p>
+<hr />
+<h3
+id="exercise-6-running-total-and-percentage-of-category-total-together">Exercise
+6 — Running Total and Percentage-of-Category-Total, Together</h3>
+<p><strong>6.1 — Two different partitions, one query</strong></p>
+<div class="sourceCode" id="cb584"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb584-1"><a href="#cb584-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> revenue_calc <span class="kw">AS</span> (</span>
+<span id="cb584-2"><a href="#cb584-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> b.<span class="kw">id</span>, b.name, b.details<span class="op">-&gt;&gt;</span><span class="st">&#39;category&#39;</span> <span class="kw">AS</span> <span class="kw">category</span>, r.quarter, r.revenue,</span>
+<span id="cb584-3"><a href="#cb584-3" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(<span class="fu">SUM</span>(r.revenue) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> r.business_id <span class="kw">ORDER</span> <span class="kw">BY</span> r.quarter</span>
+<span id="cb584-4"><a href="#cb584-4" aria-hidden="true" tabindex="-1"></a>                                       <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="kw">UNBOUNDED</span> <span class="kw">PRECEDING</span> <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span>):<span class="ch">:numeric</span>, <span class="dv">2</span>)</span>
+<span id="cb584-5"><a href="#cb584-5" aria-hidden="true" tabindex="-1"></a>             <span class="kw">AS</span> running_total,</span>
+<span id="cb584-6"><a href="#cb584-6" aria-hidden="true" tabindex="-1"></a>           <span class="fu">round</span>(<span class="fu">SUM</span>(r.revenue) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> b.<span class="kw">id</span>) <span class="op">*</span> <span class="fl">100.0</span></span>
+<span id="cb584-7"><a href="#cb584-7" aria-hidden="true" tabindex="-1"></a>                 <span class="op">/</span> <span class="fu">SUM</span>(r.revenue) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> b.details<span class="op">-&gt;&gt;</span><span class="st">&#39;category&#39;</span>), <span class="dv">2</span>)</span>
+<span id="cb584-8"><a href="#cb584-8" aria-hidden="true" tabindex="-1"></a>             <span class="kw">AS</span> pct_of_category_annual</span>
+<span id="cb584-9"><a href="#cb584-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   business_revenue r</span>
+<span id="cb584-10"><a href="#cb584-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   businesses b <span class="kw">ON</span> b.<span class="kw">id</span> <span class="op">=</span> r.business_id</span>
+<span id="cb584-11"><a href="#cb584-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb584-12"><a href="#cb584-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, quarter, revenue, running_total, pct_of_category_annual</span>
+<span id="cb584-13"><a href="#cb584-13" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   revenue_calc</span>
+<span id="cb584-14"><a href="#cb584-14" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="kw">IN</span> (<span class="st">&#39;The Gilded Clam&#39;</span>, <span class="st">&#39;Bella Napoli&#39;</span>)</span>
+<span id="cb584-15"><a href="#cb584-15" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> name, quarter;</span></code></pre></div>
+<pre><code>      name       | quarter | revenue  | running_total | pct_of_category_annual
+------------------+---------+----------+----------------+--------------------------
+ Bella Napoli     |       1 | 68827.50 |      68827.50 |                    7.35
+ Bella Napoli     |       2 | 84983.85 |     153811.35 |                    7.35
+ Bella Napoli     |       3 | 90452.38 |     244263.73 |                    7.35
+ Bella Napoli     |       4 | 75346.83 |     319610.56 |                    7.35
+ The Gilded Clam  |       1 | 75282.75 |      75282.75 |                    8.04
+ The Gilded Clam  |       2 | 92954.38 |     168237.13 |                    8.04
+ The Gilded Clam  |       3 | 98935.80 |     267172.93 |                    8.04
+ The Gilded Clam  |       4 | 82413.52 |     349586.45 |                    8.04</code></pre>
+<p>Three window functions, two different <code>PARTITION BY</code>
+scopes, in the exact same <code>SELECT</code>.
+<code>running_total</code> partitions by <code>business_id</code> and
+orders by <code>quarter</code> — Exercise 1.2’s running sum, applied to
+money instead of temperature. <code>pct_of_category_annual</code>
+partitions by <code>category</code> with <strong>no
+<code>ORDER BY</code> at all</strong> — Exercise 1.1’s flat,
+whole-partition total, computed twice with two different partitions
+(once for just this business, once for its whole category) and divided.
+Both restaurants’ percentages stay identical across all four of their
+own rows, exactly like 1.1’s <code>56.00</code> did, because neither has
+an <code>ORDER BY</code> to turn it into anything running.</p>
+<p><strong>6.2 — A gotcha worth hitting on purpose</strong></p>
+<p>Restrict the query further, to see what a narrower <code>WHERE</code>
+clause does to a percentage that’s supposed to mean “share of the whole
+category”:</p>
+<div class="sourceCode" id="cb586"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb586-1"><a href="#cb586-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> b.name, r.quarter, r.revenue,</span>
+<span id="cb586-2"><a href="#cb586-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">round</span>(<span class="fu">SUM</span>(r.revenue) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> b.<span class="kw">id</span>) <span class="op">*</span> <span class="fl">100.0</span></span>
+<span id="cb586-3"><a href="#cb586-3" aria-hidden="true" tabindex="-1"></a>             <span class="op">/</span> <span class="fu">SUM</span>(r.revenue) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> b.details<span class="op">-&gt;&gt;</span><span class="st">&#39;category&#39;</span>), <span class="dv">2</span>) <span class="kw">AS</span> pct_of_category</span>
+<span id="cb586-4"><a href="#cb586-4" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   business_revenue r</span>
+<span id="cb586-5"><a href="#cb586-5" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   businesses b <span class="kw">ON</span> b.<span class="kw">id</span> <span class="op">=</span> r.business_id</span>
+<span id="cb586-6"><a href="#cb586-6" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  b.name <span class="kw">IN</span> (<span class="st">&#39;The Gilded Clam&#39;</span>, <span class="st">&#39;Bella Napoli&#39;</span>)   <span class="co">-- filtered BEFORE the window runs</span></span>
+<span id="cb586-7"><a href="#cb586-7" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> b.name, r.quarter;</span></code></pre></div>
+<pre><code>      name       | quarter | revenue  | pct_of_category
+------------------+---------+----------+-------------------
+ Bella Napoli     |       1 | 68827.50 |             47.76
+ Bella Napoli     |       2 | 84983.85 |             47.76
+ Bella Napoli     |       3 | 90452.38 |             47.76
+ Bella Napoli     |       4 | 75346.83 |             47.76
+ The Gilded Clam  |       1 | 75282.75 |             52.24
+ The Gilded Clam  |       2 | 92954.38 |             52.24
+ The Gilded Clam  |       3 | 98935.80 |             52.24
+ The Gilded Clam  |       4 | 82413.52 |             52.24</code></pre>
+<p><code>47.76 + 52.24 = 100.00</code> — these two restaurants
+apparently make up the <em>entire</em> restaurant category, when
+Portsmith actually has 15. <code>WHERE</code> runs before
+<code>OVER (...)</code> ever sees a row: filtering down to two
+businesses filtered the <code>PARTITION BY category</code> window down
+to just those same two businesses, so “the category total” silently
+became “the total of the two rows I happened to ask for.” The fix is
+6.1’s structure, not a different formula: compute every window function
+first, across the <em>entire</em> unfiltered table, inside a CTE — then
+filter the CTE’s output afterward, in an outer query the windows never
+see. A <code>WHERE</code> clause placed before a window and a
+<code>WHERE</code> clause placed after one are answering two different
+questions, and PostgreSQL will never warn you which one you actually
+wrote.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-10">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>func(...) OVER (...)</code></td>
+<td>Computes across a window of related rows without collapsing the
+current row away</td>
+</tr>
+<tr class="even">
+<td><code>PARTITION BY col</code></td>
+<td>Restricts the window to rows sharing this row’s value —
+<code>GROUP BY</code> without the collapsing</td>
+</tr>
+<tr class="odd">
+<td><code>ORDER BY col</code> inside <code>OVER (...)</code></td>
+<td>Orders the window — and, with no explicit frame, silently switches
+the default frame from “whole partition” to “running up to this
+row”</td>
+</tr>
+<tr class="even">
+<td><code>ROWS BETWEEN x PRECEDING AND CURRENT ROW</code></td>
+<td>An explicit frame — precise, fixed-size control over which
+neighbouring rows count</td>
+</tr>
+<tr class="odd">
+<td><code>RANK()</code> vs. <code>DENSE_RANK()</code></td>
+<td>Agree with no ties; <code>RANK()</code> leaves gaps after a tie,
+<code>DENSE_RANK()</code> never does</td>
+</tr>
+<tr class="even">
+<td><code>LAG()</code> / <code>LEAD()</code></td>
+<td>Reach one row backward/forward in window order — a neighbour
+comparison with no self-join</td>
+</tr>
+<tr class="odd">
+<td>gaps and islands</td>
+<td><code>LAG()</code> flags where a new group starts; a cumulative
+<code>SUM()</code> turns those flags into group numbers</td>
+</tr>
+<tr class="even">
+<td><code>IS NOT FALSE</code></td>
+<td>The three-valued-logic-safe way to treat a <code>NULL</code> flag (a
+partition’s first row) as “start a new group”</td>
+</tr>
+<tr class="odd">
+<td>Two <code>PARTITION BY</code> scopes, one query</td>
+<td>Perfectly legal — e.g. a running total per entity alongside a
+percentage of a <em>different</em>, broader group</td>
+</tr>
+<tr class="even">
+<td><code>WHERE</code> before <code>OVER (...)</code></td>
+<td>Filters the rows a window function ever sees — a narrow
+<code>WHERE</code> silently narrows what “the partition total”
+means</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is the one
+from the very first paragraph, now proven six different ways: a window
+function is what you reach for the moment a <code>GROUP BY</code>-shaped
+question needs an answer <em>without</em> losing the rows that produced
+it. Ranking within a group, a rolling average, a neighbour comparison, a
+session boundary, a running total next to a category share — every one
+of these is the same underlying move, <code>OVER (...)</code> attached
+to a function that would otherwise collapse your data, with
+<code>PARTITION BY</code>, <code>ORDER BY</code>, and a frame clause as
+the three knobs that decide exactly which neighbouring rows a given row
+is allowed to see.</p>
+<hr />
+<em>Going further: Chapter 9’s materialized views precompute the exact
+kind of daily rollup Exercise 3 built on the fly — worth comparing
+directly now that you’ve seen both: a materialized view pays the
+aggregation cost once, at refresh time, while a window function pays it
+on every query but never goes stale. Chapter 20’s
+<code>pg_stat_statements</code> work benefits from the running-total
+pattern in Exercise 6 when tracking cumulative query cost over time. And
+Chapter 12’s recursive CTEs are this book’s other tool for “a query that
+needs to see more than just the current row” — recursive CTEs walk
+relationships the data itself defines (a parent, a neighbour node),
+where window functions walk an </em>ordering<em> you impose yourself;
+knowing which kind of “related rows” a problem actually has is most of
+the work of picking the right one.</em>
 <div style="page-break-before: always;">
 
 </div>

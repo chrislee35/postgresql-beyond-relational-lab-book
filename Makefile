@@ -75,6 +75,7 @@ pdf: $(OUTPUT).md
 	pandoc $(FILEBASE).pdf.md -o $(FILEBASE).pdf \
 		--metadata title=$(TITLE) \
 		--pdf-engine=weasyprint \
+		-c css/pdf.css \
 		--toc \
 		--standalone
 
