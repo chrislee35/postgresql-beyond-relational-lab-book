@@ -1,0 +1,44 @@
+graph LR
+    subgraph Step3["current row: 09:00  -->  rolling_2 = 57.00"]
+        direction LR
+        A3["06:00<br/>52.1"]
+        B3["07:00<br/>53.4"]
+        C3["08:00<br/>55.8"]
+        D3["09:00<br/>58.2"]
+        E3["10:00<br/>60.5"]
+        A3 ~~~ B3 ~~~ C3 ~~~ D3 ~~~ E3
+    end
+
+    subgraph Step2["current row: 08:00  -->  rolling_2 = 54.60"]
+        direction LR
+        A2["06:00<br/>52.1"]
+        B2["07:00<br/>53.4"]
+        C2["08:00<br/>55.8"]
+        D2["09:00<br/>58.2"]
+        E2["10:00<br/>60.5"]
+        A2 ~~~ B2 ~~~ C2 ~~~ D2 ~~~ E2
+    end
+
+    subgraph Step1["current row: 07:00  -->  rolling_2 = 52.75"]
+        direction LR
+        A1["06:00<br/>52.1"]
+        B1["07:00<br/>53.4"]
+        C1["08:00<br/>55.8"]
+        D1["09:00<br/>58.2"]
+        E1["10:00<br/>60.5"]
+        A1 ~~~ B1 ~~~ C1 ~~~ D1 ~~~ E1
+    end
+
+    style Step1 fill:none,stroke:none
+    style Step2 fill:none,stroke:none
+    style Step3 fill:none,stroke:none
+
+    classDef outwindow fill:#333,stroke:#999,color:#555;
+    classDef inwindow fill:#e6ffe6,stroke:#060,stroke-width:2px,color:#000;
+
+    class C1,D1,E1 outwindow
+    class A1,B1 inwindow
+    class A2,D2,E2 outwindow
+    class B2,C2 inwindow
+    class A3,B3,E3 outwindow
+    class C3,D3 inwindow

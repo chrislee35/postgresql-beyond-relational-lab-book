@@ -1,0 +1,29 @@
+graph LR
+    subgraph Running["OVER (ORDER BY reading_time)  --  default frame silently becomes running"]
+        direction LR
+        R1["06:00: 52.1<br/>-> 52.10"]
+        R2["07:00: 53.4<br/>-> 52.75"]
+        R3["08:00: 55.8<br/>-> 53.77"]
+        R4["09:00: 58.2<br/>-> 54.88"]
+        R5["10:00: 60.5<br/>-> 56.00"]
+        R1 ~~~ R2 ~~~ R3 ~~~ R4 ~~~ R5
+    end
+
+    subgraph Flat["OVER ()  --  no ORDER BY: default frame is the whole partition"]
+        direction LR
+        F1["06:00: 52.1<br/>-> 56.00"]
+        F2["07:00: 53.4<br/>-> 56.00"]
+        F3["08:00: 55.8<br/>-> 56.00"]
+        F4["09:00: 58.2<br/>-> 56.00"]
+        F5["10:00: 60.5<br/>-> 56.00"]
+        F1 ~~~ F2 ~~~ F3 ~~~ F4 ~~~ F5
+    end
+
+    style Flat fill:none,stroke:none
+    style Running fill:none,stroke:none
+
+    classDef flat fill:#eee,stroke:#666,color:#000;
+    classDef growing fill:#e6ffe6,stroke:#060,stroke-width:2px,color:#000;
+
+    class F1,F2,F3,F4,F5 flat
+    class R1,R2,R3,R4,R5 growing
