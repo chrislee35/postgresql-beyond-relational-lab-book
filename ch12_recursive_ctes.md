@@ -14,9 +14,16 @@ belongs to one sensor. But "who does this employee ultimately report
 to?" or "how do I get from this intersection to that one?" can't be
 answered by following one foreign key — the answer might be one hop
 away, or ten, and a plain `JOIN` has to know in advance how many hops to
-write. A **recursive CTE**, written `WITH RECURSIVE`, is PostgreSQL's
-answer to "I don't know how many joins this needs — figure it out as you
-go."
+write.
+
+A **CTE** — Common Table Expression, the thing a `WITH name AS (...)`
+block in front of a query defines — is ordinarily just a named subquery,
+a way to give a piece of SQL a label and reuse it, nothing recursive
+about it (Chapter 3 already used a plain one to `UPDATE` and log a job
+in a single statement). A **recursive CTE**, written `WITH RECURSIVE`,
+is the special case: a CTE allowed to refer to *itself* inside its own
+definition, which is PostgreSQL's answer to "I don't know how many joins
+this needs — figure it out as you go."
 
 Structurally, a recursive CTE has two halves glued together with
 `UNION` or `UNION ALL`:
