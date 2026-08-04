@@ -685,6 +685,48 @@ id="toc-exercise-6-running-total-and-percentage-of-category-total-together">Exer
 id="toc-summary-what-you-should-now-know-10">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-12-recursive-ctes-graphs-and-hierarchies"
+id="toc-chapter-12-recursive-ctes-graphs-and-hierarchies">Chapter 12 —
+Recursive CTEs: Graphs and Hierarchies</a>
+<ul>
+<li><a href="#background-11" id="toc-background-11">Background</a></li>
+<li><a href="#the-scenario-11" id="toc-the-scenario-11">The
+Scenario</a></li>
+<li><a href="#exercise-goals-11" id="toc-exercise-goals-11">Exercise
+Goals</a></li>
+<li><a href="#installation-11"
+id="toc-installation-11">Installation</a></li>
+<li><a href="#loading-the-data-11" id="toc-loading-the-data-11">Loading
+the Data</a>
+<ul>
+<li><a href="#verify-the-prerequisites-2"
+id="toc-verify-the-prerequisites-2">Verify the prerequisites</a></li>
+</ul></li>
+<li><a href="#exercises-11" id="toc-exercises-11">Exercises</a>
+<ul>
+<li><a href="#exercise-1-walking-to-the-root"
+id="toc-exercise-1-walking-to-the-root">Exercise 1 — Walking to the
+Root</a></li>
+<li><a href="#exercise-2-every-employee-under-a-department-head"
+id="toc-exercise-2-every-employee-under-a-department-head">Exercise 2 —
+Every Employee Under a Department Head</a></li>
+<li><a href="#exercise-3-depth-and-an-indented-tree"
+id="toc-exercise-3-depth-and-an-indented-tree">Exercise 3 — Depth and an
+Indented Tree</a></li>
+<li><a href="#exercise-4-cycle-detection"
+id="toc-exercise-4-cycle-detection">Exercise 4 — Cycle
+Detection</a></li>
+<li><a href="#exercise-5-shortest-path-through-a-graph"
+id="toc-exercise-5-shortest-path-through-a-graph">Exercise 5 — Shortest
+Path Through a Graph</a></li>
+<li><a href="#exercise-6-ancestors-of-a-leaf-for-faceted-search"
+id="toc-exercise-6-ancestors-of-a-leaf-for-faceted-search">Exercise 6 —
+Ancestors of a Leaf, for Faceted Search</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-11"
+id="toc-summary-what-you-should-now-know-11">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -9937,6 +9979,676 @@ relationships the data itself defines (a parent, a neighbour node),
 where window functions walk an </em>ordering<em> you impose yourself;
 knowing which kind of “related rows” a problem actually has is most of
 the work of picking the right one.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-12-recursive-ctes-graphs-and-hierarchies">Chapter 12 —
+Recursive CTEs: Graphs and Hierarchies</h1>
+<blockquote>
+<p><em>“SQL doesn’t have loops. <code>WITH RECURSIVE</code> is a query
+that keeps calling itself until it runs out of new things to
+say.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-11">Background</h2>
+<p>Every table so far in this book has been “flat” — rows related to
+each other through a foreign key, sure, but never through a relationship
+of <em>unknown depth</em>. A resident belongs to one neighbourhood. A
+reading belongs to one sensor. But “who does this employee ultimately
+report to?” or “how do I get from this intersection to that one?” can’t
+be answered by following one foreign key — the answer might be one hop
+away, or ten, and a plain <code>JOIN</code> has to know in advance how
+many hops to write. A <strong>recursive CTE</strong>, written
+<code>WITH RECURSIVE</code>, is PostgreSQL’s answer to “I don’t know how
+many joins this needs — figure it out as you go.”</p>
+<p>Structurally, a recursive CTE has two halves glued together with
+<code>UNION</code> or <code>UNION ALL</code>:</p>
+<div class="sourceCode" id="cb588"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb588-1"><a href="#cb588-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE cte_name <span class="kw">AS</span> (</span>
+<span id="cb588-2"><a href="#cb588-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">..</span>.              <span class="co">-- ① the anchor: runs exactly once</span></span>
+<span id="cb588-3"><a href="#cb588-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb588-4"><a href="#cb588-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">..</span>.               <span class="co">-- ② the recursive term: references cte_name itself</span></span>
+<span id="cb588-5"><a href="#cb588-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   some_table</span>
+<span id="cb588-6"><a href="#cb588-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   cte_name <span class="kw">ON</span> <span class="op">..</span>.</span>
+<span id="cb588-7"><a href="#cb588-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb588-8"><a href="#cb588-8" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> cte_name;</span></code></pre></div>
+<p>The <strong>anchor</strong> runs once and seeds the result with a
+starting set of rows. The <strong>recursive term</strong> then runs
+<em>repeatedly</em> — each time, it sees only the rows the
+<em>previous</em> run just produced, joins them against the table again
+to find “the next hop,” and adds whatever new rows come out. This keeps
+going until one run of the recursive term produces zero new rows, at
+which point PostgreSQL stops and the final result is everything the
+anchor and every round of the recursive term ever added together.
+Nothing here is exotic under the hood — it’s an ordinary loop, just
+spelled out as a query instead of application code, and it stops for the
+most ordinary reason a loop ever stops: it ran out of new work.</p>
+<p><strong>Trees are graphs that promised to behave.</strong> A tree —
+an org chart, a category hierarchy — is a graph where every node has
+exactly one parent and there’s no way to walk back to somewhere you’ve
+already been. A road network makes no such promise: intersections
+connect to several other intersections, and it’s entirely possible to
+walk in a circle and end up back where you started. Recursive CTEs
+handle both shapes with the same syntax, but only the graph case needs
+you to actively guard against walking in circles forever — Exercises 1
+through 3 build the tree intuition first, precisely so Exercise 4 can
+show you, concretely, what goes wrong without that guard, before
+Exercise 5 asks you to navigate a graph that has a real cycle built into
+it on purpose.</p>
+<hr />
+<h2 id="the-scenario-11">The Scenario</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 40%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Source</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>city_org</code></td>
+<td><em>(new)</em></td>
+<td>Tree — Portsmith’s 30-person city government, 4 levels deep</td>
+</tr>
+<tr class="even">
+<td><code>intersections</code>, <code>road_segments</code></td>
+<td><em>(new, derived from Chapter 2’s
+<code>city_infrastructure</code>)</em></td>
+<td>Graph — a real road network, cycles included</td>
+</tr>
+<tr class="odd">
+<td><code>categories</code></td>
+<td><em>(new, derived from Chapter 1’s real category data)</em></td>
+<td>Tree — a 3-level faceted-search hierarchy</td>
+</tr>
+</tbody>
+</table>
+<p><code>intersections</code> and <code>road_segments</code> aren’t
+invented — every node is a real point where two of Chapter 2’s actual
+road <code>LINESTRING</code>s cross, found with
+<code>ST_Intersects</code>, and every edge length is the real
+along-the-road distance for that stretch, not a straight-line guess.
+Ring Road bends around three sides of the city between some of its
+intersections, so a straight line between two of its crossing points
+would have understated the real distance by more than 5 kilometres in
+one case — Exercise 5 puts that exact gap to use.</p>
+<hr />
+<h2 id="exercise-goals-11">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Explain the anchor/recursive-term structure of
+<code>WITH RECURSIVE</code> well enough to predict how many times the
+recursive term will run for a given tree.</li>
+<li>Walk a hierarchy in both directions — up to the root, and down to
+every descendant — and know which direction each shape of question
+needs.</li>
+<li>Compute each node’s depth and render an arbitrary-depth tree as
+indented text.</li>
+<li>Recognize when a self-referencing table can contain a genuine cycle,
+and use <code>CYCLE ... SET ... USING</code> to detect one instead of
+hanging.</li>
+<li>Write a breadth-first recursive CTE to find a shortest path through
+a graph, and explain why “fewest hops” and “shortest distance” are not
+always the same answer.</li>
+<li>Flatten a category tree into an ancestor list for faceted
+search.</li>
+</ul>
+<hr />
+<h2 id="installation-11">Installation</h2>
+<p>Nothing to install. <code>WITH RECURSIVE</code> has been part of core
+PostgreSQL since version 8.4 (2009) — the same release that introduced
+Chapter 11’s window functions.</p>
+<hr />
+<h2 id="loading-the-data-11">Loading the Data</h2>
+<p>This chapter needs Chapters 1 and 2’s data, plus its own new
+tables:</p>
+<div class="sourceCode" id="cb589"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb589-1"><a href="#cb589-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py   <span class="co"># businesses (categories are derived from this)</span></span>
+<span id="cb589-2"><a href="#cb589-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch02_seed.py   <span class="co"># city_infrastructure (roads are derived from this)</span></span>
+<span id="cb589-3"><a href="#cb589-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch12_seed.py   <span class="co"># city_org, intersections, road_segments, categories</span></span></code></pre></div>
+<h3 id="verify-the-prerequisites-2">Verify the prerequisites</h3>
+<div class="sourceCode" id="cb590"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb590-1"><a href="#cb590-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;city_org&#39;</span> <span class="kw">AS</span> <span class="kw">table</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_org</span>
+<span id="cb590-2"><a href="#cb590-2" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;intersections&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> intersections</span>
+<span id="cb590-3"><a href="#cb590-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;road_segments&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> road_segments</span>
+<span id="cb590-4"><a href="#cb590-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;categories&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> categories;</span></code></pre></div>
+<pre><code>     table      | count
+----------------+-------
+ city_org       |    30
+ intersections  |    15
+ road_segments  |    19
+ categories     |    48
+(4 rows)</code></pre>
+<p>If all four match, proceed to the exercises.</p>
+<hr />
+<h2 id="exercises-11">Exercises</h2>
+<hr />
+<h3 id="exercise-1-walking-to-the-root">Exercise 1 — Walking to the
+Root</h3>
+<p><strong>1.1 — The shape of <code>city_org</code></strong></p>
+<div class="sourceCode" id="cb592"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb592-1"><a href="#cb592-1" aria-hidden="true" tabindex="-1"></a>\d city_org</span></code></pre></div>
+<pre><code>                            Table &quot;public.city_org&quot;
+   Column    |  Type   | Collation | Nullable |               Default
+--------------+---------+-----------+----------+---------------------------------------
+ id           | integer |           | not null | nextval(&#39;city_org_id_seq&#39;::regclass)
+ name         | text    |           | not null |
+ title        | text    |           | not null |
+ manager_id   | integer |           |          |
+Foreign-key constraints:
+    &quot;city_org_manager_id_fkey&quot; FOREIGN KEY (manager_id) REFERENCES city_org(id)</code></pre>
+<p>A <strong>self-referencing foreign key</strong> —
+<code>manager_id</code> points to another row in the same table. This
+one column is the entire tree: the Mayor’s <code>manager_id</code> is
+<code>NULL</code> (the root has no manager), and everyone else’s
+<code>manager_id</code> points to the row above them.</p>
+<p><strong>1.2 — From a patrol officer to the Mayor</strong></p>
+<div class="sourceCode" id="cb594"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb594-1"><a href="#cb594-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE chain <span class="kw">AS</span> (</span>
+<span id="cb594-2"><a href="#cb594-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, title, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span></span>
+<span id="cb594-3"><a href="#cb594-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org</span>
+<span id="cb594-4"><a href="#cb594-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Kwame Asante&#39;</span></span>
+<span id="cb594-5"><a href="#cb594-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb594-6"><a href="#cb594-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb594-7"><a href="#cb594-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb594-8"><a href="#cb594-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> o.<span class="kw">id</span>, o.name, o.title, o.manager_id, chain.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb594-9"><a href="#cb594-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org o</span>
+<span id="cb594-10"><a href="#cb594-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   chain <span class="kw">ON</span> o.<span class="kw">id</span> <span class="op">=</span> chain.manager_id</span>
+<span id="cb594-11"><a href="#cb594-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb594-12"><a href="#cb594-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">depth</span>, name, title <span class="kw">FROM</span> chain <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="fu">depth</span>;</span></code></pre></div>
+<pre><code> depth |     name      |      title
+-------+---------------+------------------
+     0 | Kwame Asante  | Patrol Officer
+     1 | Marcus Reilly | Patrol Captain
+     2 | Diane Okonjo  | Chief of Police
+     3 | Coretta Vance | Mayor
+(4 rows)</code></pre>
+<p>Trace exactly what happened, round by round, since this is the
+pattern every other exercise in this chapter builds on:</p>
+<ul>
+<li><strong>Anchor</strong> (<code>depth = 0</code>): finds exactly one
+row, Kwame Asante.</li>
+<li><strong>Round 1</strong> of the recursive term: joins
+<code>city_org</code> against the anchor’s <em>one</em> row, looking for
+whoever has <code>id = Kwame's manager_id</code> — finds Marcus Reilly,
+tags him <code>depth = 1</code>.</li>
+<li><strong>Round 2</strong>: joins against <em>only</em> Marcus
+Reilly’s row (not Kwame’s again) — finds Diane Okonjo,
+<code>depth = 2</code>.</li>
+<li><strong>Round 3</strong>: joins against <em>only</em> Diane’s row —
+finds Coretta Vance, <code>depth = 3</code>.</li>
+<li><strong>Round 4</strong>: joins against <em>only</em> Coretta’s row,
+looking for whoever has <code>id = Coretta's manager_id</code> — but
+<code>manager_id</code> is <code>NULL</code> for the Mayor, and nothing
+has <code>id = NULL</code>. Zero rows come back. The recursion stops
+here, on its own, having found the natural end of the chain.</li>
+</ul>
+<p>Four rounds for four levels — that’s not a coincidence. A recursive
+CTE walking one path up (or down) a tree always runs exactly as many
+times as the tree is deep along that path, no more.</p>
+<hr />
+<h3 id="exercise-2-every-employee-under-a-department-head">Exercise 2 —
+Every Employee Under a Department Head</h3>
+<p><strong>2.1 — Same idea, opposite direction</strong></p>
+<p>Exercise 1 walked <em>up</em>: “whose <code>id</code> equals my
+<code>manager_id</code>.” Finding everyone <em>under</em> a department
+head walks <em>down</em> instead: “whose <code>manager_id</code> equals
+my <code>id</code>.”</p>
+<div class="sourceCode" id="cb596"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb596-1"><a href="#cb596-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE subtree <span class="kw">AS</span> (</span>
+<span id="cb596-2"><a href="#cb596-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, title, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span></span>
+<span id="cb596-3"><a href="#cb596-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org</span>
+<span id="cb596-4"><a href="#cb596-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Marcus Webb&#39;</span></span>
+<span id="cb596-5"><a href="#cb596-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb596-6"><a href="#cb596-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb596-7"><a href="#cb596-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb596-8"><a href="#cb596-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> o.<span class="kw">id</span>, o.name, o.title, o.manager_id, subtree.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb596-9"><a href="#cb596-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org o</span>
+<span id="cb596-10"><a href="#cb596-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   subtree <span class="kw">ON</span> o.manager_id <span class="op">=</span> subtree.<span class="kw">id</span></span>
+<span id="cb596-11"><a href="#cb596-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb596-12"><a href="#cb596-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name, title, <span class="fu">depth</span> <span class="kw">FROM</span> subtree <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="fu">depth</span>, name;</span></code></pre></div>
+<pre><code>    name     |              title              | depth
+-------------+-----------------------------------+-------
+ Marcus Webb | Director of Public Works        |     0
+ Dana Ruiz   | Streets &amp; Sanitation Supervisor |     1
+ Tom Delgado | Water &amp; Sewer Supervisor        |     1
+ Ivy Chen    | Water &amp; Sewer Crew              |     2
+ Leo Park    | Streets Crew                    |     2
+ Noah Brandt | Water &amp; Sewer Crew              |     2
+ Priya Nair  | Streets Crew                    |     2
+ Sam Okafor  | Streets Crew                    |     2
+(8 rows)</code></pre>
+<p>Only the <code>JOIN</code> condition flipped —
+<code>o.manager_id = subtree.id</code> instead of
+<code>o.id = subtree.manager_id</code> — and the exact same query shape
+now answers a completely different question. This distinction matters
+more than it looks: get the join condition backward and PostgreSQL won’t
+error, it will just silently return the anchor row and nothing else,
+since “everyone whose manager is Marcus Webb” and “whoever Marcus Webb’s
+manager is” are both perfectly valid, perfectly different questions with
+perfectly valid, empty-looking answers if you meant to ask the other
+one.</p>
+<hr />
+<h3 id="exercise-3-depth-and-an-indented-tree">Exercise 3 — Depth and an
+Indented Tree</h3>
+<p><strong>3.1 — The whole org chart at once</strong></p>
+<p>Exercise 1’s <code>depth</code> counter already generalizes to the
+entire tree — start from every root instead of one named employee, and
+every manager-report edge gets discovered in the same breadth-expanding
+way:</p>
+<div class="sourceCode" id="cb598"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb598-1"><a href="#cb598-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE org_tree <span class="kw">AS</span> (</span>
+<span id="cb598-2"><a href="#cb598-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, title, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span>, <span class="dt">ARRAY</span>[name] <span class="kw">AS</span> path</span>
+<span id="cb598-3"><a href="#cb598-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org</span>
+<span id="cb598-4"><a href="#cb598-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  manager_id <span class="kw">IS</span> <span class="kw">NULL</span></span>
+<span id="cb598-5"><a href="#cb598-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb598-6"><a href="#cb598-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb598-7"><a href="#cb598-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb598-8"><a href="#cb598-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> o.<span class="kw">id</span>, o.name, o.title, o.manager_id, org_tree.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span>, org_tree.path <span class="op">||</span> o.name</span>
+<span id="cb598-9"><a href="#cb598-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org o</span>
+<span id="cb598-10"><a href="#cb598-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   org_tree <span class="kw">ON</span> o.manager_id <span class="op">=</span> org_tree.<span class="kw">id</span></span>
+<span id="cb598-11"><a href="#cb598-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb598-12"><a href="#cb598-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> repeat(<span class="st">&#39;  &#39;</span>, <span class="fu">depth</span>) <span class="op">||</span> name <span class="op">||</span> <span class="st">&#39; (&#39;</span> <span class="op">||</span> title <span class="op">||</span> <span class="st">&#39;)&#39;</span> <span class="kw">AS</span> org_chart</span>
+<span id="cb598-13"><a href="#cb598-13" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   org_tree</span>
+<span id="cb598-14"><a href="#cb598-14" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> path;</span></code></pre></div>
+<pre><code>                      org_chart
+-------------------------------------------------------
+ Coretta Vance (Mayor)
+   Aisha Bonner (Director of Parks &amp; Recreation)
+     Felix Wren (Parks Maintenance Supervisor)
+       Ezra Kowalski (Groundskeeper)
+       Nora Villalobos (Groundskeeper)
+   Diane Okonjo (Chief of Police)
+     Marcus Reilly (Patrol Captain)
+       Bianca Ferro (Patrol Officer)
+       Kwame Asante (Patrol Officer)
+       Theo Lindqvist (Patrol Officer)
+     Paula Mensah (Records Sergeant)
+   Helena Cross (Director of Permitting &amp; Licensing)
+     Grace Halloway (Senior Permit Reviewer)
+       Mia Sorensen (Permit Clerk)
+       Owen Fitch (Permit Clerk)
+     Ray Castellano (Building Inspector)
+   Julian Ostrowski (Director of Finance)
+     Colin Marsh (Budget Analyst)
+     Renata Sikes (City Accountant)
+   Marcus Webb (Director of Public Works)
+     Dana Ruiz (Streets &amp; Sanitation Supervisor)
+       Leo Park (Streets Crew)
+       Priya Nair (Streets Crew)
+       Sam Okafor (Streets Crew)
+     Tom Delgado (Water &amp; Sewer Supervisor)
+       Ivy Chen (Water &amp; Sewer Crew)
+       Noah Brandt (Water &amp; Sewer Crew)
+   Wendell Achebe (Director of IT)
+     Hugo Petrakis (Database Administrator)
+     Zara Lindholm (Systems Administrator)
+(30 rows)</code></pre>
+<p>Two new pieces do all the work. <code>repeat('  ', depth)</code>
+turns the integer depth into visible indentation — two spaces per level,
+the plainest possible tree rendering. <code>path</code>, an array built
+up one name at a time as the recursion descends
+(<code>org_tree.path || o.name</code>), is what makes
+<code>ORDER BY path</code> produce a proper depth-first listing instead
+of grouping everyone by depth first — without it,
+<code>ORDER BY depth</code> alone would print all six directors before
+any of their reports, flattening the tree back into levels instead of
+branches. <code>path</code> is never displayed here; it only exists to
+sort correctly, which is a pattern worth remembering any time a
+recursive CTE’s <em>output order</em> matters as much as its
+contents.</p>
+<hr />
+<h3 id="exercise-4-cycle-detection">Exercise 4 — Cycle Detection</h3>
+<p><strong>4.1 — A bad <code>UPDATE</code>, on purpose</strong></p>
+<p><code>manager_id</code> is just a foreign key — PostgreSQL enforces
+that it points to a real row, but nothing stops it from pointing to a
+row that, somewhere further up the chain, points right back down to
+where you started. Simulate exactly that data-entry mistake:</p>
+<div class="sourceCode" id="cb600"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb600-1"><a href="#cb600-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> city_org</span>
+<span id="cb600-2"><a href="#cb600-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    manager_id <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> city_org <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;Leo Park&#39;</span>)</span>
+<span id="cb600-3"><a href="#cb600-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Dana Ruiz&#39;</span>;</span></code></pre></div>
+<p>Leo Park already reports to Dana Ruiz. This one <code>UPDATE</code>
+now also makes Dana report to Leo — a two-person cycle, and a perfectly
+valid row by every constraint the table has.</p>
+<p><strong>4.2 — Where the cycle actually bites</strong></p>
+<p>Exercise 3’s root-to-leaves traversal doesn’t even notice: Dana and
+Leo simply stop being reachable from the Mayor at all (their
+<code>manager_id</code> chain no longer leads back up to anyone the tree
+already found), and they silently vanish from that query’s output — 26
+rows instead of 30, no error, just two people and their two remaining
+reports quietly orphaned. It’s Exercise 1’s <em>upward</em> direction —
+the one this whole chapter has been building on — that walks straight
+into it. Before running this, set a safety net; you’re about to run a
+query you already know doesn’t terminate on its own:</p>
+<div class="sourceCode" id="cb601"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb601-1"><a href="#cb601-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> statement_timeout <span class="op">=</span> <span class="st">&#39;3s&#39;</span>;</span>
+<span id="cb601-2"><a href="#cb601-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb601-3"><a href="#cb601-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE chain <span class="kw">AS</span> (</span>
+<span id="cb601-4"><a href="#cb601-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span></span>
+<span id="cb601-5"><a href="#cb601-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org</span>
+<span id="cb601-6"><a href="#cb601-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Priya Nair&#39;</span></span>
+<span id="cb601-7"><a href="#cb601-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb601-8"><a href="#cb601-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb601-9"><a href="#cb601-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb601-10"><a href="#cb601-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> o.<span class="kw">id</span>, o.name, o.manager_id, chain.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb601-11"><a href="#cb601-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org o</span>
+<span id="cb601-12"><a href="#cb601-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   chain <span class="kw">ON</span> o.<span class="kw">id</span> <span class="op">=</span> chain.manager_id</span>
+<span id="cb601-13"><a href="#cb601-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb601-14"><a href="#cb601-14" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> chain;</span></code></pre></div>
+<pre><code>ERROR:  canceling statement due to statement timeout</code></pre>
+<p>Priya reports to Dana, Dana now reports to Leo, and Leo reports to
+Dana — the walk to the root never reaches a <code>NULL</code>
+<code>manager_id</code>, because there isn’t one anywhere on this path
+anymore. Without the timeout, this query runs until it exhausts memory
+or disk, whichever comes first, generating an unbounded stream of
+alternating Dana/Leo rows forever. <strong>Any time a recursive CTE
+walks a self-referencing column you don’t personally control the
+integrity of, set a <code>statement_timeout</code> before the first
+run</strong> — it’s cheap insurance against exactly this.</p>
+<div class="sourceCode" id="cb603"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb603-1"><a href="#cb603-1" aria-hidden="true" tabindex="-1"></a><span class="kw">RESET</span> statement_timeout;</span></code></pre></div>
+<p><strong>4.3 — <code>CYCLE ... SET ... USING</code>: detect it instead
+of hanging</strong></p>
+<div class="sourceCode" id="cb604"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb604-1"><a href="#cb604-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE chain <span class="kw">AS</span> (</span>
+<span id="cb604-2"><a href="#cb604-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span></span>
+<span id="cb604-3"><a href="#cb604-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org</span>
+<span id="cb604-4"><a href="#cb604-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Priya Nair&#39;</span></span>
+<span id="cb604-5"><a href="#cb604-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb604-6"><a href="#cb604-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb604-7"><a href="#cb604-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb604-8"><a href="#cb604-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> o.<span class="kw">id</span>, o.name, o.manager_id, chain.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb604-9"><a href="#cb604-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   city_org o</span>
+<span id="cb604-10"><a href="#cb604-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   chain <span class="kw">ON</span> o.<span class="kw">id</span> <span class="op">=</span> chain.manager_id</span>
+<span id="cb604-11"><a href="#cb604-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb604-12"><a href="#cb604-12" aria-hidden="true" tabindex="-1"></a><span class="kw">CYCLE</span> <span class="kw">id</span> <span class="kw">SET</span> is_cycle <span class="kw">USING</span> path</span>
+<span id="cb604-13"><a href="#cb604-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, name, <span class="fu">depth</span>, is_cycle <span class="kw">FROM</span> chain;</span></code></pre></div>
+<pre><code> id |    name    | depth | is_cycle
+----+------------+-------+-----------
+  5 | Priya Nair |     0 | f
+  3 | Dana Ruiz  |     1 | f
+  4 | Leo Park   |     2 | f
+  3 | Dana Ruiz  |     3 | t
+(4 rows)</code></pre>
+<p>Four rows and it’s done — no timeout needed. <code>CYCLE id</code>
+tells PostgreSQL to track every <code>id</code> this query has already
+visited, in a hidden array column named by <code>USING path</code>; the
+moment a round would revisit an <code>id</code> already in that array,
+it stops expanding <em>that</em> branch, flags the repeated row
+<code>is_cycle = t</code>, and moves on rather than looping. Dana Ruiz
+shows up twice — once as Priya’s genuine manager, once again as proof
+the walk looped back to her — and that second appearance is exactly the
+signal that something in the data is wrong, ready to
+<code>WHERE is_cycle</code> for or alert on, instead of a hung
+connection and no explanation at all.</p>
+<p><img src="imgs/ch12_cycle_detection.svg" alt="Directed chain: Priya Nair at depth 0 points to Dana Ruiz at depth 1, who points to Leo Park at depth 2, who points back to Dana Ruiz at depth 3 — this final repeated node is flagged is_cycle = true, where CYCLE stops the walk instead of looping forever"/></p>
+<p><strong>4.4 — Undo the damage</strong></p>
+<div class="sourceCode" id="cb606"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb606-1"><a href="#cb606-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> city_org</span>
+<span id="cb606-2"><a href="#cb606-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    manager_id <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> city_org <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;Marcus Webb&#39;</span>)</span>
+<span id="cb606-3"><a href="#cb606-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;Dana Ruiz&#39;</span>;</span></code></pre></div>
+<p>Back to the real org chart before moving on.</p>
+<hr />
+<h3 id="exercise-5-shortest-path-through-a-graph">Exercise 5 — Shortest
+Path Through a Graph</h3>
+<p><strong>5.1 — Roads go both ways; <code>road_segments</code> only
+says one</strong></p>
+<div class="sourceCode" id="cb607"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb607-1"><a href="#cb607-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> road_name, from_intersection, to_intersection, length_m</span>
+<span id="cb607-2"><a href="#cb607-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   road_segments</span>
+<span id="cb607-3"><a href="#cb607-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  road_name <span class="op">=</span> <span class="st">&#39;Ring Road&#39;</span>;</span></code></pre></div>
+<pre><code> road_name |from_intersection|to_intersection|length_m
+-----------+------------------+----------------+----------
+ Ring Road |               11 |              3 |  2002.4
+ Ring Road |                3 |              5 | 10541.7
+ Ring Road |                5 |             15 |  1888.9
+ Ring Road |               15 |              8 |  2559.7
+ Ring Road |                8 |             10 |  6111.4
+ Ring Road |               10 |             13 |   443.9
+ Ring Road |               13 |             11 |  3323.3
+(7 rows)</code></pre>
+<p>Each row is stored once, in one direction, the same way Chapter 2’s
+<code>city_infrastructure</code> stores each road as a single
+<code>LINESTRING</code> — but a car can drive either way down Ring Road.
+Build a bidirectional view of the graph before doing anything else with
+it:</p>
+<div class="sourceCode" id="cb609"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb609-1"><a href="#cb609-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">VIEW</span> road_graph <span class="kw">AS</span></span>
+<span id="cb609-2"><a href="#cb609-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> from_intersection <span class="kw">AS</span> a, to_intersection <span class="kw">AS</span> b, road_name, length_m <span class="kw">FROM</span> road_segments</span>
+<span id="cb609-3"><a href="#cb609-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb609-4"><a href="#cb609-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> to_intersection, from_intersection, road_name, length_m <span class="kw">FROM</span> road_segments;</span></code></pre></div>
+<p><strong>5.2 — Breadth-first search: fewest hops</strong></p>
+<div class="sourceCode" id="cb610"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb610-1"><a href="#cb610-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE bfs <span class="kw">AS</span> (</span>
+<span id="cb610-2"><a href="#cb610-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> i.<span class="kw">id</span> <span class="kw">AS</span> node, <span class="dt">ARRAY</span>[i.<span class="kw">id</span>] <span class="kw">AS</span> path, <span class="dv">0</span> <span class="kw">AS</span> hops, <span class="fl">0.0</span> <span class="kw">AS</span> total_m</span>
+<span id="cb610-3"><a href="#cb610-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   intersections i</span>
+<span id="cb610-4"><a href="#cb610-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  i.name <span class="op">=</span> <span class="st">&#39;Fisherman</span><span class="ch">&#39;&#39;</span><span class="st">s Row &amp; Market Street&#39;</span></span>
+<span id="cb610-5"><a href="#cb610-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb610-6"><a href="#cb610-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb610-7"><a href="#cb610-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb610-8"><a href="#cb610-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> g.b, bfs.path <span class="op">||</span> g.b, bfs.hops <span class="op">+</span> <span class="dv">1</span>, bfs.total_m <span class="op">+</span> g.length_m</span>
+<span id="cb610-9"><a href="#cb610-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   road_graph g</span>
+<span id="cb610-10"><a href="#cb610-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   bfs <span class="kw">ON</span> g.a <span class="op">=</span> bfs.node</span>
+<span id="cb610-11"><a href="#cb610-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  <span class="kw">NOT</span> g.b <span class="op">=</span> <span class="kw">ANY</span>(bfs.path)</span>
+<span id="cb610-12"><a href="#cb610-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb610-13"><a href="#cb610-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> hops, total_m, path</span>
+<span id="cb610-14"><a href="#cb610-14" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   bfs</span>
+<span id="cb610-15"><a href="#cb610-15" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   intersections dest <span class="kw">ON</span> dest.<span class="kw">id</span> <span class="op">=</span> bfs.node</span>
+<span id="cb610-16"><a href="#cb610-16" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  dest.name <span class="op">=</span> <span class="st">&#39;Bay Street &amp; Ring Road (East)&#39;</span></span>
+<span id="cb610-17"><a href="#cb610-17" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> hops</span>
+<span id="cb610-18"><a href="#cb610-18" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> hops | total_m |    path
+------+---------+--------------
+    4 | 15379.5 | {9,12,11,3,5}
+(1 row)</code></pre>
+<p><code>WHERE NOT g.b = ANY(bfs.path)</code> is doing the same job
+Exercise 4’s <code>CYCLE</code> clause did — this graph genuinely
+contains a cycle (Ring Road loops back on itself), so without it, this
+query would walk in circles exactly like Exercise 4.2’s did.
+<code>ORDER BY hops LIMIT 1</code> takes the first path that reaches the
+destination in the fewest steps: 4 hops, 15,379.5 metres.</p>
+<p><strong>5.3 — The gotcha: fewest hops isn’t shortest
+distance</strong></p>
+<p>Widen the search instead of stopping at the first match:</p>
+<div class="sourceCode" id="cb612"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb612-1"><a href="#cb612-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE bfs <span class="kw">AS</span> (</span>
+<span id="cb612-2"><a href="#cb612-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> i.<span class="kw">id</span> <span class="kw">AS</span> node, <span class="dt">ARRAY</span>[i.<span class="kw">id</span>] <span class="kw">AS</span> path, <span class="dv">0</span> <span class="kw">AS</span> hops, <span class="fl">0.0</span> <span class="kw">AS</span> total_m</span>
+<span id="cb612-3"><a href="#cb612-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   intersections i</span>
+<span id="cb612-4"><a href="#cb612-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  i.name <span class="op">=</span> <span class="st">&#39;Fisherman</span><span class="ch">&#39;&#39;</span><span class="st">s Row &amp; Market Street&#39;</span></span>
+<span id="cb612-5"><a href="#cb612-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb612-6"><a href="#cb612-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb612-7"><a href="#cb612-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb612-8"><a href="#cb612-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> g.b, bfs.path <span class="op">||</span> g.b, bfs.hops <span class="op">+</span> <span class="dv">1</span>, bfs.total_m <span class="op">+</span> g.length_m</span>
+<span id="cb612-9"><a href="#cb612-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   road_graph g</span>
+<span id="cb612-10"><a href="#cb612-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   bfs <span class="kw">ON</span> g.a <span class="op">=</span> bfs.node</span>
+<span id="cb612-11"><a href="#cb612-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  <span class="kw">NOT</span> g.b <span class="op">=</span> <span class="kw">ANY</span>(bfs.path) <span class="kw">AND</span> bfs.hops <span class="op">&lt;</span> <span class="dv">6</span></span>
+<span id="cb612-12"><a href="#cb612-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb612-13"><a href="#cb612-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> hops, total_m, path</span>
+<span id="cb612-14"><a href="#cb612-14" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   bfs</span>
+<span id="cb612-15"><a href="#cb612-15" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   intersections dest <span class="kw">ON</span> dest.<span class="kw">id</span> <span class="op">=</span> bfs.node</span>
+<span id="cb612-16"><a href="#cb612-16" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  dest.name <span class="op">=</span> <span class="st">&#39;Bay Street &amp; Ring Road (East)&#39;</span></span>
+<span id="cb612-17"><a href="#cb612-17" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> total_m;</span></code></pre></div>
+<pre><code> hops | total_m |      path
+------+---------+-----------------
+    5 | 10485.2 | {9,12,11,3,4,5}
+    4 | 15379.5 | {9,12,11,3,5}
+(2 rows)</code></pre>
+<p>The 4-hop path 5.2 found is <em>not</em> the shortest one — a 5-hop
+route covers nearly 5 kilometres less. The 4-hop route takes the single
+giant Ring Road segment straight from
+<code>Bay Street &amp; Ring Road (West)</code> to
+<code>Bay Street &amp; Ring Road (East)</code> — the 10,541.7 m stretch
+Chapter 2’s <code>ST_LineSubstring</code> measured back in this
+chapter’s data setup, the one a straight-line guess would have badly
+understated. The 5-hop route detours one extra intersection down Bay
+Street itself instead, trading one more turn for two much shorter
+segments (4,800.3 m + 847.1 m instead of 10,541.7 m).</p>
+<p><img src="imgs/ch12_road_graph.svg" alt="Map of the relevant slice of Portsmith's road graph: a shared black path runs from Fisherman's Row & Market Street through Lighthouse Avenue to Bay Street & Ring Road (West); from there the fewest-hops route (red) follows Ring Road's long bend north and around to Bay Street & Ring Road (East), while the shortest-distance route (teal) cuts directly across via Bay Street & Canal Road, arriving nearly 5 kilometres sooner despite one extra hop"/></p>
+<p><code>ORDER BY hops LIMIT 1</code> — plain breadth-first search —
+optimizes for <em>number of turns</em>, not <em>distance travelled</em>,
+and those are only the same question when every edge in the graph costs
+roughly the same to traverse. They don’t, here, and a recursive CTE has
+no built-in concept of “cost” unless a query explicitly asks it to
+minimize one, the way 5.3’s <code>ORDER BY total_m</code> does instead
+of 5.2’s <code>ORDER BY hops</code>. Real routing (turn-by-turn
+navigation, Dijkstra’s algorithm, <code>pgRouting</code>) is built
+entirely around taking that distinction seriously; this exercise is the
+smallest possible version of the same lesson.</p>
+<hr />
+<h3 id="exercise-6-ancestors-of-a-leaf-for-faceted-search">Exercise 6 —
+Ancestors of a Leaf, for Faceted Search</h3>
+<p><strong>6.1 — A category tree built from real Chapter 1
+data</strong></p>
+<div class="sourceCode" id="cb614"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb614-1"><a href="#cb614-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> c.name <span class="kw">AS</span> <span class="kw">category</span>, p.name <span class="kw">AS</span> <span class="kw">parent</span></span>
+<span id="cb614-2"><a href="#cb614-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   categories c</span>
+<span id="cb614-3"><a href="#cb614-3" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   categories p <span class="kw">ON</span> p.<span class="kw">id</span> <span class="op">=</span> c.parent_id</span>
+<span id="cb614-4"><a href="#cb614-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  c.name <span class="kw">IN</span> (<span class="st">&#39;bakery&#39;</span>, <span class="st">&#39;restaurant&#39;</span>);</span></code></pre></div>
+<pre><code>  category  |     parent
+------------+-----------------
+ restaurant | All Categories
+ bakery     | restaurant</code></pre>
+<p><code>categories</code> isn’t invented data — its two levels under
+“All Categories” are exactly Chapter 1’s real <code>category</code> and
+<code>subcategory</code>/<code>cuisine</code> values, pulled straight
+out of <code>businesses.details</code> and organized into a tree.
+“Bakery” is a real cuisine value on a real business (River Bend Bakery,
+Chapter 1) three levels deep in this hierarchy.</p>
+<p><strong>6.2 — Walk up, then flatten into a breadcrumb</strong></p>
+<p>A faceted search UI wants “all ancestors of this leaf” to build a
+breadcrumb trail — the exact same upward walk as Exercise 1, applied to
+a different tree, finished off with <code>string_agg</code>:</p>
+<div class="sourceCode" id="cb616"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb616-1"><a href="#cb616-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE ancestors <span class="kw">AS</span> (</span>
+<span id="cb616-2"><a href="#cb616-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, name, parent_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span></span>
+<span id="cb616-3"><a href="#cb616-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   categories</span>
+<span id="cb616-4"><a href="#cb616-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span>  name <span class="op">=</span> <span class="st">&#39;bakery&#39;</span></span>
+<span id="cb616-5"><a href="#cb616-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb616-6"><a href="#cb616-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb616-7"><a href="#cb616-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb616-8"><a href="#cb616-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> c.<span class="kw">id</span>, c.name, c.parent_id, ancestors.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb616-9"><a href="#cb616-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span>   categories c</span>
+<span id="cb616-10"><a href="#cb616-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">JOIN</span>   ancestors <span class="kw">ON</span> c.<span class="kw">id</span> <span class="op">=</span> ancestors.parent_id</span>
+<span id="cb616-11"><a href="#cb616-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb616-12"><a href="#cb616-12" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> string_agg(name, <span class="st">&#39; &gt; &#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="fu">depth</span> <span class="kw">DESC</span>) <span class="kw">AS</span> breadcrumb</span>
+<span id="cb616-13"><a href="#cb616-13" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   ancestors;</span></code></pre></div>
+<pre><code>              breadcrumb
+---------------------------------------
+ All Categories &gt; restaurant &gt; bakery</code></pre>
+<p><code>ORDER BY depth DESC</code> inside <code>string_agg</code> puts
+the root first and the leaf last — the walk itself discovers ancestors
+leaf-to-root (<code>depth</code> increasing outward, exactly like
+Exercise 1’s officer-to-Mayor chain), so displaying them root-to-leaf
+means reversing that order at the very end, not changing how the
+recursion runs. Nothing about this query knows or cares that the tree is
+only three levels deep — the identical query against a ten-level
+category tree would produce a ten-element breadcrumb without a single
+line changing.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-11">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>WITH RECURSIVE name AS (anchor UNION ALL recursive_term)</code></td>
+<td>Anchor runs once; the recursive term reruns against only the
+previous round’s new rows until a round adds nothing</td>
+</tr>
+<tr class="even">
+<td><code>o.id = cte.manager_id</code></td>
+<td>Walk <em>up</em> a hierarchy — toward the root</td>
+</tr>
+<tr class="odd">
+<td><code>o.manager_id = cte.id</code></td>
+<td>Walk <em>down</em> a hierarchy — toward the leaves</td>
+</tr>
+<tr class="even">
+<td><code>depth</code> counter</td>
+<td>Increment it once per recursive round to know how deep any given row
+is</td>
+</tr>
+<tr class="odd">
+<td><code>path</code> array + <code>ORDER BY path</code></td>
+<td>Make a recursive CTE’s output print in proper depth-first tree
+order</td>
+</tr>
+<tr class="even">
+<td><code>CYCLE col SET flag USING path</code></td>
+<td>Detect a repeated value instead of looping forever; flags the row
+where it happened</td>
+</tr>
+<tr class="odd">
+<td><code>WHERE NOT x = ANY(path)</code></td>
+<td>The hand-rolled version of cycle prevention, for graphs that need
+per-branch path tracking <code>CYCLE</code> alone doesn’t give you</td>
+</tr>
+<tr class="even">
+<td><code>SET statement_timeout</code></td>
+<td>Cheap insurance before running any recursive query over data you
+don’t control the integrity of</td>
+</tr>
+<tr class="odd">
+<td>BFS (<code>ORDER BY hops</code>) vs. shortest-distance
+(<code>ORDER BY total_m</code>)</td>
+<td>Fewest steps and least total cost are different questions unless
+every edge costs the same</td>
+</tr>
+<tr class="even">
+<td><code>string_agg(name, ' &gt; ' ORDER BY depth DESC)</code></td>
+<td>Turn an ancestor walk into a breadcrumb, root first</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that a
+recursive CTE is just an ordinary query, run in a loop, over data that
+happens to describe its own structure — the anchor decides where to
+start, the join direction decides which way to walk, and everything past
+that is the same <code>SELECT</code> you already know how to write.
+Trees are the friendly case, where that loop is guaranteed to end
+because nothing points back at itself. The moment real data — a bad
+<code>manager_id</code>, a road network that loops — stops guaranteeing
+that, the loop needs its own explicit exit condition, either
+<code>CYCLE</code>’s built-in bookkeeping or a hand-rolled
+<code>path</code> array doing the same job. Every exercise in this
+chapter is one of exactly two ideas: which direction to walk, and how to
+know when to stop.</p>
+<hr />
+<em>Going further: Chapter 21’s placeholder chapter on PostgreSQL 19’s
+<code>SQL/PGQ</code> property graphs picks up directly from Exercise 5 —
+the same <code>road_segments</code> graph, queried with syntax
+purpose-built for path traversal instead of a hand-rolled
+<code>path</code> array and a <code>WHERE NOT ... ANY(...)</code> guard.
+Reading that chapter (once PostgreSQL 19 is out of beta and this book
+can say something definite about it) right after this one, rather than
+waiting for its place in the numbering, is a reasonable way to see the
+same problem solved twice, eight chapters apart in the table of contents
+but adjacent in what they’re actually about. Chapter 17’s foreign data
+wrappers occasionally combine with recursive CTEs when a hierarchy spans
+more than one database — the recursion itself doesn’t care where a row
+physically lives, only that the self-referencing column resolves. And
+<code>pgRouting</code>, mentioned briefly in Exercise 5, is the
+production answer to “I need real shortest-path routing, not the
+smallest example that demonstrates the idea” — turn restrictions,
+one-way streets, and genuine Dijkstra/A</em> implementations, all built
+on top of the same PostGIS geometry this chapter’s road graph came
+from.*
 <div style="page-break-before: always;">
 
 </div>

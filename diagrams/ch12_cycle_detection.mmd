@@ -1,0 +1,12 @@
+graph LR
+    Priya["Priya Nair<br/>depth 0"]
+    Dana1["Dana Ruiz<br/>depth 1"]
+    Leo["Leo Park<br/>depth 2"]
+    Dana2["Dana Ruiz<br/>depth 3<br/>is_cycle = true"]
+
+    Priya -->|"id = manager_id"| Dana1
+    Dana1 -->|"id = manager_id"| Leo
+    Leo -->|"id = manager_id"| Dana2
+
+    classDef cycle fill:#3a1500,stroke:#c66,color:#fca;
+    class Dana2 cycle;

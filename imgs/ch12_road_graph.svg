@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="760" viewBox="0 0 980 760">
+  <rect x="0" y="0" width="980" height="760" fill="#faf7f0" />
+  <g id="roads">
+    <polyline points="536.88,491.48 536.88,472.09" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="677.50,414.95 677.50,399.39" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="677.50,399.39 677.50,316.99" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="389.55,491.48 536.88,491.48" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="389.55,472.09 536.88,472.09" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="677.50,399.39 718.35,399.39" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="718.35,399.39 757.86,399.39" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="757.86,316.99 757.86,399.39" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="757.86,399.39 757.86,510.87" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="757.86,510.87 757.86,549.64 389.55,549.64 389.55,491.48" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="389.55,491.48 389.55,472.09" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="389.55,472.09 389.55,452.70 222.14,452.70 222.14,404.23" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="677.50,414.95 718.35,399.39" fill="none" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="222.14,404.23 469.91,404.23" fill="none" stroke="#3a3a3a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="469.91,413.93 469.91,404.23" fill="none" stroke="#3a3a3a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="222.14,404.23 222.14,316.99" fill="none" stroke="#3a3a3a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="222.14,316.99 677.50,316.99" fill="none" stroke="#1a7a8a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="677.50,316.99 757.86,316.99" fill="none" stroke="#1a7a8a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="222.14,316.99 222.14,210.36 757.86,210.36 757.86,316.99" fill="none" stroke="#c0392b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <g font-family="Georgia, serif" font-size="11">
+    <text x="210.1" y="305.0" text-anchor="end" fill="#1a1a1a" font-weight="600">Bay Street &amp; Ring Road (West)</text>
+    <text x="677.5" y="341.0" text-anchor="middle" fill="#1a1a1a" font-weight="600">Bay Street &amp; Canal Road</text>
+    <text x="745.9" y="305.0" text-anchor="end" fill="#1a1a1a" font-weight="600">Bay Street &amp; Ring Road (East)</text>
+    <text x="459.9" y="433.9" text-anchor="end" fill="#1a1a1a" font-weight="600">Fisherman's Row &amp; Market Street</text>
+    <text x="210.1" y="396.2" text-anchor="end" fill="#1a1a1a" font-weight="600">Lighthouse Avenue &amp; Ring Road</text>
+    <text x="503.9" y="388.2" text-anchor="start" fill="#1a1a1a" font-weight="600">Lighthouse Avenue &amp; Market Street</text>
+  </g>
+  <g id="intersections">
+    <circle cx="536.88" cy="491.48" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="536.88" cy="472.09" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="222.14" cy="316.99" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="677.50" cy="316.99" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="757.86" cy="316.99" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="677.50" cy="414.95" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="677.50" cy="399.39" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="757.86" cy="510.87" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="469.91" cy="413.93" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="389.55" cy="491.48" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="222.14" cy="404.23" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="469.91" cy="404.23" r="6" fill="#222" stroke="white" stroke-width="1.2" />
+    <circle cx="389.55" cy="472.09" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="718.35" cy="399.39" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+    <circle cx="757.86" cy="399.39" r="3.2" fill="#999" stroke="white" stroke-width="0.6" />
+  </g>
+  <text x="469.9" y="389.9" text-anchor="middle" font-family="Georgia, serif" font-size="12" font-weight="bold" fill="#1e6b1e">START</text>
+  <text x="757.9" y="301.0" text-anchor="middle" font-family="Georgia, serif" font-size="12" font-weight="bold" fill="#7a1e1e">END</text>
+  <text x="490" y="30" text-anchor="middle" font-family="Georgia, serif" font-size="19" font-weight="bold" fill="#222">Fewest Hops vs. Shortest Distance</text>
+  <text x="490" y="50" text-anchor="middle" font-family="&quot;Comic Neue&quot;, &quot;Trebuchet MS&quot;, serif" font-size="12.5" fill="#555">Portsmith road graph · Chapter 12, Exercise 5</text>
+  <line x1="135" y1="600" x2="163" y2="600" stroke="#b8b0a0" stroke-width="2" stroke-linecap="round" />
+  <text x="171" y="604" font-family="Georgia, serif" font-size="11" fill="#333">Other roads (not on either route)</text>
+  <line x1="135" y1="618" x2="163" y2="618" stroke="#3a3a3a" stroke-width="5" stroke-linecap="round" />
+  <text x="171" y="622" font-family="Georgia, serif" font-size="11" fill="#333">Shared first 3 hops (both routes)</text>
+  <line x1="135" y1="636" x2="163" y2="636" stroke="#c0392b" stroke-width="5" stroke-linecap="round" />
+  <text x="171" y="640" font-family="Georgia, serif" font-size="11" fill="#333">Fewest hops: 4 hops, 15,379.5 m (via Ring Road)</text>
+  <line x1="135" y1="654" x2="163" y2="654" stroke="#1a7a8a" stroke-width="5" stroke-linecap="round" />
+  <text x="171" y="658" font-family="Georgia, serif" font-size="11" fill="#333">Shortest distance: 5 hops, 10,485.2 m (via Bay Street)</text>
+  <rect x="3" y="3" width="974" height="754" fill="none" stroke="#445566" stroke-width="2" rx="5" />
+</svg>

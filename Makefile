@@ -33,7 +33,8 @@ EXTRA_SVG := imgs/portsmith_map.svg \
 	imgs/ch05_trigram_window.svg \
 	imgs/ch06_ivfflat_clustering.svg \
 	imgs/ch06_vector_disagreement.svg \
-	imgs/ch07_cidr_nesting.svg
+	imgs/ch07_cidr_nesting.svg \
+	imgs/ch12_road_graph.svg
 EXTRA_PNG := $(EXTRA_SVG:.svg=.png)
 
 $(EXTRA_PNG): imgs/%.png: imgs/%.svg
