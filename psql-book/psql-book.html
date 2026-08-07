@@ -727,6 +727,87 @@ Ancestors of a Leaf, for Faceted Search</a></li>
 id="toc-summary-what-you-should-now-know-11">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-13-listennotify-database-native-pubsub"
+id="toc-chapter-13-listennotify-database-native-pubsub">Chapter 13 —
+<code>LISTEN</code>/<code>NOTIFY</code>: Database-Native Pub/Sub</a>
+<ul>
+<li><a href="#background-12" id="toc-background-12">Background</a></li>
+<li><a href="#the-scenario-12" id="toc-the-scenario-12">The
+Scenario</a></li>
+<li><a href="#exercise-goals-12" id="toc-exercise-goals-12">Exercise
+Goals</a></li>
+<li><a href="#installation-12"
+id="toc-installation-12">Installation</a></li>
+<li><a href="#loading-the-data-12" id="toc-loading-the-data-12">Loading
+the Data</a>
+<ul>
+<li><a href="#verify-the-prerequisite"
+id="toc-verify-the-prerequisite">Verify the prerequisite</a></li>
+</ul></li>
+<li><a href="#exercises-12" id="toc-exercises-12">Exercises</a>
+<ul>
+<li><a href="#exercise-1-manual-notifylisten-two-sessions"
+id="toc-exercise-1-manual-notifylisten-two-sessions">Exercise 1 — Manual
+<code>NOTIFY</code>/<code>LISTEN</code>, Two Sessions</a></li>
+<li><a href="#exercise-2-a-trigger-that-notifys-on-status-change"
+id="toc-exercise-2-a-trigger-that-notifys-on-status-change">Exercise 2 —
+A Trigger That <code>NOTIFY</code>s on Status Change</a></li>
+<li><a href="#exercise-3-subscribing-from-python"
+id="toc-exercise-3-subscribing-from-python">Exercise 3 — Subscribing
+from Python</a></li>
+<li><a href="#exercise-4-fan-out-to-per-job-type-channels"
+id="toc-exercise-4-fan-out-to-per-job-type-channels">Exercise 4 — Fan
+Out to Per-Job-Type Channels</a></li>
+<li><a href="#exercise-5-debounce-a-noisy-job"
+id="toc-exercise-5-debounce-a-noisy-job">Exercise 5 — Debounce a Noisy
+Job</a></li>
+<li><a href="#exercise-6-throughput-payload-limits-and-when-to-graduate"
+id="toc-exercise-6-throughput-payload-limits-and-when-to-graduate">Exercise
+6 — Throughput, Payload Limits, and When to Graduate</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-12"
+id="toc-summary-what-you-should-now-know-12">Summary — What You Should
+Now Know</a></li>
+</ul></li>
+<li><a href="#chapter-14-advisory-locks-distributed-coordination"
+id="toc-chapter-14-advisory-locks-distributed-coordination">Chapter 14 —
+Advisory Locks: Distributed Coordination</a>
+<ul>
+<li><a href="#background-13" id="toc-background-13">Background</a></li>
+<li><a href="#the-scenario-13" id="toc-the-scenario-13">The
+Scenario</a></li>
+<li><a href="#exercise-goals-13" id="toc-exercise-goals-13">Exercise
+Goals</a></li>
+<li><a href="#installation-13"
+id="toc-installation-13">Installation</a></li>
+<li><a href="#loading-the-data-13" id="toc-loading-the-data-13">Loading
+the Data</a></li>
+<li><a href="#exercises-13" id="toc-exercises-13">Exercises</a>
+<ul>
+<li><a href="#exercise-1-acquire-block-release"
+id="toc-exercise-1-acquire-block-release">Exercise 1 — Acquire, Block,
+Release</a></li>
+<li><a href="#exercise-2-pg_try_advisory_lock-ask-dont-wait"
+id="toc-exercise-2-pg_try_advisory_lock-ask-dont-wait">Exercise 2 —
+<code>pg_try_advisory_lock()</code>: Ask, Don’t Wait</a></li>
+<li><a href="#exercise-3-leader-election"
+id="toc-exercise-3-leader-election">Exercise 3 — Leader
+Election</a></li>
+<li><a
+href="#exercise-4-a-transaction-level-lock-around-a-critical-section"
+id="toc-exercise-4-a-transaction-level-lock-around-a-critical-section">Exercise
+4 — A Transaction-Level Lock Around a Critical Section</a></li>
+<li><a href="#exercise-5-reading-pg_locks"
+id="toc-exercise-5-reading-pg_locks">Exercise 5 — Reading
+<code>pg_locks</code></a></li>
+<li><a href="#exercise-6-the-connection-pool-pitfall"
+id="toc-exercise-6-the-connection-pool-pitfall">Exercise 6 — The
+Connection-Pool Pitfall</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-13"
+id="toc-summary-what-you-should-now-know-13">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -9998,9 +10079,16 @@ reading belongs to one sensor. But “who does this employee ultimately
 report to?” or “how do I get from this intersection to that one?” can’t
 be answered by following one foreign key — the answer might be one hop
 away, or ten, and a plain <code>JOIN</code> has to know in advance how
-many hops to write. A <strong>recursive CTE</strong>, written
-<code>WITH RECURSIVE</code>, is PostgreSQL’s answer to “I don’t know how
-many joins this needs — figure it out as you go.”</p>
+many hops to write.</p>
+<p>A <strong>CTE</strong> — Common Table Expression, the thing a
+<code>WITH name AS (...)</code> block in front of a query defines — is
+ordinarily just a named subquery, a way to give a piece of SQL a label
+and reuse it, nothing recursive about it (Chapter 3 already used a plain
+one to <code>UPDATE</code> and log a job in a single statement). A
+<strong>recursive CTE</strong>, written <code>WITH RECURSIVE</code>, is
+the special case: a CTE allowed to refer to <em>itself</em> inside its
+own definition, which is PostgreSQL’s answer to “I don’t know how many
+joins this needs — figure it out as you go.”</p>
 <p>Structurally, a recursive CTE has two halves glued together with
 <code>UNION</code> or <code>UNION ALL</code>:</p>
 <div class="sourceCode" id="cb588"><pre
@@ -10649,6 +10737,1184 @@ smallest example that demonstrates the idea” — turn restrictions,
 one-way streets, and genuine Dijkstra/A</em> implementations, all built
 on top of the same PostGIS geometry this chapter’s road graph came
 from.*
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-13-listennotify-database-native-pubsub">Chapter 13 —
+<code>LISTEN</code>/<code>NOTIFY</code>: Database-Native Pub/Sub</h1>
+<blockquote>
+<p><em>“Polling asks ‘did anything happen yet?’ a thousand times a
+minute. <code>LISTEN</code> just waits to be told.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-12">Background</h2>
+<p>The obvious way to build a dashboard that reacts to database changes
+is to ask, repeatedly:
+<code>SELECT * FROM jobs WHERE status = ...</code>, once a second,
+forever. It works, but every poll is a query the database has to answer
+whether or not anything changed, and the dashboard is only ever as fresh
+as its last poll — average half a polling interval stale, worst case a
+whole interval. PostgreSQL has had a built-in alternative for longer
+than most of its more famous features: <code>LISTEN</code> and
+<code>NOTIFY</code>, a lightweight publish/subscribe system that ships
+inside the database itself, no message broker required.</p>
+<p>The shape of it is almost the whole idea: any session can run
+<code>LISTEN channel_name</code> to subscribe to a named channel — just
+a string, nothing has to be created or configured first. Any session —
+or, more usefully, a trigger — can run <code>NOTIFY channel_name</code>
+(optionally with a short text payload) to publish to it. Every session
+currently listening on that channel gets the notification,
+asynchronously, with no polling on anyone’s part.</p>
+<p>Three things about <em>when</em> a notification actually arrives are
+easy to get wrong, so they’re worth stating plainly before Exercise 1
+shows them happening:</p>
+<ol type="1">
+<li><strong>A notification is delivered only after the sending
+transaction commits.</strong> <code>NOTIFY</code> inside a transaction
+that later rolls back is as if it never ran — nothing is sent,
+ever.</li>
+<li><strong>A listening client only notices a notification is waiting
+the next time it talks to the server.</strong> The notification arrives
+at the connection asynchronously, but most clients (including
+<code>psql</code>) only check for and display it around the next command
+they run — it doesn’t interrupt whatever the client is already
+doing.</li>
+<li><strong>Identical notifications collapse.</strong> Two or more
+<code>NOTIFY</code> calls on the same channel with the exact same
+payload, inside the same transaction, are coalesced into a single
+delivery.</li>
+</ol>
+<p>And one thing about what a notification <em>isn’t</em>: it has no
+memory. <code>NOTIFY</code> doesn’t persist anything — if nobody is
+listening on a channel the instant it fires, that notification is simply
+gone. That’s why this chapter builds a second, very unglamorous thing
+alongside the trigger: a plain table logging every notification ever
+sent. <code>NOTIFY</code> says “wake up and go look”; the log table is
+what a dashboard that just reconnected looks <em>at</em> to catch up on
+whatever it missed while it was offline.</p>
+<hr />
+<h2 id="the-scenario-12">The Scenario</h2>
+<p>Portsmith’s permitting office wants a live status board for the job
+queue Chapter 3 built — instead of a background process hammering
+<code>jobs</code> on a timer, it should just be told the moment a
+permit’s status changes.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 14%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Source</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>jobs</code></td>
+<td>Chapter 3</td>
+<td>The permit queue whose status changes this chapter reacts to</td>
+</tr>
+<tr class="even">
+<td><code>notifications</code></td>
+<td><em>(built here)</em></td>
+<td>Durable log of every notification sent — catch-up for a reconnecting
+dashboard</td>
+</tr>
+<tr class="odd">
+<td><code>notification_debounce</code></td>
+<td><em>(built here)</em></td>
+<td>Last-notified timestamp per job, so Exercise 5 can suppress noisy
+bursts</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing new needs seeding — this chapter is entirely about reacting
+to changes in data Chapter 3 already created.</p>
+<hr />
+<h2 id="exercise-goals-12">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Send and receive a notification manually, across two sessions, and
+explain exactly when it becomes visible and why.</li>
+<li>Write a trigger that publishes a JSON payload on <code>NOTIFY</code>
+whenever a row’s status changes.</li>
+<li>Subscribe from a Python 3.12 script using <code>psycopg</code>,
+replacing a polling loop with a blocking wait for the next event.</li>
+<li>Fan a single event stream out into multiple channels so different
+consumers can subscribe to only what they care about.</li>
+<li>Suppress a burst of near-duplicate notifications with a small
+debounce table.</li>
+<li>State <code>LISTEN</code>/<code>NOTIFY</code>’s real throughput and
+durability limits, and recognize the point past which a dedicated
+message broker is the right call instead.</li>
+</ul>
+<hr />
+<h2 id="installation-12">Installation</h2>
+<p>Nothing to install. <code>LISTEN</code> and <code>NOTIFY</code> are
+core SQL commands, part of PostgreSQL since long before this book’s
+PostgreSQL 16 baseline — no extension, no configuration. This chapter’s
+Python client (Exercise 3) reuses the <code>psycopg</code> driver
+installed back in Chapter 1.</p>
+<hr />
+<h2 id="loading-the-data-12">Loading the Data</h2>
+<p>This chapter needs Chapter 3’s <code>jobs</code> table:</p>
+<div class="sourceCode" id="cb618"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb618-1"><a href="#cb618-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_seed.py</span></code></pre></div>
+<h3 id="verify-the-prerequisite">Verify the prerequisite</h3>
+<div class="sourceCode" id="cb619"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb619-1"><a href="#cb619-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs;</span></code></pre></div>
+<pre><code> count
+-------
+    48
+(1 row)</code></pre>
+<p>(48, not 45 — Chapter 10’s PostgREST exercises filed three more
+permit applications through the API. If you’re at 45, that’s fine too;
+nothing in this chapter depends on the exact count.)</p>
+<hr />
+<h2 id="exercises-12">Exercises</h2>
+<hr />
+<h3 id="exercise-1-manual-notifylisten-two-sessions">Exercise 1 — Manual
+<code>NOTIFY</code>/<code>LISTEN</code>, Two Sessions</h3>
+<p><strong>1.1 — Subscribe in one session</strong></p>
+<p>Open two <code>psql</code> sessions side by side. In <strong>Session
+A</strong>:</p>
+<div class="sourceCode" id="cb621"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb621-1"><a href="#cb621-1" aria-hidden="true" tabindex="-1"></a>LISTEN portsmith_test;</span></code></pre></div>
+<pre><code>LISTEN</code></pre>
+<p>Nothing else happens — <code>LISTEN</code> just registers this
+session’s interest in the channel and returns immediately.</p>
+<p><strong>1.2 — Publish from the other</strong></p>
+<p>In <strong>Session B</strong>:</p>
+<div class="sourceCode" id="cb623"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb623-1"><a href="#cb623-1" aria-hidden="true" tabindex="-1"></a>NOTIFY portsmith_test, <span class="st">&#39;hello from session B&#39;</span>;</span></code></pre></div>
+<pre><code>NOTIFY</code></pre>
+<p><strong>1.3 — Back in Session A</strong></p>
+<p>Switch back to Session A. Nothing has appeared yet — run any
+statement to find out why:</p>
+<div class="sourceCode" id="cb625"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb625-1"><a href="#cb625-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code> ?column?
+----------
+        1
+
+Asynchronous notification &quot;portsmith_test&quot; with payload &quot;hello from
+session B&quot; received from server process with PID 2718842.</code></pre>
+<p>The notification was sitting there the whole time, but
+<code>psql</code> only surfaces it around the next command it sends —
+exactly the second point from the Background section, now with a real
+timestamp attached to it in the form of a PID you can watch change
+between runs.</p>
+<p><strong>1.4 — A rolled-back <code>NOTIFY</code> never
+arrives</strong></p>
+<p>With Session A still listening, run this in Session B:</p>
+<div class="sourceCode" id="cb627"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb627-1"><a href="#cb627-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb627-2"><a href="#cb627-2" aria-hidden="true" tabindex="-1"></a>NOTIFY portsmith_test, <span class="st">&#39;should never arrive&#39;</span>;</span>
+<span id="cb627-3"><a href="#cb627-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ROLLBACK</span>;</span></code></pre></div>
+<pre><code>BEGIN
+NOTIFY
+ROLLBACK</code></pre>
+<p>Back in Session A, run <code>SELECT 1;</code> again. Nothing prints —
+no notification, no trace it was ever sent. <code>NOTIFY</code> inside a
+transaction is exactly as durable as everything else in that
+transaction: commit it or it didn’t happen.</p>
+<p><strong>1.5 — Identical notifications in one transaction
+collapse</strong></p>
+<div class="sourceCode" id="cb629"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb629-1"><a href="#cb629-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb629-2"><a href="#cb629-2" aria-hidden="true" tabindex="-1"></a>NOTIFY portsmith_test, <span class="st">&#39;dup&#39;</span>;</span>
+<span id="cb629-3"><a href="#cb629-3" aria-hidden="true" tabindex="-1"></a>NOTIFY portsmith_test, <span class="st">&#39;dup&#39;</span>;</span>
+<span id="cb629-4"><a href="#cb629-4" aria-hidden="true" tabindex="-1"></a>NOTIFY portsmith_test, <span class="st">&#39;dup&#39;</span>;</span>
+<span id="cb629-5"><a href="#cb629-5" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p>Back in Session A:</p>
+<div class="sourceCode" id="cb630"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb630-1"><a href="#cb630-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>Asynchronous notification &quot;portsmith_test&quot; with payload &quot;dup&quot; received
+from server process with PID 2721455.</code></pre>
+<p>One delivery, not three. PostgreSQL deduplicates same-channel,
+same-payload notifications within a single transaction before sending
+anything — worth knowing before you assume a burst of identical
+<code>NOTIFY</code>s inside one transaction will arrive as a burst on
+the other end.</p>
+<p><img src="imgs/ch13_delivery_timing.svg" alt="Sequence diagram, two scenarios. Scenario 1: Session B sends NOTIFY inside a transaction, Session A sees nothing; Session B commits, Session A still sees nothing; only when Session A makes its next round-trip (SELECT 1) does the notification arrive. Scenario 2: Session B sends NOTIFY then rolls back, and Session A's next round-trip shows nothing arrived at all."/></p>
+<hr />
+<h3 id="exercise-2-a-trigger-that-notifys-on-status-change">Exercise 2 —
+A Trigger That <code>NOTIFY</code>s on Status Change</h3>
+<p><strong>2.1 — The durable log</strong></p>
+<div class="sourceCode" id="cb632"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb632-1"><a href="#cb632-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> notifications (</span>
+<span id="cb632-2"><a href="#cb632-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          BIGSERIAL <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb632-3"><a href="#cb632-3" aria-hidden="true" tabindex="-1"></a>    channel     TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb632-4"><a href="#cb632-4" aria-hidden="true" tabindex="-1"></a>    payload     JSONB <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb632-5"><a href="#cb632-5" aria-hidden="true" tabindex="-1"></a>    created_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> clock_timestamp()</span>
+<span id="cb632-6"><a href="#cb632-6" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>2.2 — The trigger function</strong></p>
+<div class="sourceCode" id="cb633"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb633-1"><a href="#cb633-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> notify_job_status_change() RETURNS <span class="kw">TRIGGER</span> <span class="kw">AS</span> $$</span>
+<span id="cb633-2"><a href="#cb633-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DECLARE</span></span>
+<span id="cb633-3"><a href="#cb633-3" aria-hidden="true" tabindex="-1"></a>    notice JSONB;</span>
+<span id="cb633-4"><a href="#cb633-4" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb633-5"><a href="#cb633-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NEW</span>.status <span class="kw">IS</span> <span class="kw">DISTINCT</span> <span class="kw">FROM</span> <span class="kw">OLD</span>.status <span class="cf">THEN</span></span>
+<span id="cb633-6"><a href="#cb633-6" aria-hidden="true" tabindex="-1"></a>        notice <span class="op">:=</span> jsonb_build_object(</span>
+<span id="cb633-7"><a href="#cb633-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;job_id&#39;</span>, <span class="kw">NEW</span>.<span class="kw">id</span>,</span>
+<span id="cb633-8"><a href="#cb633-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;job_type&#39;</span>, <span class="kw">NEW</span>.job_type,</span>
+<span id="cb633-9"><a href="#cb633-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;old_status&#39;</span>, <span class="kw">OLD</span>.status,</span>
+<span id="cb633-10"><a href="#cb633-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;new_status&#39;</span>, <span class="kw">NEW</span>.status,</span>
+<span id="cb633-11"><a href="#cb633-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;changed_at&#39;</span>, clock_timestamp()</span>
+<span id="cb633-12"><a href="#cb633-12" aria-hidden="true" tabindex="-1"></a>        );</span>
+<span id="cb633-13"><a href="#cb633-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">INSERT</span> <span class="kw">INTO</span> notifications (channel, payload) <span class="kw">VALUES</span> (<span class="st">&#39;job_status_changes&#39;</span>, notice);</span>
+<span id="cb633-14"><a href="#cb633-14" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;job_status_changes&#39;</span>, notice:<span class="ch">:text</span>);</span>
+<span id="cb633-15"><a href="#cb633-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb633-16"><a href="#cb633-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">NEW</span>;</span>
+<span id="cb633-17"><a href="#cb633-17" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb633-18"><a href="#cb633-18" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span>
+<span id="cb633-19"><a href="#cb633-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb633-20"><a href="#cb633-20" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TRIGGER</span> trg_notify_job_status_change</span>
+<span id="cb633-21"><a href="#cb633-21" aria-hidden="true" tabindex="-1"></a><span class="kw">AFTER</span> <span class="kw">UPDATE</span> <span class="kw">ON</span> jobs</span>
+<span id="cb633-22"><a href="#cb633-22" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">EACH</span> <span class="kw">ROW</span></span>
+<span id="cb633-23"><a href="#cb633-23" aria-hidden="true" tabindex="-1"></a><span class="kw">EXECUTE</span> <span class="kw">FUNCTION</span> notify_job_status_change();</span></code></pre></div>
+<p><code>IF NEW.status IS DISTINCT FROM OLD.status</code> matters as
+much as the <code>NOTIFY</code> itself — without it, this trigger fires
+on <em>any</em> update to a job row, including the heartbeat timestamp
+Chapter 3’s workers write every couple of seconds, flooding the channel
+with “changes” where the status never actually moved.
+<code>pg_notify(channel, payload)</code> is the function form of
+<code>NOTIFY</code> — it takes both arguments as ordinary expressions,
+which plain <code>NOTIFY channel, 'literal'</code> syntax can’t do, and
+it’s what makes a computed channel name possible at all (Exercise 4
+depends on exactly that).</p>
+<p><strong>2.3 — Trigger it</strong></p>
+<div class="sourceCode" id="cb634"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb634-1"><a href="#cb634-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs</span>
+<span id="cb634-2"><a href="#cb634-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>, claimed_at <span class="op">=</span> clock_timestamp(), claimed_by <span class="op">=</span> <span class="st">&#39;worker-1&#39;</span></span>
+<span id="cb634-3"><a href="#cb634-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="kw">id</span> <span class="kw">LIMIT</span> <span class="dv">1</span>);</span></code></pre></div>
+<p>A session already running <code>LISTEN job_status_changes;</code>
+sees, on its next round-trip:</p>
+<pre><code>Asynchronous notification &quot;job_status_changes&quot; with payload
+&quot;{&quot;job_id&quot;: 1, &quot;job_type&quot;: &quot;demolition_permit&quot;, &quot;changed_at&quot;:
+&quot;2026-08-04T23:33:21.581832-04:00&quot;, &quot;new_status&quot;: &quot;in_progress&quot;,
+&quot;old_status&quot;: &quot;queued&quot;}&quot; received from server process with PID 2734846.</code></pre>
+<p>And the durable copy is sitting in the log table regardless of
+whether anyone was listening:</p>
+<div class="sourceCode" id="cb636"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb636-1"><a href="#cb636-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> channel, payload, created_at <span class="kw">FROM</span> notifications;</span></code></pre></div>
+<pre><code>       channel       |                                    payload                                     |          created_at
+----------------------+----------------------------------------------------------------------------------+-------------------------------
+ job_status_changes   | {&quot;job_id&quot;: 1, &quot;job_type&quot;: &quot;demolition_permit&quot;, &quot;old_status&quot;: &quot;queued&quot;, ...}     | 2026-08-04 23:33:21.582461-04</code></pre>
+<hr />
+<h3 id="exercise-3-subscribing-from-python">Exercise 3 — Subscribing
+from Python</h3>
+<p><strong>3.1 — A listener client</strong></p>
+<div class="sourceCode" id="cb638"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb638-1"><a href="#cb638-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env python3.12</span></span>
+<span id="cb638-2"><a href="#cb638-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ch13_listen.py — Portsmith permit-status staff dashboard</span></span>
+<span id="cb638-3"><a href="#cb638-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> argparse</span>
+<span id="cb638-4"><a href="#cb638-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> json</span>
+<span id="cb638-5"><a href="#cb638-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-6"><a href="#cb638-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb638-7"><a href="#cb638-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-8"><a href="#cb638-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-9"><a href="#cb638-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main() <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb638-10"><a href="#cb638-10" aria-hidden="true" tabindex="-1"></a>    parser <span class="op">=</span> argparse.ArgumentParser(description<span class="op">=</span>__doc__)</span>
+<span id="cb638-11"><a href="#cb638-11" aria-hidden="true" tabindex="-1"></a>    parser.add_argument(<span class="st">&quot;channels&quot;</span>, nargs<span class="op">=</span><span class="st">&quot;*&quot;</span>, default<span class="op">=</span>[<span class="st">&quot;job_status_changes&quot;</span>])</span>
+<span id="cb638-12"><a href="#cb638-12" aria-hidden="true" tabindex="-1"></a>    parser.add_argument(<span class="st">&quot;--dsn&quot;</span>, default<span class="op">=</span><span class="st">&quot;dbname=portsmith&quot;</span>)</span>
+<span id="cb638-13"><a href="#cb638-13" aria-hidden="true" tabindex="-1"></a>    parser.add_argument(<span class="st">&quot;--timeout&quot;</span>, <span class="bu">type</span><span class="op">=</span><span class="bu">float</span>, default<span class="op">=</span><span class="va">None</span>)</span>
+<span id="cb638-14"><a href="#cb638-14" aria-hidden="true" tabindex="-1"></a>    args <span class="op">=</span> parser.parse_args()</span>
+<span id="cb638-15"><a href="#cb638-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-16"><a href="#cb638-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> psycopg.<span class="ex">connect</span>(args.dsn, autocommit<span class="op">=</span><span class="va">True</span>) <span class="im">as</span> conn:</span>
+<span id="cb638-17"><a href="#cb638-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb638-18"><a href="#cb638-18" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> channel <span class="kw">in</span> args.channels:</span>
+<span id="cb638-19"><a href="#cb638-19" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="ss">f&quot;LISTEN </span><span class="sc">{</span>channel<span class="sc">}</span><span class="ss">;&quot;</span>)</span>
+<span id="cb638-20"><a href="#cb638-20" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f&quot;listening on </span><span class="sc">{</span>channel<span class="sc">!r}</span><span class="ss"> …&quot;</span>)</span>
+<span id="cb638-21"><a href="#cb638-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-22"><a href="#cb638-22" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb638-23"><a href="#cb638-23" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> notice <span class="kw">in</span> conn.notifies(timeout<span class="op">=</span>args.timeout):</span>
+<span id="cb638-24"><a href="#cb638-24" aria-hidden="true" tabindex="-1"></a>                job <span class="op">=</span> json.loads(notice.payload)</span>
+<span id="cb638-25"><a href="#cb638-25" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(</span>
+<span id="cb638-26"><a href="#cb638-26" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f&quot;[</span><span class="sc">{</span>notice<span class="sc">.</span>channel<span class="sc">}</span><span class="ss">] job </span><span class="sc">{</span>job[<span class="st">&#39;job_id&#39;</span>]<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span>job[<span class="st">&#39;job_type&#39;</span>]<span class="sc">}</span><span class="ss">): &quot;</span></span>
+<span id="cb638-27"><a href="#cb638-27" aria-hidden="true" tabindex="-1"></a>                    <span class="ss">f&quot;</span><span class="sc">{</span>job[<span class="st">&#39;old_status&#39;</span>]<span class="sc">}</span><span class="ss"> -&gt; </span><span class="sc">{</span>job[<span class="st">&#39;new_status&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span></span>
+<span id="cb638-28"><a href="#cb638-28" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb638-29"><a href="#cb638-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">KeyboardInterrupt</span>:</span>
+<span id="cb638-30"><a href="#cb638-30" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="st">&quot;</span><span class="ch">\n</span><span class="st">stopped.&quot;</span>)</span>
+<span id="cb638-31"><a href="#cb638-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-32"><a href="#cb638-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb638-33"><a href="#cb638-33" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">&quot;__main__&quot;</span>:</span>
+<span id="cb638-34"><a href="#cb638-34" aria-hidden="true" tabindex="-1"></a>    main()</span></code></pre></div>
+<p><code>autocommit=True</code> matters here — <code>LISTEN</code> needs
+to actually take effect immediately rather than sit inside an open
+transaction waiting for a <code>COMMIT</code> that this script has no
+reason to ever issue. <code>conn.notifies(timeout=...)</code> is a
+generator: it blocks, doing nothing, until a notification arrives, then
+yields it — no loop, no polling interval to tune, no <code>SELECT</code>
+the database has to answer just to say “nothing’s changed.”</p>
+<p><strong>3.2 — Run it</strong></p>
+<div class="sourceCode" id="cb639"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb639-1"><a href="#cb639-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch13_listen.py</span></code></pre></div>
+<pre><code>listening on &#39;job_status_changes&#39; …</code></pre>
+<p>From a <code>psql</code> session, update another job’s status. The
+moment that transaction commits:</p>
+<pre><code>[job_status_changes] job 2 (demolition_permit): queued -&gt; completed</code></pre>
+<p>No delay, no polling — the script was simply asleep until PostgreSQL
+had something to tell it.</p>
+<hr />
+<h3 id="exercise-4-fan-out-to-per-job-type-channels">Exercise 4 — Fan
+Out to Per-Job-Type Channels</h3>
+<p><strong>4.1 — One more <code>pg_notify</code> call</strong></p>
+<p>Public Works doesn’t want to see every <code>business_license</code>
+update, and Permitting &amp; Licensing doesn’t want to see every
+<code>demolition_permit</code> update. Give each job type its own
+channel, in addition to the all-activity one:</p>
+<div class="sourceCode" id="cb642"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb642-1"><a href="#cb642-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> notify_job_status_change() RETURNS <span class="kw">TRIGGER</span> <span class="kw">AS</span> $$</span>
+<span id="cb642-2"><a href="#cb642-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DECLARE</span></span>
+<span id="cb642-3"><a href="#cb642-3" aria-hidden="true" tabindex="-1"></a>    notice JSONB;</span>
+<span id="cb642-4"><a href="#cb642-4" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb642-5"><a href="#cb642-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NEW</span>.status <span class="kw">IS</span> <span class="kw">DISTINCT</span> <span class="kw">FROM</span> <span class="kw">OLD</span>.status <span class="cf">THEN</span></span>
+<span id="cb642-6"><a href="#cb642-6" aria-hidden="true" tabindex="-1"></a>        notice <span class="op">:=</span> jsonb_build_object(</span>
+<span id="cb642-7"><a href="#cb642-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;job_id&#39;</span>, <span class="kw">NEW</span>.<span class="kw">id</span>,</span>
+<span id="cb642-8"><a href="#cb642-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;job_type&#39;</span>, <span class="kw">NEW</span>.job_type,</span>
+<span id="cb642-9"><a href="#cb642-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;old_status&#39;</span>, <span class="kw">OLD</span>.status,</span>
+<span id="cb642-10"><a href="#cb642-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;new_status&#39;</span>, <span class="kw">NEW</span>.status,</span>
+<span id="cb642-11"><a href="#cb642-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;changed_at&#39;</span>, clock_timestamp()</span>
+<span id="cb642-12"><a href="#cb642-12" aria-hidden="true" tabindex="-1"></a>        );</span>
+<span id="cb642-13"><a href="#cb642-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">INSERT</span> <span class="kw">INTO</span> notifications (channel, payload) <span class="kw">VALUES</span> (<span class="st">&#39;job_status_changes&#39;</span>, notice);</span>
+<span id="cb642-14"><a href="#cb642-14" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;job_status_changes&#39;</span>, notice:<span class="ch">:text</span>);</span>
+<span id="cb642-15"><a href="#cb642-15" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;jobs_&#39;</span> <span class="op">||</span> <span class="kw">NEW</span>.job_type, notice:<span class="ch">:text</span>);</span>
+<span id="cb642-16"><a href="#cb642-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb642-17"><a href="#cb642-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">NEW</span>;</span>
+<span id="cb642-18"><a href="#cb642-18" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb642-19"><a href="#cb642-19" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span></code></pre></div>
+<p><code>'jobs_' || NEW.job_type</code> builds the channel name from the
+row being updated — <code>jobs_business_license</code>,
+<code>jobs_demolition_permit</code>, and so on, five channels from one
+trigger, none of them declared or created anywhere in advance. A channel
+isn’t an object; it springs into existence the instant something
+<code>LISTEN</code>s or <code>NOTIFY</code>s it; and stops existing —
+with nothing to clean up — the instant nothing is <code>LISTEN</code>ing
+on it anymore.</p>
+<p><code>CREATE OR REPLACE FUNCTION</code> does exactly what it says —
+<em>replace</em>, not patch or extend. This is now the third time this
+chapter has redefined <code>notify_job_status_change()</code> in place
+(Exercise 2’s version, this one, Exercise 5’s version still to come),
+and there’s nothing tracking which version is currently live beyond
+whatever the last <code>CREATE OR REPLACE</code> you ran actually said.
+If you go back and re-run Exercise 2’s block for any reason —
+double-checking something, copy-pasting the wrong snippet — you will
+silently undo this one, with no error and no warning: the fan-out
+channels just stop receiving anything, because the function that used to
+<code>pg_notify</code> them no longer does. If a listener you expect to
+see traffic suddenly goes quiet,
+<code>SELECT prosrc FROM pg_proc WHERE proname = 'notify_job_status_change'</code>
+is the fastest way to check which version is actually installed right
+now.</p>
+<p><img src="imgs/ch13_fanout.svg" alt="Flowchart: an UPDATE on jobs fires the trigger, which publishes to two channels at once — job_status_changes and jobs_business_license. Listener A, subscribed to job_status_changes, sees every job type; Listener B, subscribed only to jobs_business_license, sees only that one type."/></p>
+<p><strong>4.2 — Subscribe to just one</strong></p>
+<div class="sourceCode" id="cb643"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb643-1"><a href="#cb643-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch13_listen.py jobs_business_license</span></code></pre></div>
+<pre><code>listening on &#39;jobs_business_license&#39; …</code></pre>
+<p>From a <code>psql</code> session, update a
+<code>building_permit</code> job’s status, then a
+<code>business_license</code> job’s status (<code>building_permit</code>
+is used here, rather than the much smaller
+<code>demolition_permit</code> pool, because it’s the largest job type —
+15 permits — and least likely to have already run out of
+<code>queued</code> rows from earlier testing; if a given
+<code>UPDATE</code> reports <code>0 rows</code>, that job type is simply
+out of queued jobs right now, and any other <code>job_type</code> with
+rows left makes the same point):</p>
+<div class="sourceCode" id="cb645"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb645-1"><a href="#cb645-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>, claimed_at <span class="op">=</span> clock_timestamp(), claimed_by <span class="op">=</span> <span class="st">&#39;worker-1&#39;</span></span>
+<span id="cb645-2"><a href="#cb645-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">AND</span> job_type <span class="op">=</span> <span class="st">&#39;building_permit&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="kw">id</span> <span class="kw">LIMIT</span> <span class="dv">1</span>);</span>
+<span id="cb645-3"><a href="#cb645-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb645-4"><a href="#cb645-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span>, claimed_at <span class="op">=</span> clock_timestamp(), claimed_by <span class="op">=</span> <span class="st">&#39;worker-1&#39;</span></span>
+<span id="cb645-5"><a href="#cb645-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  <span class="kw">id</span> <span class="op">=</span> (<span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> jobs <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span> <span class="kw">AND</span> job_type <span class="op">=</span> <span class="st">&#39;business_license&#39;</span> <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="kw">id</span> <span class="kw">LIMIT</span> <span class="dv">1</span>);</span></code></pre></div>
+<p>Only the second one shows up in the listener’s output:</p>
+<pre><code>[jobs_business_license] job 5 (business_license): queued -&gt; in_progress</code></pre>
+<p>The <code>building_permit</code> change still fired — on
+<code>job_status_changes</code> and on <code>jobs_building_permit</code>
+— this listener simply never subscribed to either of those channels.
+Fan-out costs nothing extra per additional channel; it’s just more
+arguments to <code>pg_notify</code>.</p>
+<hr />
+<h3 id="exercise-5-debounce-a-noisy-job">Exercise 5 — Debounce a Noisy
+Job</h3>
+<p><strong>5.1 — The problem</strong></p>
+<p>A job that flaps — fails, gets requeued, gets reclaimed, fails again,
+all within a second or two — fires a fresh notification on every single
+transition. A dashboard doesn’t need to render all of that; it needs to
+know where things ended up. Track, per job, when it was last actually
+notified about:</p>
+<div class="sourceCode" id="cb647"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb647-1"><a href="#cb647-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> notification_debounce (</span>
+<span id="cb647-2"><a href="#cb647-2" aria-hidden="true" tabindex="-1"></a>    job_id            BIGINT <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb647-3"><a href="#cb647-3" aria-hidden="true" tabindex="-1"></a>    last_notified_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb647-4"><a href="#cb647-4" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>5.2 — Check it before sending</strong></p>
+<div class="sourceCode" id="cb648"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb648-1"><a href="#cb648-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> notify_job_status_change() RETURNS <span class="kw">TRIGGER</span> <span class="kw">AS</span> $$</span>
+<span id="cb648-2"><a href="#cb648-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DECLARE</span></span>
+<span id="cb648-3"><a href="#cb648-3" aria-hidden="true" tabindex="-1"></a>    notice     JSONB;</span>
+<span id="cb648-4"><a href="#cb648-4" aria-hidden="true" tabindex="-1"></a>    last_sent  TIMESTAMPTZ;</span>
+<span id="cb648-5"><a href="#cb648-5" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb648-6"><a href="#cb648-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">IF</span> <span class="kw">NEW</span>.status <span class="kw">IS</span> <span class="kw">DISTINCT</span> <span class="kw">FROM</span> <span class="kw">OLD</span>.status <span class="cf">THEN</span></span>
+<span id="cb648-7"><a href="#cb648-7" aria-hidden="true" tabindex="-1"></a>        <span class="kw">SELECT</span> last_notified_at <span class="kw">INTO</span> last_sent</span>
+<span id="cb648-8"><a href="#cb648-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">FROM</span>   notification_debounce <span class="kw">WHERE</span> job_id <span class="op">=</span> <span class="kw">NEW</span>.<span class="kw">id</span>;</span>
+<span id="cb648-9"><a href="#cb648-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb648-10"><a href="#cb648-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">IF</span> last_sent <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">AND</span> clock_timestamp() <span class="op">-</span> last_sent <span class="op">&lt;</span> <span class="dt">interval</span> <span class="st">&#39;1 second&#39;</span> <span class="cf">THEN</span></span>
+<span id="cb648-11"><a href="#cb648-11" aria-hidden="true" tabindex="-1"></a>            <span class="kw">RETURN</span> <span class="kw">NEW</span>;  <span class="co">-- too soon after the last one for this job — skip it</span></span>
+<span id="cb648-12"><a href="#cb648-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb648-13"><a href="#cb648-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb648-14"><a href="#cb648-14" aria-hidden="true" tabindex="-1"></a>        notice <span class="op">:=</span> jsonb_build_object(</span>
+<span id="cb648-15"><a href="#cb648-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;job_id&#39;</span>, <span class="kw">NEW</span>.<span class="kw">id</span>, <span class="st">&#39;job_type&#39;</span>, <span class="kw">NEW</span>.job_type,</span>
+<span id="cb648-16"><a href="#cb648-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;old_status&#39;</span>, <span class="kw">OLD</span>.status, <span class="st">&#39;new_status&#39;</span>, <span class="kw">NEW</span>.status,</span>
+<span id="cb648-17"><a href="#cb648-17" aria-hidden="true" tabindex="-1"></a>            <span class="st">&#39;changed_at&#39;</span>, clock_timestamp()</span>
+<span id="cb648-18"><a href="#cb648-18" aria-hidden="true" tabindex="-1"></a>        );</span>
+<span id="cb648-19"><a href="#cb648-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">INSERT</span> <span class="kw">INTO</span> notifications (channel, payload) <span class="kw">VALUES</span> (<span class="st">&#39;job_status_changes&#39;</span>, notice);</span>
+<span id="cb648-20"><a href="#cb648-20" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;job_status_changes&#39;</span>, notice:<span class="ch">:text</span>);</span>
+<span id="cb648-21"><a href="#cb648-21" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;jobs_&#39;</span> <span class="op">||</span> <span class="kw">NEW</span>.job_type, notice:<span class="ch">:text</span>);</span>
+<span id="cb648-22"><a href="#cb648-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb648-23"><a href="#cb648-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">INSERT</span> <span class="kw">INTO</span> notification_debounce (job_id, last_notified_at)</span>
+<span id="cb648-24"><a href="#cb648-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">VALUES</span> (<span class="kw">NEW</span>.<span class="kw">id</span>, clock_timestamp())</span>
+<span id="cb648-25"><a href="#cb648-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">ON</span> CONFLICT (job_id) DO <span class="kw">UPDATE</span> <span class="kw">SET</span> last_notified_at <span class="op">=</span> EXCLUDED.last_notified_at;</span>
+<span id="cb648-26"><a href="#cb648-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">IF</span>;</span>
+<span id="cb648-27"><a href="#cb648-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">RETURN</span> <span class="kw">NEW</span>;</span>
+<span id="cb648-28"><a href="#cb648-28" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span>;</span>
+<span id="cb648-29"><a href="#cb648-29" aria-hidden="true" tabindex="-1"></a>$$ LANGUAGE plpgsql;</span></code></pre></div>
+<p>This is a <em>leading-edge</em> debounce: the first change in a burst
+fires immediately, and anything else for that same job within the next
+second is dropped — not delayed, not batched, just skipped. The status
+change itself still happens; only the notification about it is
+suppressed.</p>
+<p><strong>5.3 — Prove it</strong></p>
+<p>Four status changes on the same job, each about 200ms apart — well
+inside the 1-second window:</p>
+<div class="sourceCode" id="cb649"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb649-1"><a href="#cb649-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">40</span>;</span>
+<span id="cb649-2"><a href="#cb649-2" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;failed&#39;</span>      <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">40</span>;</span>
+<span id="cb649-3"><a href="#cb649-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span>      <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">40</span>;</span>
+<span id="cb649-4"><a href="#cb649-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;in_progress&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">40</span>;</span></code></pre></div>
+<p>A listener on <code>job_status_changes</code> sees exactly one of the
+four:</p>
+<pre><code>[job_status_changes] job 40 (sign_permit): queued -&gt; in_progress</code></pre>
+<div class="sourceCode" id="cb651"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb651-1"><a href="#cb651-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> notification_debounce <span class="kw">WHERE</span> job_id <span class="op">=</span> <span class="dv">40</span>;</span></code></pre></div>
+<pre><code> job_id |       last_notified_at
+--------+-------------------------------
+     40 |  2026-08-04 23:59:04.475819-04</code></pre>
+<p>Only one timestamp recorded — the second, third, and fourth updates
+all checked it, found themselves inside the window, and returned without
+touching it. Wait a full second and update the same job again: this time
+it fires, because <code>clock_timestamp() - last_sent</code> has finally
+crossed <code>interval '1 second'</code>.</p>
+<p><img src="imgs/ch13_debounce_timeline.svg" alt="Timeline of the five status changes: t=0ms is sent, t=200ms/400ms/600ms are all suppressed because each falls within one second of t=0's send, and t=1200ms is sent because it falls outside that one-second window"/></p>
+<hr />
+<h3
+id="exercise-6-throughput-payload-limits-and-when-to-graduate">Exercise
+6 — Throughput, Payload Limits, and When to Graduate</h3>
+<p><strong>6.1 — The payload ceiling is real, and it’s not quite
+8000</strong></p>
+<div class="sourceCode" id="cb653"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb653-1"><a href="#cb653-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_notify(<span class="st">&#39;sz&#39;</span>, repeat(<span class="st">&#39;x&#39;</span>, <span class="dv">7999</span>));  <span class="co">-- succeeds</span></span>
+<span id="cb653-2"><a href="#cb653-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_notify(<span class="st">&#39;sz&#39;</span>, repeat(<span class="st">&#39;x&#39;</span>, <span class="dv">8000</span>));  <span class="co">-- fails</span></span></code></pre></div>
+<pre><code>ERROR:  payload string too long</code></pre>
+<p>7999 bytes is the actual limit, not the commonly quoted round 8000 —
+PostgreSQL reserves one byte for a terminator inside its fixed 8000-byte
+buffer. A JSON payload describing one row’s status change, the way this
+chapter’s trigger builds one, comes nowhere close; a payload trying to
+carry an entire row plus its full history would.</p>
+<p><strong>6.2 — Sending is not the bottleneck</strong></p>
+<div class="sourceCode" id="cb655"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb655-1"><a href="#cb655-1" aria-hidden="true" tabindex="-1"></a>DO $$</span>
+<span id="cb655-2"><a href="#cb655-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DECLARE</span></span>
+<span id="cb655-3"><a href="#cb655-3" aria-hidden="true" tabindex="-1"></a>    i <span class="dt">INT</span>;</span>
+<span id="cb655-4"><a href="#cb655-4" aria-hidden="true" tabindex="-1"></a>    start_time TIMESTAMPTZ <span class="op">:=</span> clock_timestamp();</span>
+<span id="cb655-5"><a href="#cb655-5" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span></span>
+<span id="cb655-6"><a href="#cb655-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> i <span class="kw">IN</span> <span class="dv">1</span><span class="op">..</span><span class="dv">10000</span> <span class="cf">LOOP</span></span>
+<span id="cb655-7"><a href="#cb655-7" aria-hidden="true" tabindex="-1"></a>        PERFORM pg_notify(<span class="st">&#39;throughput_test&#39;</span>, <span class="st">&#39;msg &#39;</span> <span class="op">||</span> i);</span>
+<span id="cb655-8"><a href="#cb655-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">END</span> <span class="cf">LOOP</span>;</span>
+<span id="cb655-9"><a href="#cb655-9" aria-hidden="true" tabindex="-1"></a>    RAISE NOTICE <span class="st">&#39;Sent 10000 notifications in %&#39;</span>, clock_timestamp() <span class="op">-</span> start_time;</span>
+<span id="cb655-10"><a href="#cb655-10" aria-hidden="true" tabindex="-1"></a><span class="cf">END</span> $$;</span></code></pre></div>
+<pre><code>NOTICE:  Sent 10000 notifications in 00:00:00.019504</code></pre>
+<p>Ten thousand notifications, under twenty milliseconds, no listener
+even attached. The database can <em>enqueue</em> notifications far
+faster than any realistic client can usefully consume them — sending was
+never going to be where this architecture runs into trouble.</p>
+<p><strong>6.3 — Where it actually runs into trouble</strong></p>
+<p>The limits that matter are structural, not raw speed:</p>
+<ul>
+<li><strong>One shared queue per database.</strong> Every
+<code>NOTIFY</code> from every session, on every channel, goes into the
+same queue. It isn’t partitioned by channel or topic the way a real
+message broker’s queues are — a slow listener anywhere is a slow
+listener for the whole mechanism.</li>
+<li><strong>No persistence beyond what you build yourself.</strong> This
+chapter’s <code>notifications</code> table exists precisely because
+<code>LISTEN</code>/<code>NOTIFY</code> has none on its own — a listener
+down for five minutes misses everything that happened in those five
+minutes, permanently, unless something else logged it.</li>
+<li><strong>No replay, no acknowledgment, no consumer groups.</strong> A
+message broker lets ten workers share one queue so each message is
+handled once, or lets a new consumer join and replay history.
+<code>NOTIFY</code> broadcasts to whoever happens to be listening right
+now, once, with no concept of “did you actually process that.”</li>
+<li><strong>Standbys don’t get it.</strong> A streaming replica can
+serve read queries, but <code>NOTIFY</code> traffic is a primary-only
+affair — nothing to <code>LISTEN</code> for on a read replica will ever
+arrive.</li>
+</ul>
+<p>None of that makes <code>LISTEN</code>/<code>NOTIFY</code> the wrong
+tool — for exactly the job this chapter gave it, telling an
+already-connected, already-trusted internal dashboard “something
+changed, go look,” it’s close to free and requires nothing to operate.
+The moment a requirement shows up that
+<code>LISTEN</code>/<code>NOTIFY</code> structurally can’t satisfy —
+guaranteed delivery across an outage, multiple independent consumer
+groups, cross-database routing, back-pressure when a consumer falls
+behind — that’s not a configuration problem to work around, it’s the
+signal to bring in Kafka, RabbitMQ, or a similar dedicated broker
+instead.</p>
+<hr />
+<h2 id="summary-what-you-should-now-know-12">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>LISTEN channel</code></td>
+<td>Subscribe this session to a channel — created implicitly, no prior
+setup</td>
+</tr>
+<tr class="even">
+<td><code>NOTIFY channel, 'payload'</code> /
+<code>pg_notify(channel, payload)</code></td>
+<td>Publish to a channel; the function form allows computed channel
+names and expressions</td>
+</tr>
+<tr class="odd">
+<td>Delivery timing</td>
+<td>Only after the sending transaction commits; only noticed by a client
+on its next round-trip</td>
+</tr>
+<tr class="even">
+<td>Same-transaction dedup</td>
+<td>Identical channel + payload, sent more than once in one transaction,
+delivers exactly once</td>
+</tr>
+<tr class="odd">
+<td><code>conn.notifies(timeout=...)</code> (psycopg)</td>
+<td>A blocking generator — no polling loop, no interval to tune</td>
+</tr>
+<tr class="even">
+<td>Computed channel names</td>
+<td><code>pg_notify('prefix_' \|\| value, ...)</code> fans one trigger
+out into many topic-scoped channels</td>
+</tr>
+<tr class="odd">
+<td>A hand-built log table</td>
+<td>The durability <code>LISTEN</code>/<code>NOTIFY</code> doesn’t
+provide — what a reconnecting client catches up from</td>
+</tr>
+<tr class="even">
+<td>Leading-edge debounce (state table + timestamp check)</td>
+<td>Fire the first event in a burst, suppress the rest within a
+window</td>
+</tr>
+<tr class="odd">
+<td>7999-byte payload ceiling</td>
+<td>The real limit — 8000 minus a terminator byte</td>
+</tr>
+<tr class="even">
+<td>Structural limits: one shared queue, no persistence, no replay,
+primary-only</td>
+<td>The reasons to graduate to a dedicated broker, not raw
+throughput</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+<code>LISTEN</code>/<code>NOTIFY</code> solves exactly one problem —
+telling an already-connected session that something happened, right now,
+cheaply — and solves nothing else on purpose. It has no memory, no
+acknowledgment, no replay, no concept of a consumer that isn’t currently
+connected. Every exercise past the first one was really about
+compensating for that on purpose where it mattered (the log table for
+durability, the debounce table for noise) and accepting it everywhere
+else, because the alternative — a full message broker — is a lot of
+operational weight to take on before you actually have a problem it
+solves that this chapter’s five-line trigger doesn’t.</p>
+<hr />
+<em>Going further: Chapter 14’s advisory locks are worth combining with
+this chapter’s pattern the moment more than one process might react to
+the same notification — nothing about
+<code>LISTEN</code>/<code>NOTIFY</code> prevents two dashboards, or two
+workers, from both trying to handle the same event. Chapter 18’s logical
+replication is a different, heavier-weight answer to a similar-sounding
+question (“tell me when a row changes”) — logical replication streams
+the actual row changes themselves, durably, to another database, where
+<code>NOTIFY</code> sends a fire-and-forget signal with an optional
+short payload to whoever’s listening right now; reach for replication
+when the requirement is “give me the data,” and
+<code>LISTEN</code>/<code>NOTIFY</code> when it’s “just tell me to go
+look.” And Chapter 19’s <code>pg_cron</code> pairs naturally with this
+chapter’s <code>notifications</code> log table: a scheduled job that
+sweeps for log rows newer than a dashboard’s last checkpoint is exactly
+how that dashboard recovers from having been disconnected, the catch-up
+path <code>NOTIFY</code> alone can never provide.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-14-advisory-locks-distributed-coordination">Chapter 14 —
+Advisory Locks: Distributed Coordination</h1>
+<blockquote>
+<p><em>“Every lock in this book so far has been about a row. This one
+isn’t about any row at all.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-13">Background</h2>
+<p><code>FOR UPDATE</code>, row locks, <code>SKIP LOCKED</code> — every
+locking mechanism this book has used up to now exists because two
+transactions were reaching for the <em>same data</em>. But plenty of
+real coordination problems have nothing to do with a specific row: “only
+one process should run the nightly reconciliation job, whichever one
+gets there first,” “elect a single leader among five identical workers,”
+“make sure nobody else is already doing this whole category of work
+right now.” There’s no row to lock for any of that — the thing you need
+to coordinate around is an idea, not a record.</p>
+<p>An <strong>advisory lock</strong> is PostgreSQL’s answer: a lock on a
+plain integer you invent, with no connection to any table, row, or piece
+of data whatsoever. You pick the number; PostgreSQL just remembers who’s
+holding it and makes everyone else wait or ask. It’s called “advisory”
+because nothing enforces that anyone respects it — unlike a row lock,
+which <code>UPDATE</code> and <code>DELETE</code> are physically bound
+by, an advisory lock only means anything to code that deliberately
+checks it. That’s a feature, not a compromise: it’s a general-purpose
+coordination primitive riding on a database your whole system probably
+already talks to, instead of standing up ZooKeeper or etcd just to
+answer “am I allowed to do this right now.”</p>
+<p>Two choices you make every time you reach for one:</p>
+<ul>
+<li><strong>How long should it live?</strong>
+<code>pg_advisory_lock()</code> / <code>pg_advisory_unlock()</code> are
+<strong>session-level</strong> — held until you explicitly unlock, or
+your connection closes, whichever comes first.
+<code>pg_advisory_xact_lock()</code> is
+<strong>transaction-level</strong> — released automatically at
+<code>COMMIT</code> or <code>ROLLBACK</code>, with no unlock function to
+call and no way to release it early. Exercise 6 is entirely about a bug
+that only one of these two is actually safe against.</li>
+<li><strong>Should it wait, or just tell you?</strong> The plain
+<code>pg_advisory_lock()</code> blocks until the lock is free.
+<code>pg_try_advisory_lock()</code> returns immediately either way —
+<code>true</code> if it got the lock, <code>false</code> if someone else
+already holds it — which is what makes “is anyone else already doing
+this?” a single non-blocking query instead of a hang.</li>
+</ul>
+<p>One more thing worth knowing before Exercise 1: like Chapter 13’s
+<code>NOTIFY</code>, advisory locks are a primary-only affair. They live
+in shared memory on whichever server you’re connected to, aren’t written
+to WAL, and have no meaning at all on a streaming replica.</p>
+<hr />
+<h2 id="the-scenario-13">The Scenario</h2>
+<p>No new tables this chapter — it reuses Chapter 3’s <code>jobs</code>
+queue and coordinates <em>processes</em> around it instead of adding
+data.</p>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 14%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Source</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>jobs</code></td>
+<td>Chapter 3</td>
+<td>The permit queue Exercise 4’s critical section guards</td>
+</tr>
+<tr class="even">
+<td><code>data/ch14_leader_election.py</code></td>
+<td><em>(built here)</em></td>
+<td>N simulated worker processes racing for one advisory lock</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="exercise-goals-13">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Acquire and release a session-level advisory lock, and watch a
+second session block on the exact same key until the first releases
+it.</li>
+<li>Use <code>pg_try_advisory_lock()</code> to ask “is anyone else
+already doing this?” without waiting for an answer.</li>
+<li>Implement leader election: N processes race for one lock, exactly
+one wins.</li>
+<li>Wrap a transaction-level advisory lock around a critical section
+that row-level locking alone can’t express.</li>
+<li>Read <code>pg_locks</code> to see exactly which session holds which
+advisory lock, and for how long.</li>
+<li>Explain why session-level advisory locks are dangerous behind a
+connection pool, and which lock type avoids the problem entirely.</li>
+</ul>
+<hr />
+<h2 id="installation-13">Installation</h2>
+<p>Nothing to install. Advisory locks are a core PostgreSQL feature — no
+extension, no configuration.</p>
+<hr />
+<h2 id="loading-the-data-13">Loading the Data</h2>
+<p>This chapter needs Chapter 3’s <code>jobs</code> table:</p>
+<div class="sourceCode" id="cb657"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb657-1"><a href="#cb657-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_seed.py</span></code></pre></div>
+<div class="sourceCode" id="cb658"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb658-1"><a href="#cb658-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs;</span></code></pre></div>
+<pre><code> count
+-------
+    48</code></pre>
+<hr />
+<h2 id="exercises-13">Exercises</h2>
+<hr />
+<h3 id="exercise-1-acquire-block-release">Exercise 1 — Acquire, Block,
+Release</h3>
+<p><strong>1.1 — Session A takes the lock</strong></p>
+<p>Open two <code>psql</code> sessions. In <strong>Session A</strong>,
+pick an arbitrary key and lock it:</p>
+<div class="sourceCode" id="cb660"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb660-1"><a href="#cb660-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_lock(<span class="dv">12345</span>);</span></code></pre></div>
+<pre><code> pg_advisory_lock
+------------------
+
+(1 row)</code></pre>
+<p>Returns immediately — nobody else holds <code>12345</code> yet.
+<code>12345</code> is not a row id, a job id, or a reference to
+anything; it’s just a number this chapter picked, and every session that
+agrees to use it for the same purpose is now coordinating through
+it.</p>
+<p><strong>1.2 — Session B reaches for the same key</strong></p>
+<p>In <strong>Session B</strong>:</p>
+<div class="sourceCode" id="cb662"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb662-1"><a href="#cb662-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_lock(<span class="dv">12345</span>);</span></code></pre></div>
+<p>Nothing comes back. The session just hangs — this is a real block,
+the same shape as waiting on a row lock, except there’s no row anywhere
+involved.</p>
+<figure>
+<img src="imgs/ch14_blocked_lock_screenshot.png"
+alt="Screenshot of blocked psql session on an advisory lock" />
+<figcaption aria-hidden="true">Screenshot of blocked psql session on an
+advisory lock</figcaption>
+</figure>
+<p><strong>1.3 — Session A releases it</strong></p>
+<p>Back in Session A:</p>
+<div class="sourceCode" id="cb663"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb663-1"><a href="#cb663-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_unlock(<span class="dv">12345</span>);</span></code></pre></div>
+<pre><code> pg_advisory_unlock
+--------------------
+ t</code></pre>
+<p>The instant this runs, Session B’s blocked query finally returns:</p>
+<pre><code> pg_advisory_lock
+------------------
+
+(1 row)</code></pre>
+<p>Session B wasn’t retrying, polling, or checking back — it was
+genuinely parked, waiting, and PostgreSQL woke it the moment the lock
+freed up. (Session B is now holding <code>12345</code> itself; run
+<code>pg_advisory_unlock(12345)</code> there before moving on.)</p>
+<p><img src="imgs/ch14_blocking_sequence.svg" alt="Sequence diagram: Session A acquires advisory lock 12345 immediately; Session B requests the same lock and blocks; only when Session A calls pg_advisory_unlock does Session B's request finally return, unblocked the instant the lock was released rather than through polling"/></p>
+<hr />
+<h3 id="exercise-2-pg_try_advisory_lock-ask-dont-wait">Exercise 2 —
+<code>pg_try_advisory_lock()</code>: Ask, Don’t Wait</h3>
+<p><strong>2.1 — The non-blocking version</strong></p>
+<p>With Session A still holding <code>pg_advisory_lock(12345)</code>,
+run this in Session B instead of the blocking form:</p>
+<div class="sourceCode" id="cb666"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb666-1"><a href="#cb666-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_try_advisory_lock(<span class="dv">12345</span>);</span></code></pre></div>
+<pre><code> pg_try_advisory_lock
+-----------------------
+ f
+(1 row)
+
+Time: 0.029 ms</code></pre>
+<p><code>false</code>, back in under a millisecond — no wait, no hang.
+<code>false</code> means exactly one thing: <em>someone</em> currently
+holds this key. <code>true</code> would mean the lock is now held by
+you.</p>
+<p><strong>2.2 — Why this matters more than it looks</strong></p>
+<p>This single call is the entire mechanism behind “don’t start a second
+copy of this job if one’s already running.” A nightly batch job, a
+scheduled report, a background sweep — anything that must never run
+twice at once starts with exactly this check: try the lock, and if you
+don’t get it, exit immediately instead of doing the work. No polling
+table, no separate “is this running” flag to keep in sync with reality;
+the lock <em>is</em> the flag, and PostgreSQL can never let it lie about
+whether it’s held.</p>
+<hr />
+<h3 id="exercise-3-leader-election">Exercise 3 — Leader Election</h3>
+<p><strong>3.1 — Five workers, one leader</strong></p>
+<div class="sourceCode" id="cb668"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb668-1"><a href="#cb668-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env python3.12</span></span>
+<span id="cb668-2"><a href="#cb668-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ch14_leader_election.py</span></span>
+<span id="cb668-3"><a href="#cb668-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> multiprocessing</span>
+<span id="cb668-4"><a href="#cb668-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb668-5"><a href="#cb668-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
+<span id="cb668-6"><a href="#cb668-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-7"><a href="#cb668-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb668-8"><a href="#cb668-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-9"><a href="#cb668-9" aria-hidden="true" tabindex="-1"></a>LEADER_LOCK_KEY <span class="op">=</span> <span class="dv">99001</span></span>
+<span id="cb668-10"><a href="#cb668-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-11"><a href="#cb668-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-12"><a href="#cb668-12" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> worker(worker_id: <span class="bu">int</span>, dsn: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb668-13"><a href="#cb668-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> psycopg.<span class="ex">connect</span>(dsn, autocommit<span class="op">=</span><span class="va">True</span>) <span class="im">as</span> conn:</span>
+<span id="cb668-14"><a href="#cb668-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb668-15"><a href="#cb668-15" aria-hidden="true" tabindex="-1"></a>            cur.execute(<span class="st">&quot;SELECT pg_try_advisory_lock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (LEADER_LOCK_KEY,))</span>
+<span id="cb668-16"><a href="#cb668-16" aria-hidden="true" tabindex="-1"></a>            (got_lock,) <span class="op">=</span> cur.fetchone()</span>
+<span id="cb668-17"><a href="#cb668-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-18"><a href="#cb668-18" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> got_lock:</span>
+<span id="cb668-19"><a href="#cb668-19" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f&quot;[worker-</span><span class="sc">{</span>worker_id<span class="sc">}</span><span class="ss">] elected leader — starting work&quot;</span>)</span>
+<span id="cb668-20"><a href="#cb668-20" aria-hidden="true" tabindex="-1"></a>                time.sleep(<span class="fl">1.5</span>)</span>
+<span id="cb668-21"><a href="#cb668-21" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f&quot;[worker-</span><span class="sc">{</span>worker_id<span class="sc">}</span><span class="ss">] leader work done, releasing&quot;</span>)</span>
+<span id="cb668-22"><a href="#cb668-22" aria-hidden="true" tabindex="-1"></a>                cur.execute(<span class="st">&quot;SELECT pg_advisory_unlock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (LEADER_LOCK_KEY,))</span>
+<span id="cb668-23"><a href="#cb668-23" aria-hidden="true" tabindex="-1"></a>            <span class="cf">else</span>:</span>
+<span id="cb668-24"><a href="#cb668-24" aria-hidden="true" tabindex="-1"></a>                <span class="bu">print</span>(<span class="ss">f&quot;[worker-</span><span class="sc">{</span>worker_id<span class="sc">}</span><span class="ss">] lost the race — standing by&quot;</span>)</span>
+<span id="cb668-25"><a href="#cb668-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-26"><a href="#cb668-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-27"><a href="#cb668-27" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main() <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb668-28"><a href="#cb668-28" aria-hidden="true" tabindex="-1"></a>    n_workers <span class="op">=</span> <span class="bu">int</span>(sys.argv[<span class="dv">1</span>]) <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="dv">5</span></span>
+<span id="cb668-29"><a href="#cb668-29" aria-hidden="true" tabindex="-1"></a>    dsn <span class="op">=</span> sys.argv[<span class="dv">2</span>] <span class="cf">if</span> <span class="bu">len</span>(sys.argv) <span class="op">&gt;</span> <span class="dv">2</span> <span class="cf">else</span> <span class="st">&quot;dbname=portsmith&quot;</span></span>
+<span id="cb668-30"><a href="#cb668-30" aria-hidden="true" tabindex="-1"></a>    procs <span class="op">=</span> [multiprocessing.Process(target<span class="op">=</span>worker, args<span class="op">=</span>(i, dsn)) <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1</span>, n_workers <span class="op">+</span> <span class="dv">1</span>)]</span>
+<span id="cb668-31"><a href="#cb668-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> procs:</span>
+<span id="cb668-32"><a href="#cb668-32" aria-hidden="true" tabindex="-1"></a>        p.start()</span>
+<span id="cb668-33"><a href="#cb668-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> procs:</span>
+<span id="cb668-34"><a href="#cb668-34" aria-hidden="true" tabindex="-1"></a>        p.join()</span>
+<span id="cb668-35"><a href="#cb668-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-36"><a href="#cb668-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb668-37"><a href="#cb668-37" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">&quot;__main__&quot;</span>:</span>
+<span id="cb668-38"><a href="#cb668-38" aria-hidden="true" tabindex="-1"></a>    main()</span></code></pre></div>
+<p><strong>3.2 — Run it</strong></p>
+<div class="sourceCode" id="cb669"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb669-1"><a href="#cb669-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch14_leader_election.py 5</span></code></pre></div>
+<pre><code>[worker-2] lost the race — standing by
+[worker-3] lost the race — standing by
+[worker-4] lost the race — standing by
+[worker-5] lost the race — standing by
+[worker-1] elected leader — starting work
+[worker-1] leader work done, releasing</code></pre>
+<p>Every one of the five processes hits
+<code>pg_try_advisory_lock</code> within microseconds of each other —
+genuinely racing, not taking turns — and exactly one gets
+<code>true</code>. Which worker wins is not deterministic; run it again
+and a different number will win. What’s guaranteed isn’t <em>who</em>
+becomes leader, only that there’s never more than one at a time. That
+one guarantee is the entire value of leader election: five identical,
+uncoordinated processes, and PostgreSQL — not any of them — is the
+single source of truth for which one is in charge.</p>
+<p><img src="imgs/ch14_leader_election.svg" alt="Flowchart: five workers all call pg_try_advisory_lock(99001) at once; exactly one gets true and is elected leader, the other four get false and stand by"/></p>
+<hr />
+<h3
+id="exercise-4-a-transaction-level-lock-around-a-critical-section">Exercise
+4 — A Transaction-Level Lock Around a Critical Section</h3>
+<p><strong>4.1 — A rule <code>SKIP LOCKED</code> can’t
+express</strong></p>
+<p>Chapter 3’s <code>FOR UPDATE SKIP LOCKED</code> lets many workers
+claim many different <code>jobs</code> rows at once, on purpose — that’s
+the whole point of it. But suppose Portsmith has exactly one building
+inspector, and city policy says only one <code>demolition_permit</code>
+can be under active inspection at a time, no matter how many workers are
+running or how many different demolition jobs are sitting in the queue.
+Row locking can’t express “only one of <em>this category</em>,
+regardless of which specific row” — that’s not a fact about any one row,
+it’s a fact about all of them together. This is exactly what an advisory
+lock, scoped to the job type rather than any job id, is for:</p>
+<div class="sourceCode" id="cb671"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb671-1"><a href="#cb671-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> hashtext(<span class="st">&#39;demolition_permit&#39;</span>);</span></code></pre></div>
+<pre><code>   hashtext
+--------------
+ -1799557343</code></pre>
+<p><code>hashtext()</code> turns an arbitrary string into a
+well-distributed integer — a convenient way to get a lock key out of a
+category name without maintaining a lookup table mapping job types to
+key numbers by hand.</p>
+<p><strong>4.2 — Wrap the claim in it</strong></p>
+<div class="sourceCode" id="cb673"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb673-1"><a href="#cb673-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb673-2"><a href="#cb673-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_xact_lock(hashtext(<span class="st">&#39;demolition_permit&#39;</span>));</span>
+<span id="cb673-3"><a href="#cb673-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- ... claim and begin working a demolition_permit job here ...</span></span>
+<span id="cb673-4"><a href="#cb673-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p><strong>4.3 — Prove it serializes, even across different
+rows</strong></p>
+<p>The claim to check: two workers, claiming two <em>different</em>
+<code>demolition_permit</code> jobs — nothing in common at the row level
+— should still be forced to run one at a time, because the lock is
+scoped to the category, not to either row. Open two <code>psql</code>
+sessions again (same as Exercise 1) to watch it happen.</p>
+<p>In <strong>Session A</strong>, run these three statements one at a
+time, stopping after the third — do not run <code>COMMIT</code> yet:</p>
+<div class="sourceCode" id="cb674"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb674-1"><a href="#cb674-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb674-2"><a href="#cb674-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_xact_lock(hashtext(<span class="st">&#39;demolition_permit&#39;</span>));</span>
+<span id="cb674-3"><a href="#cb674-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;worker A: claimed job 1, inspecting site...&#39;</span> <span class="kw">AS</span> status;</span></code></pre></div>
+<pre><code> pg_advisory_xact_lock
+------------------------
+
+(1 row)
+
+                   status
+---------------------------------------------
+ worker A: claimed job 1, inspecting site...
+(1 row)</code></pre>
+<p>Both statements return immediately — Session A now holds the lock,
+and its transaction is deliberately left open (no <code>COMMIT</code>
+yet) to simulate a worker still in the middle of an inspection.</p>
+<p>Now switch to <strong>Session B</strong> and run this — a
+<em>different</em> job, same <code>demolition_permit</code>
+category:</p>
+<div class="sourceCode" id="cb676"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb676-1"><a href="#cb676-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb676-2"><a href="#cb676-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_advisory_xact_lock(hashtext(<span class="st">&#39;demolition_permit&#39;</span>));</span>
+<span id="cb676-3"><a href="#cb676-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;worker B: got past the lock&#39;</span> <span class="kw">AS</span> status;</span>
+<span id="cb676-4"><a href="#cb676-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p>Session B hangs after <code>BEGIN</code> — the
+<code>pg_advisory_xact_lock</code> call blocks, and the
+<code>status</code> row never prints. Go back to <strong>Session
+A</strong> and finally run:</p>
+<div class="sourceCode" id="cb677"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb677-1"><a href="#cb677-1" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p>The instant Session A’s transaction ends, Session B unblocks on its
+own and finishes, printing <code>worker B: got past the lock</code>
+followed by its own <code>COMMIT</code>. The lock released automatically
+the moment Session A’s transaction closed — nothing had to explicitly
+unlock it. Two entirely different job ids, no row either session touched
+in common, and they were still fully serialized — because the thing
+being protected was never a row to begin with.</p>
+<hr />
+<h3 id="exercise-5-reading-pg_locks">Exercise 5 — Reading
+<code>pg_locks</code></h3>
+<p><strong>5.1 — The raw view</strong></p>
+<p>With a session holding <code>pg_advisory_lock(12345)</code> open
+elsewhere:</p>
+<div class="sourceCode" id="cb678"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb678-1"><a href="#cb678-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> locktype, ((classid:<span class="ch">:bigint</span> <span class="op">&lt;&lt;</span> <span class="dv">32</span>) | objid:<span class="ch">:bigint</span>) <span class="kw">AS</span> lock_key,</span>
+<span id="cb678-2"><a href="#cb678-2" aria-hidden="true" tabindex="-1"></a>       <span class="kw">mode</span>, granted, pid</span>
+<span id="cb678-3"><a href="#cb678-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_locks</span>
+<span id="cb678-4"><a href="#cb678-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  locktype <span class="op">=</span> <span class="st">&#39;advisory&#39;</span>;</span></code></pre></div>
+<pre><code> locktype | lock_key |     mode      | granted |   pid
+----------+----------+---------------+---------+---------
+ advisory |    12345 | ExclusiveLock | t       | 2998844
+(1 row)</code></pre>
+<p>Advisory locks show up in <code>pg_locks</code> exactly like row and
+table locks do — same catalog, same columns — except
+<code>locktype = 'advisory'</code> and the “thing being locked” is just
+a number PostgreSQL reconstructs from <code>classid</code> and
+<code>objid</code> rather than a row identifier. That bit-shift
+reassembles the single <code>bigint</code> key this chapter has been
+passing to <code>pg_advisory_lock()</code> — session-level advisory
+locks internally split a 64-bit key across those two 32-bit catalog
+columns.</p>
+<p><strong>5.2 — A real diagnostic query</strong></p>
+<p>Raw <code>pg_locks</code> never tells you <em>who</em> or
+<em>why</em>. Join it to <code>pg_stat_activity</code> for a query worth
+keeping around:</p>
+<div class="sourceCode" id="cb680"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb680-1"><a href="#cb680-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> l.pid,</span>
+<span id="cb680-2"><a href="#cb680-2" aria-hidden="true" tabindex="-1"></a>       ((l.classid:<span class="ch">:bigint</span> <span class="op">&lt;&lt;</span> <span class="dv">32</span>) | l.objid:<span class="ch">:bigint</span>) <span class="kw">AS</span> lock_key,</span>
+<span id="cb680-3"><a href="#cb680-3" aria-hidden="true" tabindex="-1"></a>       l.<span class="kw">mode</span>, l.granted,</span>
+<span id="cb680-4"><a href="#cb680-4" aria-hidden="true" tabindex="-1"></a>       a.usename, a.application_name,</span>
+<span id="cb680-5"><a href="#cb680-5" aria-hidden="true" tabindex="-1"></a>       now() <span class="op">-</span> a.state_change <span class="kw">AS</span> held_for,</span>
+<span id="cb680-6"><a href="#cb680-6" aria-hidden="true" tabindex="-1"></a>       a.<span class="kw">query</span> <span class="kw">AS</span> last_query</span>
+<span id="cb680-7"><a href="#cb680-7" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   pg_locks l</span>
+<span id="cb680-8"><a href="#cb680-8" aria-hidden="true" tabindex="-1"></a><span class="kw">JOIN</span>   pg_stat_activity a <span class="kw">ON</span> a.pid <span class="op">=</span> l.pid</span>
+<span id="cb680-9"><a href="#cb680-9" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  l.locktype <span class="op">=</span> <span class="st">&#39;advisory&#39;</span>;</span></code></pre></div>
+<pre><code>   pid   | lock_key |     mode      | granted | usename | application_name |    held_for    |           last_query
+---------+----------+---------------+---------+---------+-------------------+-----------------+----------------------------------
+ 2999823 |    12345 | ExclusiveLock | t       | chris   | psql              | 00:00:00.53227  | SELECT pg_advisory_lock(12345);
+(1 row)</code></pre>
+<p><code>held_for</code> is the question that actually matters in
+production: a lock held for 30 milliseconds is a Tuesday; a lock held
+for 6 hours because some process crashed without releasing it is an
+incident. This query is exactly what you’d point a monitoring check
+at.</p>
+<hr />
+<h3 id="exercise-6-the-connection-pool-pitfall">Exercise 6 — The
+Connection-Pool Pitfall</h3>
+<p><strong>6.1 — Session locks assume “session” means what you think it
+means</strong></p>
+<p><code>pg_advisory_lock()</code>’s session-level lifetime is a
+promise: the lock lives exactly as long as your database connection
+does. That promise quietly breaks the moment a connection pool sits
+between your application and PostgreSQL, because a pooled connection’s
+<em>physical</em> lifetime and any one request’s <em>logical</em>
+lifetime are no longer the same thing. Simulate it directly — one
+physical connection, reused across two completely unrelated pieces of
+work, the way a pool would hand it out twice:</p>
+<div class="sourceCode" id="cb682"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb682-1"><a href="#cb682-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb682-2"><a href="#cb682-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb682-3"><a href="#cb682-3" aria-hidden="true" tabindex="-1"></a>POOL_KEY <span class="op">=</span> <span class="dv">55001</span></span>
+<span id="cb682-4"><a href="#cb682-4" aria-hidden="true" tabindex="-1"></a>pooled_conn <span class="op">=</span> psycopg.<span class="ex">connect</span>(<span class="st">&quot;dbname=portsmith&quot;</span>, autocommit<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb682-5"><a href="#cb682-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb682-6"><a href="#cb682-6" aria-hidden="true" tabindex="-1"></a><span class="co"># --- &quot;Request 1&quot;: nightly reconciliation job start ---</span></span>
+<span id="cb682-7"><a href="#cb682-7" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> pooled_conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb682-8"><a href="#cb682-8" aria-hidden="true" tabindex="-1"></a>    cur.execute(<span class="st">&quot;SELECT pg_advisory_lock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (POOL_KEY,))</span>
+<span id="cb682-9"><a href="#cb682-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;[request 1] acquired session lock&quot;</span>, POOL_KEY)</span>
+<span id="cb682-10"><a href="#cb682-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># </span><span class="al">BUG</span><span class="co">: request 1 finishes (or crashes) without calling pg_advisory_unlock.</span></span>
+<span id="cb682-11"><a href="#cb682-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb682-12"><a href="#cb682-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;[request 1] done — connection returned to pool (lock still held!)&quot;</span>)</span>
+<span id="cb682-13"><a href="#cb682-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb682-14"><a href="#cb682-14" aria-hidden="true" tabindex="-1"></a><span class="co"># --- &quot;Request 2&quot;: unrelated request, later, same physical connection ---</span></span>
+<span id="cb682-15"><a href="#cb682-15" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> pooled_conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb682-16"><a href="#cb682-16" aria-hidden="true" tabindex="-1"></a>    cur.execute(<span class="st">&quot;SELECT pg_try_advisory_lock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (POOL_KEY,))</span>
+<span id="cb682-17"><a href="#cb682-17" aria-hidden="true" tabindex="-1"></a>    (got_lock,) <span class="op">=</span> cur.fetchone()</span>
+<span id="cb682-18"><a href="#cb682-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;[request 2] pg_try_advisory_lock(</span><span class="sc">{</span>POOL_KEY<span class="sc">}</span><span class="ss">) -&gt; </span><span class="sc">{</span>got_lock<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<pre><code>[request 1] acquired session lock 55001
+[request 1] done — connection returned to pool (lock still held!)
+[request 2] pg_try_advisory_lock(55001) -&gt; True  (same physical session as request 1!)</code></pre>
+<p>Request 2 gets <code>True</code> and has every reason to believe it’s
+the exclusive holder of key <code>55001</code> — leader, singleton,
+whatever that key was supposed to mean — and it’s completely wrong.
+PostgreSQL sees one session that already held the lock asking for it
+again, which is trivially <code>true</code> by definition; it has no way
+to know “request 1” and “request 2” were ever meant to be different
+things. This is the bug the guide warns about, and it is exactly as
+dangerous as it sounds: two unrelated requests, coordinating through a
+lock that was never really shared between them, both convinced they’re
+safe.</p>
+<p><strong>6.2 — The fix: use the lock type that can’t leak</strong></p>
+<div class="sourceCode" id="cb684"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb684-1"><a href="#cb684-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb684-2"><a href="#cb684-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb684-3"><a href="#cb684-3" aria-hidden="true" tabindex="-1"></a>POOL_KEY <span class="op">=</span> <span class="dv">55002</span></span>
+<span id="cb684-4"><a href="#cb684-4" aria-hidden="true" tabindex="-1"></a>pooled_conn <span class="op">=</span> psycopg.<span class="ex">connect</span>(<span class="st">&quot;dbname=portsmith&quot;</span>)  <span class="co"># autocommit off</span></span>
+<span id="cb684-5"><a href="#cb684-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb684-6"><a href="#cb684-6" aria-hidden="true" tabindex="-1"></a><span class="co"># --- &quot;Request 1&quot;, transaction-scoped this time ---</span></span>
+<span id="cb684-7"><a href="#cb684-7" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> pooled_conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb684-8"><a href="#cb684-8" aria-hidden="true" tabindex="-1"></a>    cur.execute(<span class="st">&quot;SELECT pg_advisory_xact_lock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (POOL_KEY,))</span>
+<span id="cb684-9"><a href="#cb684-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;[request 1] acquired xact lock&quot;</span>, POOL_KEY)</span>
+<span id="cb684-10"><a href="#cb684-10" aria-hidden="true" tabindex="-1"></a>pooled_conn.commit()  <span class="co"># released here, no matter what request 1 does or forgets</span></span>
+<span id="cb684-11"><a href="#cb684-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&quot;[request 1] committed — lock released automatically&quot;</span>)</span>
+<span id="cb684-12"><a href="#cb684-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb684-13"><a href="#cb684-13" aria-hidden="true" tabindex="-1"></a><span class="co"># --- &quot;Request 2&quot;, same pooled connection ---</span></span>
+<span id="cb684-14"><a href="#cb684-14" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> pooled_conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb684-15"><a href="#cb684-15" aria-hidden="true" tabindex="-1"></a>    cur.execute(<span class="st">&quot;SELECT pg_try_advisory_lock(</span><span class="sc">%s</span><span class="st">)&quot;</span>, (POOL_KEY,))</span>
+<span id="cb684-16"><a href="#cb684-16" aria-hidden="true" tabindex="-1"></a>    (got_lock,) <span class="op">=</span> cur.fetchone()</span>
+<span id="cb684-17"><a href="#cb684-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f&quot;[request 2] pg_try_advisory_lock(</span><span class="sc">{</span>POOL_KEY<span class="sc">}</span><span class="ss">) -&gt; </span><span class="sc">{</span>got_lock<span class="sc">}</span><span class="ss">  (correctly free)&quot;</span>)</span></code></pre></div>
+<pre><code>[request 1] acquired xact lock 55002
+[request 1] committed — lock released automatically
+[request 2] pg_try_advisory_lock(55002) -&gt; True  (correctly free)</code></pre>
+<p>Same reused connection, same shape of bug waiting to happen — but
+this time <code>request 2</code>’s <code>true</code> is
+<em>correct</em>, because <code>pg_advisory_xact_lock</code> physically
+cannot survive past <code>COMMIT</code>. There’s no unlock call to
+forget, no code path where an exception skips the cleanup, because
+there’s no cleanup step at all: the transaction boundary <em>is</em> the
+release. <strong>The rule this exercise earns</strong>: reach for
+<code>pg_advisory_xact_lock()</code>, not
+<code>pg_advisory_lock()</code>, for anything that might ever run behind
+a connection pool — which, in most modern application deployments, is
+close to everything.</p>
+<p><img src="imgs/ch14_pool_leak.svg" alt="Sequence diagram, two scenarios sharing one pooled connection. Scenario 1: Request 1 acquires a session lock and forgets to release it; Request 2, reusing the same physical connection, incorrectly gets true from pg_try_advisory_lock because it inherited Request 1's session, not because the lock was actually free. Scenario 2: Request 1 uses a transaction lock instead and commits, releasing it automatically; Request 2's pg_try_advisory_lock correctly returns true because the lock is genuinely free."/></p>
+<hr />
+<h2 id="summary-what-you-should-now-know-13">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pg_advisory_lock(key)</code> /
+<code>pg_advisory_unlock(key)</code></td>
+<td>Session-level lock — held until explicitly released or the
+connection closes</td>
+</tr>
+<tr class="even">
+<td><code>pg_advisory_xact_lock(key)</code></td>
+<td>Transaction-level lock — released automatically at
+<code>COMMIT</code>/<code>ROLLBACK</code>, no unlock function
+exists</td>
+</tr>
+<tr class="odd">
+<td><code>pg_try_advisory_lock(key)</code></td>
+<td>Non-blocking — <code>true</code>/<code>false</code> immediately
+instead of waiting</td>
+</tr>
+<tr class="even">
+<td><code>hashtext('a category name')</code></td>
+<td>Turn an arbitrary string into a lock key without a lookup table</td>
+</tr>
+<tr class="odd">
+<td>Leader election pattern</td>
+<td>N processes <code>pg_try_advisory_lock</code> the same key; exactly
+one gets <code>true</code></td>
+</tr>
+<tr class="even">
+<td>Critical-section pattern</td>
+<td><code>pg_advisory_xact_lock</code> around a category-wide rule row
+locking can’t express</td>
+</tr>
+<tr class="odd">
+<td><code>pg_locks WHERE locktype = 'advisory'</code></td>
+<td>See every held advisory lock, joined to
+<code>pg_stat_activity</code> for who/how long</td>
+</tr>
+<tr class="even">
+<td>Connection-pool pitfall</td>
+<td>A session lock can leak across unrelated pooled requests; a
+transaction lock structurally cannot</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is that
+advisory locks trade specificity for reach: a row lock only ever means
+“this row,” but an advisory lock can mean anything at all, because the
+number means whatever your application agrees it means. That flexibility
+is also the whole risk — nothing stops two unrelated parts of a codebase
+from picking the same integer by accident, and nothing stops a
+session-level lock from outliving the logical operation it was meant to
+protect the instant a connection pool gets involved. Every exercise past
+the first two was really about earning back the specificity a row lock
+gets for free: naming a category clearly (<code>hashtext</code>),
+choosing a lifetime that matches the actual unit of work (transaction,
+not session), and knowing how to ask PostgreSQL, out loud, exactly who’s
+holding what.</p>
+<hr />
+<em>Going further: Chapter 19’s <code>pg_cron</code> is where the
+singleton-job pattern from Exercise 2 stops being a hypothetical — a
+scheduled job that might occasionally overlap its own next run is the
+textbook case for wrapping the job body in
+<code>pg_try_advisory_lock</code> and exiting quietly if it doesn’t get
+it. Chapter 13’s <code>NOTIFY</code> and this chapter’s advisory locks
+share the same primary-only limitation, and for the same underlying
+reason: both live in server-local memory rather than WAL, so neither one
+is a tool for coordinating across a primary and its replicas — that
+requires the data itself to be replicated, which is Chapter 18’s
+subject. And it’s worth holding onto the contrast with Chapter 3
+explicitly: <code>FOR UPDATE SKIP LOCKED</code> coordinates access to
+</em>rows that exist<em>; advisory locks coordinate </em>processes<em>,
+around ideas that were never going to have a row of their own no matter
+how the schema was designed.</em>
 <div style="page-break-before: always;">
 
 </div>

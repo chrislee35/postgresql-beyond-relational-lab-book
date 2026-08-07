@@ -1,0 +1,13 @@
+graph LR
+    T0["t = 0ms<br/>SENT"]
+    T1["t = 200ms<br/>suppressed"]
+    T2["t = 400ms<br/>suppressed"]
+    T3["t = 600ms<br/>suppressed"]
+    T4["t = 1200ms<br/>SENT"]
+
+    T0 --> T1 --> T2 --> T3 --> T4
+
+    classDef sent fill:#e6ffe6,stroke:#060,color:#000;
+    classDef suppressed fill:#333,stroke:#999,color:#555;
+    class T0,T4 sent
+    class T1,T2,T3 suppressed

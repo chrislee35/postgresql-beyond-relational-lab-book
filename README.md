@@ -49,8 +49,8 @@ conventions used throughout the book.
 | 10 | [PostgREST: A Web-Native REST API](ch10_postgrest.md) | RLS, RPC endpoints, role-based access |
 | 11 | [Window Functions: Analytics Beyond `GROUP BY`](ch11_window_functions.md) | `RANK`, `LAG`, rolling averages, gaps & islands |
 | 12 | [Recursive CTEs: Graphs and Hierarchies](ch12_recursive_ctes.md) | Tree traversal, shortest path, cycle detection |
-| 13 | `LISTEN` / `NOTIFY`: Database-Native Pub/Sub | Triggers, `pg_notify`, async Python clients |
-| 14 | Advisory Locks: Distributed Coordination | Leader election, session vs. transaction locks |
+| 13 | [`LISTEN` / `NOTIFY`: Database-Native Pub/Sub](ch13_listen_notify.md) | Triggers, `pg_notify`, async Python clients |
+| 14 | [Advisory Locks: Distributed Coordination](ch14_advisory_locks.md) | Leader election, session vs. transaction locks |
 | 15 | Custom Types, Domains, and Enums | Schema-level business rules |
 | 16 | Generated Columns | Derived values without triggers |
 | 17 | Foreign Data Wrappers: PostgreSQL as a Data Hub | `postgres_fdw`, `file_fdw` |

@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant A as Session A
+    participant DB as advisory lock 12345
+    participant B as Session B
+
+    A->>DB: pg_advisory_lock(12345)
+    DB-->>A: acquired immediately
+    B->>DB: pg_advisory_lock(12345)
+    Note right of B: blocks - lock already held
+    A->>DB: pg_advisory_unlock(12345)
+    DB-->>A: released
+    DB-->>B: unblocks immediately
+    Note over A,B: B was parked waiting, not polling - woken the instant A released

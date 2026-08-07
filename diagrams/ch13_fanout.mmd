@@ -1,0 +1,11 @@
+graph LR
+    Update["UPDATE jobs<br/>SET status = ..."]
+    Trigger["trigger:<br/>notify_job_status_change()"]
+    ChannelAll["channel:<br/>job_status_changes"]
+    ChannelType["channel:<br/>jobs_business_license"]
+    ListenerAll["Listener A<br/>LISTEN job_status_changes<br/>(sees every job type)"]
+    ListenerType["Listener B<br/>LISTEN jobs_business_license<br/>(sees only this type)"]
+
+    Update --> Trigger
+    Trigger --> ChannelAll --> ListenerAll
+    Trigger --> ChannelType --> ListenerType

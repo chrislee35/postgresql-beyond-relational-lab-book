@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant A as Session A (LISTEN)
+    participant DB as job_status_changes
+    participant B as Session B
+
+    Note over A,B: Scenario 1 - NOTIFY then COMMIT
+    A->>DB: LISTEN portsmith_test
+    B->>DB: BEGIN
+    B->>DB: NOTIFY portsmith_test, 'hello'
+    Note right of A: nothing yet - not committed
+    B->>DB: COMMIT
+    Note right of A: still nothing - no round-trip yet
+    A->>DB: SELECT 1;
+    DB-->>A: notification delivered
+    Note over A,B: Delivered on A's next round-trip after commit
+
+    Note over A,B: Scenario 2 - NOTIFY then ROLLBACK
+    B->>DB: BEGIN
+    B->>DB: NOTIFY portsmith_test, 'should never arrive'
+    B->>DB: ROLLBACK
+    A->>DB: SELECT 1;
+    Note right of A: nothing arrives - ever

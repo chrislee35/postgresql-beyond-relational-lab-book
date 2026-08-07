@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant R1 as Request 1
+    participant Conn as Pooled Connection
+    participant R2 as Request 2
+
+    Note over R1,R2: Scenario 1 - session lock leaks across requests
+    R1->>Conn: pg_advisory_lock(55001)
+    Conn-->>R1: acquired
+    Note right of R1: forgets to unlock
+    R1->>Conn: done - connection returned to pool
+    R2->>Conn: pg_try_advisory_lock(55001)
+    Conn-->>R2: true - WRONG, inherited from Request 1
+    Note over R1,R2: Request 2 believes it is alone. It only reused Request 1's session.
+
+    Note over R1,R2: Scenario 2 - transaction lock cannot leak
+    R1->>Conn: pg_advisory_xact_lock(55002)
+    Conn-->>R1: acquired
+    R1->>Conn: COMMIT
+    Note right of Conn: released automatically - no unlock call to forget
+    R2->>Conn: pg_try_advisory_lock(55002)
+    Conn-->>R2: true - correctly free

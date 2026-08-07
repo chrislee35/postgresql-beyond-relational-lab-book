@@ -1,0 +1,20 @@
+graph LR
+    W1["worker-1"]
+    W2["worker-2"]
+    W3["worker-3"]
+    W4["worker-4"]
+    W5["worker-5"]
+    Race{"pg_try_advisory_lock(99001)<br/>all racing at once"}
+    Leader["elected leader"]
+    Standby["lost the race<br/>standing by"]
+
+    W1 --> Race
+    W2 --> Race
+    W3 --> Race
+    W4 --> Race
+    W5 --> Race
+    Race -->|true, one worker| Leader
+    Race -->|false, the other four| Standby
+
+    classDef leader fill:#e6ffe6,stroke:#060,color:#000;
+    class Leader leader;
