@@ -1,0 +1,40 @@
+graph TB
+    Q["WHERE reading_date = '2024-06-15'<br/>generated column, not the partition key"]
+
+    Feb["2024_02"]
+    Mar["2024_03"]
+    Apr["2024_04"]
+    May["2024_05"]
+    Jun["2024_06<br/>matches"]
+    Jul["2024_07"]
+    Aug["2024_08"]
+    Sep["2024_09"]
+    Oct["2024_10"]
+    Nov["2024_11"]
+    Dec["2024_12"]
+    Def["default"]
+
+    subgraph row1[ ]
+        direction LR
+        Feb ~~~ Mar ~~~ Apr ~~~ May
+    end
+
+    subgraph row2[ ]
+        direction LR
+        Q -.-> Jun
+        Jun ~~~ Jul ~~~ Aug ~~~ Sep
+    end
+
+    subgraph row3[ ]
+        direction LR
+        Oct ~~~ Nov ~~~ Dec ~~~ Def
+    end
+
+    row1 ~~~ row2 ~~~ row3
+
+    style row1 fill:none,stroke:none
+    style row2 fill:none,stroke:none
+    style row3 fill:none,stroke:none
+
+    classDef matched stroke-width:3px;
+    class Jun matched;

@@ -541,9 +541,7 @@ from psycopg.types.enum import register_enum, EnumInfo
 with psycopg.connect("dbname=portsmith") as conn:
     info = EnumInfo.fetch(conn, "job_status")
     register_enum(info, conn)
-
     print("labels from the database:", info.labels)
-
     with conn.cursor() as cur:
         cur.execute("SELECT id, status FROM jobs WHERE id = 1;")
         row = cur.fetchone()

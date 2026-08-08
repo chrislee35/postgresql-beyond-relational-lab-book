@@ -1,0 +1,18 @@
+graph TB
+    subgraph Generated["generated column"]
+        direction TB
+        GW["any write to the row<br/>UPDATE, COPY, migration"] --> GX["recomputed automatically -<br/>direct writes rejected outright"]
+    end
+
+    subgraph Triggered["trigger-maintained column"]
+        direction TB
+        TW["any write to the row"] --> TD{"is the trigger still<br/>attached and enabled?"}
+        TD -->|yes| TX["function runs,<br/>column updated"]
+        TD -->|"disabled, dropped, or<br/>written to directly"| TY["column silently<br/>goes stale"]
+    end
+
+    style Triggered fill:none,stroke:none
+    style Generated fill:none,stroke:none
+
+    classDef stale fill:#3a1500,stroke:#c66,color:#fca;
+    class TY stale;

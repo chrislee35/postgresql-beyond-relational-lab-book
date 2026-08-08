@@ -847,6 +847,47 @@ Reflection</a></li>
 id="toc-summary-what-you-should-now-know-14">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-16-generated-columns"
+id="toc-chapter-16-generated-columns">Chapter 16 — Generated Columns</a>
+<ul>
+<li><a href="#background-15" id="toc-background-15">Background</a></li>
+<li><a href="#the-scenario-15" id="toc-the-scenario-15">The
+Scenario</a></li>
+<li><a href="#exercise-goals-15" id="toc-exercise-goals-15">Exercise
+Goals</a></li>
+<li><a href="#installation-15"
+id="toc-installation-15">Installation</a></li>
+<li><a href="#loading-the-data-15" id="toc-loading-the-data-15">Loading
+the Data</a>
+<ul>
+<li><a href="#verify-the-prerequisites-3"
+id="toc-verify-the-prerequisites-3">Verify the prerequisites</a></li>
+</ul></li>
+<li><a href="#exercises-15" id="toc-exercises-15">Exercises</a>
+<ul>
+<li><a href="#exercise-1-extracting-a-date-from-a-timestamp"
+id="toc-exercise-1-extracting-a-date-from-a-timestamp">Exercise 1 —
+Extracting a Date From a Timestamp</a></li>
+<li><a href="#exercise-2-replacing-a-trigger-with-a-generated-column"
+id="toc-exercise-2-replacing-a-trigger-with-a-generated-column">Exercise
+2 — Replacing a Trigger With a Generated Column</a></li>
+<li><a href="#exercise-3-indexing-a-generated-column"
+id="toc-exercise-3-indexing-a-generated-column">Exercise 3 — Indexing a
+Generated Column</a></li>
+<li><a href="#exercise-4-generated-columns-reject-direct-writes"
+id="toc-exercise-4-generated-columns-reject-direct-writes">Exercise 4 —
+Generated Columns Reject Direct Writes</a></li>
+<li><a href="#exercise-5-normalizing-a-phone-number"
+id="toc-exercise-5-normalizing-a-phone-number">Exercise 5 — Normalizing
+a Phone Number</a></li>
+<li><a href="#exercise-6-generated-columns-vs.-triggers"
+id="toc-exercise-6-generated-columns-vs.-triggers">Exercise 6 —
+Generated Columns vs. Triggers</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-15"
+id="toc-summary-what-you-should-now-know-15">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -12390,14 +12431,12 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb726-1"><a 
 <span id="cb726-4"><a href="#cb726-4" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> psycopg.<span class="ex">connect</span>(<span class="st">&quot;dbname=portsmith&quot;</span>) <span class="im">as</span> conn:</span>
 <span id="cb726-5"><a href="#cb726-5" aria-hidden="true" tabindex="-1"></a>    info <span class="op">=</span> EnumInfo.fetch(conn, <span class="st">&quot;job_status&quot;</span>)</span>
 <span id="cb726-6"><a href="#cb726-6" aria-hidden="true" tabindex="-1"></a>    register_enum(info, conn)</span>
-<span id="cb726-7"><a href="#cb726-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb726-8"><a href="#cb726-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;labels from the database:&quot;</span>, info.labels)</span>
-<span id="cb726-9"><a href="#cb726-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb726-10"><a href="#cb726-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
-<span id="cb726-11"><a href="#cb726-11" aria-hidden="true" tabindex="-1"></a>        cur.execute(<span class="st">&quot;SELECT id, status FROM jobs WHERE id = 1;&quot;</span>)</span>
-<span id="cb726-12"><a href="#cb726-12" aria-hidden="true" tabindex="-1"></a>        row <span class="op">=</span> cur.fetchone()</span>
-<span id="cb726-13"><a href="#cb726-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;value: </span><span class="sc">{</span>row[<span class="dv">1</span>]<span class="sc">!r}</span><span class="ss">&quot;</span>)</span>
-<span id="cb726-14"><a href="#cb726-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;python type: </span><span class="sc">{</span><span class="bu">type</span>(row[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<span id="cb726-7"><a href="#cb726-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;labels from the database:&quot;</span>, info.labels)</span>
+<span id="cb726-8"><a href="#cb726-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb726-9"><a href="#cb726-9" aria-hidden="true" tabindex="-1"></a>        cur.execute(<span class="st">&quot;SELECT id, status FROM jobs WHERE id = 1;&quot;</span>)</span>
+<span id="cb726-10"><a href="#cb726-10" aria-hidden="true" tabindex="-1"></a>        row <span class="op">=</span> cur.fetchone()</span>
+<span id="cb726-11"><a href="#cb726-11" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;value: </span><span class="sc">{</span>row[<span class="dv">1</span>]<span class="sc">!r}</span><span class="ss">&quot;</span>)</span>
+<span id="cb726-12"><a href="#cb726-12" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;python type: </span><span class="sc">{</span><span class="bu">type</span>(row[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
 <pre><code>labels from the database: [&#39;queued&#39;, &#39;on_hold&#39;, &#39;in_progress&#39;, &#39;completed&#39;, &#39;failed&#39;, &#39;cancelled&#39;]
 value: &lt;Job_Status.in_progress: 3&gt;
 python type: &lt;enum &#39;Job_Status&#39;&gt;</code></pre>
@@ -12527,6 +12566,598 @@ column’s type change — is worth remembering the next time any column
 with a few chapters of history behind it needs to change shape:
 <code>\d</code> on the table first, always, before the
 <code>ALTER</code>.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-16-generated-columns">Chapter 16 — Generated
+Columns</h1>
+<blockquote>
+<p><em>“A trigger is a promise that someone wrote the sync logic
+correctly. A generated column is a fact that there was never anything
+else it could have contained.”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-15">Background</h2>
+<p>Chapter 4’s <code>city_documents.search_vector</code> and Chapter
+13’s <code>notify_job_status_change()</code> both solve the same
+underlying problem — “keep a derived value in sync with the columns it’s
+computed from” — the same way: a trigger, hand-written, that fires on
+<code>INSERT</code>/<code>UPDATE</code> and recomputes the value. It
+works, but it works because someone wrote it correctly, remembered to
+fire it on the right columns, and never introduced a code path that
+updates the base columns without also firing the trigger. A
+<strong>generated column</strong> removes all three of those “someone
+remembered to” risks by making the derivation part of the column’s own
+definition:</p>
+<div class="sourceCode" id="cb734"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb734-1"><a href="#cb734-1" aria-hidden="true" tabindex="-1"></a>column_name <span class="kw">type</span> <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> (expression) STORED</span></code></pre></div>
+<p><code>STORED</code> isn’t optional decoration — as of the PostgreSQL
+version this book targets, <code>STORED</code> is the <em>only</em> kind
+of generated column PostgreSQL supports. The expression is computed
+once, at write time, and the result is physically written to disk right
+alongside every other column, not recomputed on every read. There’s no
+trigger to find, no function to audit, no risk of an <code>UPDATE</code>
+statement somewhere that touches the base columns without going through
+the trigger — because <code>GENERATED ALWAYS</code> means exactly that.
+PostgreSQL enforces it directly: Exercise 4 tries to write to one on
+purpose, just to watch it refuse.</p>
+<p>The one requirement that makes this possible, and the thing to hold
+onto before Exercise 1’s first real surprise: the expression must be
+<strong>immutable</strong> — given the same input row, it must always
+produce the same output, forever, with no dependency on anything outside
+that row. That sounds like a formality until it collides with something
+this book has run into more than once already.</p>
+<hr />
+<h2 id="the-scenario-15">The Scenario</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 22%" />
+<col style="width: 44%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Column</th>
+<th>Computed from</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>sensor_readings</code> (Ch8)</td>
+<td><code>reading_date</code></td>
+<td><code>recorded_at</code>, date portion only</td>
+</tr>
+<tr class="even">
+<td><code>businesses</code> (Ch1)</td>
+<td><code>search_vector</code></td>
+<td><code>name</code> + several <code>details</code> JSONB fields</td>
+</tr>
+<tr class="odd">
+<td><code>city_documents</code> (Ch4)</td>
+<td><code>search_vector</code></td>
+<td><code>title</code> + <code>body</code> — replaces a hand-written
+trigger</td>
+</tr>
+<tr class="even">
+<td><code>residents</code> (Ch15)</td>
+<td><code>phone_digits</code></td>
+<td><code>(contact).phone</code>, digits only</td>
+</tr>
+</tbody>
+</table>
+<p>Every one of these already has real data behind it from earlier
+chapters — this chapter is entirely about adding computed columns to
+tables that already exist, not seeding anything new.</p>
+<hr />
+<h2 id="exercise-goals-15">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Add a stored generated column, and explain exactly why PostgreSQL’s
+immutability requirement rejects some expressions that look perfectly
+reasonable.</li>
+<li>Replace a hand-written trigger that maintains a
+<code>tsvector</code> column with a generated column that does the same
+job declaratively.</li>
+<li>Index a generated column, and know the one thing about partitioned
+tables that indexing one does <em>not</em> give you for free.</li>
+<li>Prove, by trying, that a generated column cannot be written to
+directly — only ever recomputed.</li>
+<li>Build a normalized column from a composite type’s field, and know
+exactly where “normalize the formatting” stops being enough.</li>
+<li>Compare generated columns to triggers directly, and know which one
+to reach for when.</li>
+</ul>
+<hr />
+<h2 id="installation-15">Installation</h2>
+<p>Nothing to install. Generated columns are core SQL, available since
+PostgreSQL 12.</p>
+<hr />
+<h2 id="loading-the-data-15">Loading the Data</h2>
+<p>This chapter needs Chapters 1, 4, 5, 8, and 15’s data already in
+place:</p>
+<div class="sourceCode" id="cb735"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb735-1"><a href="#cb735-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py   <span class="co"># businesses</span></span>
+<span id="cb735-2"><a href="#cb735-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch04_seed.py   <span class="co"># city_documents</span></span>
+<span id="cb735-3"><a href="#cb735-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch05_seed.py   <span class="co"># residents</span></span>
+<span id="cb735-4"><a href="#cb735-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch08_seed.py   <span class="co"># sensors; then Chapter 8&#39;s own exercises to build sensor_readings</span></span></code></pre></div>
+<p>Chapter 15’s <code>contact_info</code> composite type and
+<code>residents.contact</code> column need to exist too — see that
+chapter if you haven’t run it yet.</p>
+<h3 id="verify-the-prerequisites-3">Verify the prerequisites</h3>
+<div class="sourceCode" id="cb736"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb736-1"><a href="#cb736-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;sensor_readings&#39;</span> <span class="kw">AS</span> <span class="kw">table</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings</span>
+<span id="cb736-2"><a href="#cb736-2" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;businesses&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> businesses</span>
+<span id="cb736-3"><a href="#cb736-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;city_documents&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_documents</span>
+<span id="cb736-4"><a href="#cb736-4" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;residents&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> residents;</span></code></pre></div>
+<pre><code>      table       |  count
+-------------------+---------
+ sensor_readings   | 9648001
+ businesses        |      48
+ city_documents    |      30
+ residents         |      58</code></pre>
+<p>(9,648,001, not 9,648,000 — Chapter 9, Exercise 5.3’s late-arriving
+traffic reading is still in there. If you’re at an even 9,648,000,
+that’s fine too; nothing here depends on the exact count.)</p>
+<hr />
+<h2 id="exercises-15">Exercises</h2>
+<hr />
+<h3 id="exercise-1-extracting-a-date-from-a-timestamp">Exercise 1 —
+Extracting a Date From a Timestamp</h3>
+<p><strong>1.1 — The obvious expression fails</strong></p>
+<div class="sourceCode" id="cb738"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb738-1"><a href="#cb738-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings</span>
+<span id="cb738-2"><a href="#cb738-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ADD</span> <span class="kw">COLUMN</span> reading_date <span class="dt">DATE</span> <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> (recorded_at:<span class="ch">:date</span>) STORED;</span></code></pre></div>
+<pre><code>ERROR:  generation expression is not immutable</code></pre>
+<p><code>recorded_at</code> is <code>TIMESTAMPTZ</code> — an absolute
+instant, not a calendar date. Casting it to <code>DATE</code> requires
+picking a timezone to interpret that instant <em>in</em>, and a bare
+<code>::date</code> cast uses whatever the current session’s
+<code>timezone</code> setting happens to be. Two sessions with different
+timezone settings would compute two different dates from the identical
+<code>recorded_at</code> value — which is exactly what “not immutable”
+means: PostgreSQL refuses to store a value that isn’t guaranteed to be
+the same answer forever, computed from the row alone. This is the same
+class of bug Chapters 8, 9, and 11 all had to work around by hand with
+<code>SET timezone = 'UTC';</code> at the top of every session — except
+here, PostgreSQL catches it at <code>CREATE</code> time instead of
+letting it silently produce different numbers depending on who’s
+connected.</p>
+<p><strong>1.2 — Pin the timezone inside the expression
+itself</strong></p>
+<div class="sourceCode" id="cb740"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb740-1"><a href="#cb740-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings</span>
+<span id="cb740-2"><a href="#cb740-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ADD</span> <span class="kw">COLUMN</span> reading_date <span class="dt">DATE</span></span>
+<span id="cb740-3"><a href="#cb740-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> ((recorded_at <span class="kw">AT</span> <span class="dt">TIME</span> <span class="dt">ZONE</span> <span class="st">&#39;UTC&#39;</span>):<span class="ch">:date</span>) STORED;</span></code></pre></div>
+<pre><code>ALTER TABLE</code></pre>
+<p><code>AT TIME ZONE 'UTC'</code> makes the timezone part of the
+expression instead of part of the session — now the result really is a
+pure function of <code>recorded_at</code> alone, immutable by
+construction, no session setting involved anywhere.</p>
+<p><strong>1.3 — Confirm the backfill</strong></p>
+<p>Adding a generated column to a table that already has 9.6 million
+rows computes the value for every existing row immediately, not
+lazily:</p>
+<div class="sourceCode" id="cb742"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb742-1"><a href="#cb742-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> recorded_at, reading_date <span class="kw">FROM</span> sensor_readings <span class="kw">LIMIT</span> <span class="dv">3</span>;</span></code></pre></div>
+<pre><code>      recorded_at       | reading_date
+------------------------+--------------
+ 2024-01-31 19:00:00-05 | 2024-02-01
+ 2024-01-31 19:00:00-05 | 2024-02-01
+ 2024-01-31 19:00:00-05 | 2024-02-01</code></pre>
+<div class="sourceCode" id="cb744"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb744-1"><a href="#cb744-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings <span class="kw">WHERE</span> reading_date <span class="kw">IS</span> <span class="kw">NULL</span>;</span></code></pre></div>
+<pre><code> count
+-------
+     0</code></pre>
+<p>Zero <code>NULL</code>s across every one of the 9.6 million existing
+rows, and <code>sensor_readings</code> is a <em>partitioned</em> table —
+this one <code>ALTER TABLE</code> on the parent applied to, and
+backfilled, every partition underneath it automatically. And notice:
+<code>2024-01-31 19:00:00-05</code> — a January 31st timestamp by its
+displayed local time — produced <code>reading_date = 2024-02-01</code>.
+That’s <code>AT TIME ZONE 'UTC'</code> working exactly as intended:
+<code>19:00 -05</code> is <code>00:00 UTC</code> the next calendar day,
+and the generated column reflects the UTC date, not whatever date the
+display happens to suggest.</p>
+<hr />
+<h3 id="exercise-2-replacing-a-trigger-with-a-generated-column">Exercise
+2 — Replacing a Trigger With a Generated Column</h3>
+<p><strong>2.1 — What Chapter 4 built</strong></p>
+<div class="sourceCode" id="cb746"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb746-1"><a href="#cb746-1" aria-hidden="true" tabindex="-1"></a>\d city_documents</span></code></pre></div>
+<pre><code>Triggers:
+    trg_city_documents_search_vector BEFORE INSERT OR UPDATE OF title, body
+    ON city_documents FOR EACH ROW EXECUTE FUNCTION city_documents_search_vector_update()</code></pre>
+<div class="sourceCode" id="cb748"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb748-1"><a href="#cb748-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> prosrc <span class="kw">FROM</span> pg_proc <span class="kw">WHERE</span> proname <span class="op">=</span> <span class="st">&#39;city_documents_search_vector_update&#39;</span>;</span></code></pre></div>
+<pre><code>BEGIN
+    NEW.search_vector := to_tsvector(&#39;english&#39;, NEW.title || &#39; &#39; || NEW.body);
+    RETURN NEW;
+END;</code></pre>
+<p>(That’s the query’s <em>output</em> — the function’s raw source text
+— not a statement to run. <code>NEW</code> only means anything inside a
+trigger function body; pasted directly into <code>psql</code> it errors
+immediately.)</p>
+<p>A trigger function, a trigger to fire it, and a plain
+<code>tsvector</code> column with no memory of how it’s supposed to stay
+correct except “whatever that function currently says.”</p>
+<p><strong>2.2 — Tear it out, replace it with a generated
+column</strong></p>
+<div class="sourceCode" id="cb750"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb750-1"><a href="#cb750-1" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TRIGGER</span> trg_city_documents_search_vector <span class="kw">ON</span> city_documents;</span>
+<span id="cb750-2"><a href="#cb750-2" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">FUNCTION</span> city_documents_search_vector_update();</span>
+<span id="cb750-3"><a href="#cb750-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> city_documents <span class="kw">DROP</span> <span class="kw">COLUMN</span> search_vector;</span>
+<span id="cb750-4"><a href="#cb750-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb750-5"><a href="#cb750-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> city_documents <span class="kw">ADD</span> <span class="kw">COLUMN</span> search_vector tsvector</span>
+<span id="cb750-6"><a href="#cb750-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> (to_tsvector(<span class="st">&#39;english&#39;</span>, title <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span> <span class="kw">body</span>)) STORED;</span></code></pre></div>
+<div class="sourceCode" id="cb751"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb751-1"><a href="#cb751-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> city_documents <span class="kw">WHERE</span> search_vector <span class="kw">IS</span> <span class="kw">NOT</span> <span class="kw">NULL</span>;</span></code></pre></div>
+<pre><code> count
+-------
+    30</code></pre>
+<p>All 30 rows recomputed correctly in the same <code>ALTER TABLE</code>
+that added the column — identical expression, identical result, zero
+lines of trigger code left anywhere in the schema.</p>
+<p><strong>2.3 — The gotcha: <code>DROP COLUMN</code> takes its index
+with it</strong></p>
+<div class="sourceCode" id="cb753"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb753-1"><a href="#cb753-1" aria-hidden="true" tabindex="-1"></a>\d city_documents</span></code></pre></div>
+<pre><code>Indexes:
+    &quot;city_documents_pkey&quot; PRIMARY KEY, btree (id)
+    &quot;idx_city_documents_doc_type&quot; btree (doc_type)
+    &quot;idx_city_documents_published_date&quot; btree (published_date)</code></pre>
+<p><code>idx_city_documents_search_vector</code>, Chapter 4’s
+<code>GIN</code> index, is simply gone — dropping a column drops every
+index that depends on it, silently, as part of the same statement.
+Rebuild it:</p>
+<div class="sourceCode" id="cb755"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb755-1"><a href="#cb755-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_city_documents_search_vector <span class="kw">ON</span> city_documents <span class="kw">USING</span> GIN (search_vector);</span></code></pre></div>
+<div class="sourceCode" id="cb756"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb756-1"><a href="#cb756-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> title, ts_rank(search_vector, <span class="kw">query</span>) <span class="kw">AS</span> <span class="fu">rank</span></span>
+<span id="cb756-2"><a href="#cb756-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   city_documents, to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;zoning &amp; permit&#39;</span>) <span class="kw">query</span></span>
+<span id="cb756-3"><a href="#cb756-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ <span class="kw">query</span></span>
+<span id="cb756-4"><a href="#cb756-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span>  <span class="kw">BY</span> <span class="fu">rank</span> <span class="kw">DESC</span></span>
+<span id="cb756-5"><a href="#cb756-5" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span>  <span class="dv">3</span>;</span></code></pre></div>
+<pre><code>                                title                                |     rank
+----------------------------------------------------------------------+---------------
+ Zoning Ordinance — Citywide Accessory Dwelling Unit Standards        |   0.008959805
+ Zoning Ordinance — Industrial Port Rezoning to Mixed-Use             | 0.00015002328
+ Zoning Ordinance — University Quarter Storefront Signage Standards   | 7.4692275e-06</code></pre>
+<p>Same ranked results Chapter 4’s trigger-maintained column would have
+produced — the search behavior didn’t change at all; only how the
+<code>search_vector</code> column stays correct did.</p>
+<hr />
+<h3 id="exercise-3-indexing-a-generated-column">Exercise 3 — Indexing a
+Generated Column</h3>
+<p><strong>3.1 — A fresh example: full-text search on
+<code>businesses</code></strong></p>
+<div class="sourceCode" id="cb758"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb758-1"><a href="#cb758-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> businesses <span class="kw">ADD</span> <span class="kw">COLUMN</span> search_vector tsvector</span>
+<span id="cb758-2"><a href="#cb758-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> (</span>
+<span id="cb758-3"><a href="#cb758-3" aria-hidden="true" tabindex="-1"></a>        to_tsvector(<span class="st">&#39;english&#39;</span>,</span>
+<span id="cb758-4"><a href="#cb758-4" aria-hidden="true" tabindex="-1"></a>            name <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span></span>
+<span id="cb758-5"><a href="#cb758-5" aria-hidden="true" tabindex="-1"></a>            <span class="fu">coalesce</span>(details<span class="op">-&gt;&gt;</span><span class="st">&#39;category&#39;</span>, <span class="st">&#39;&#39;</span>)    <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span></span>
+<span id="cb758-6"><a href="#cb758-6" aria-hidden="true" tabindex="-1"></a>            <span class="fu">coalesce</span>(details<span class="op">-&gt;&gt;</span><span class="st">&#39;subcategory&#39;</span>, <span class="st">&#39;&#39;</span>)  <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span></span>
+<span id="cb758-7"><a href="#cb758-7" aria-hidden="true" tabindex="-1"></a>            <span class="fu">coalesce</span>(details<span class="op">-&gt;&gt;</span><span class="st">&#39;cuisine&#39;</span>, <span class="st">&#39;&#39;</span>)      <span class="op">||</span> <span class="st">&#39; &#39;</span> <span class="op">||</span></span>
+<span id="cb758-8"><a href="#cb758-8" aria-hidden="true" tabindex="-1"></a>            <span class="fu">coalesce</span>(details<span class="op">-&gt;&gt;</span><span class="st">&#39;tags&#39;</span>, <span class="st">&#39;&#39;</span>)</span>
+<span id="cb758-9"><a href="#cb758-9" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb758-10"><a href="#cb758-10" aria-hidden="true" tabindex="-1"></a>    ) STORED;</span></code></pre></div>
+<div class="sourceCode" id="cb759"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb759-1"><a href="#cb759-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> search_vector <span class="kw">FROM</span> businesses <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;Anchor &amp; Oar Tavern&#39;</span>;</span></code></pre></div>
+<pre><code>&#39;anchor&#39;:1 &#39;dog&#39;:10 &#39;friend&#39;:11 &#39;live&#39;:8 &#39;music&#39;:9 &#39;oar&#39;:2 &#39;outdoor&#39;:12
+&#39;pub&#39;:5,7 &#39;restaur&#39;:4 &#39;seat&#39;:13 &#39;tavern&#39;:3 &#39;waterfront&#39;:6</code></pre>
+<p><code>details-&gt;&gt;'tags'</code> pulls the JSONB tag array out as
+its raw text representation —
+<code>["waterfront", "pub", "live_music", ...]</code> — and
+<code>to_tsvector</code> tokenizes straight through the brackets,
+quotes, and underscores, splitting <code>live_music</code> into separate
+<code>live</code> and <code>music</code> tokens. That’s not a bug to
+work around; it’s what makes a search for just <code>music</code> find
+this row at all.</p>
+<p><strong>3.2 — Index it, and watch the planner ignore the index
+anyway</strong></p>
+<div class="sourceCode" id="cb761"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb761-1"><a href="#cb761-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_businesses_search_vector <span class="kw">ON</span> businesses <span class="kw">USING</span> GIN (search_vector);</span>
+<span id="cb761-2"><a href="#cb761-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb761-3"><a href="#cb761-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>)</span>
+<span id="cb761-4"><a href="#cb761-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> businesses</span>
+<span id="cb761-5"><a href="#cb761-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;waterfront &amp; pub&#39;</span>);</span></code></pre></div>
+<pre><code> Seq Scan on businesses  (cost=0.00..8.60 rows=1 width=18) (actual time=0.005..0.024 rows=1 loops=1)
+   Filter: (search_vector @@ &#39;&#39;&#39;waterfront&#39;&#39; &amp; &#39;&#39;pub&#39;&#39;&#39;::tsquery)
+   Rows Removed by Filter: 47
+ Planning Time: 1.449 ms
+ Execution Time: 0.035 ms</code></pre>
+<p>A brand-new <code>GIN</code> index, and PostgreSQL doesn’t touch it —
+48 rows fits in a fraction of one disk page, and a sequential scan of
+the whole table is cheaper than the overhead of consulting an index at
+all. The index isn’t broken; the planner is correctly deciding it isn’t
+worth using yet. Force the comparison to see it work:</p>
+<div class="sourceCode" id="cb763"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb763-1"><a href="#cb763-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> enable_seqscan <span class="op">=</span> <span class="kw">off</span>;</span>
+<span id="cb763-2"><a href="#cb763-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb763-3"><a href="#cb763-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>)</span>
+<span id="cb763-4"><a href="#cb763-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> name <span class="kw">FROM</span> businesses</span>
+<span id="cb763-5"><a href="#cb763-5" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  search_vector @@ to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;waterfront &amp; pub&#39;</span>);</span></code></pre></div>
+<pre><code> Bitmap Heap Scan on businesses  (cost=12.97..16.98 rows=1 width=18) (actual time=0.014..0.015 rows=1 loops=1)
+   Recheck Cond: (search_vector @@ &#39;&#39;&#39;waterfront&#39;&#39; &amp; &#39;&#39;pub&#39;&#39;&#39;::tsquery)
+   Heap Blocks: exact=1
+   -&gt;  Bitmap Index Scan on idx_businesses_search_vector  (cost=0.00..12.97 rows=1 width=0) (actual time=0.012..0.012 rows=1 loops=1)
+         Index Cond: (search_vector @@ &#39;&#39;&#39;waterfront&#39;&#39; &amp; &#39;&#39;pub&#39;&#39;&#39;::tsquery)</code></pre>
+<div class="sourceCode" id="cb765"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb765-1"><a href="#cb765-1" aria-hidden="true" tabindex="-1"></a><span class="kw">RESET</span> enable_seqscan;</span></code></pre></div>
+<p>The index is completely ordinary from the planner’s point of view —
+it just also has completely ordinary opinions about when a 48-row table
+is worth indexing at all.</p>
+<p><strong>3.3 — The one thing indexing a generated column does
+<em>not</em> give you</strong></p>
+<p>Chapter 8 spent an entire chapter on partition pruning — the planner
+throwing out whole partitions before scanning anything, based on the
+partition key. <code>reading_date</code> is indexed now, and it’s
+<em>derived from</em> the partition key, but it isn’t <em>itself</em>
+the partition key (<code>sensor_readings</code> still partitions by
+<code>recorded_at</code>), so filtering by it doesn’t prune:</p>
+<div class="sourceCode" id="cb766"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb766-1"><a href="#cb766-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span> timezone <span class="op">=</span> <span class="st">&#39;UTC&#39;</span>;</span>
+<span id="cb766-2"><a href="#cb766-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb766-3"><a href="#cb766-3" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>)</span>
+<span id="cb766-4"><a href="#cb766-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings <span class="kw">WHERE</span> reading_date <span class="op">=</span> <span class="st">&#39;2024-06-15&#39;</span>;</span></code></pre></div>
+<pre><code> Aggregate  (cost=79814.92..79814.93 rows=1 width=8) (actual time=15.642..15.646 rows=1 loops=1)
+   -&gt;  Append  (cost=48.79..79694.32 rows=48240 width=0) (actual time=0.891..14.627 rows=28801 loops=1)
+         -&gt;  Bitmap Heap Scan on sensor_readings_2024_02 ...  (actual time=0.049..0.049 rows=0 loops=1)
+               -&gt;  Bitmap Index Scan on sensor_readings_2024_02_reading_date_idx ...
+         -&gt;  Bitmap Heap Scan on sensor_readings_2024_03 ...  (actual time=0.032..0.032 rows=0 loops=1)
+               -&gt;  Bitmap Index Scan on sensor_readings_2024_03_reading_date_idx ...
+         -- ... one Bitmap Heap Scan + Bitmap Index Scan pair per partition, all twelve ...
+         -&gt;  Bitmap Heap Scan on sensor_readings_2024_06 ...  (actual time=0.753..13.204 rows=28801 loops=1)
+               -&gt;  Bitmap Index Scan on sensor_readings_2024_06_reading_date_idx ... rows=28801
+ Planning Time: 2.255 ms
+ Execution Time: 15.832 ms</code></pre>
+<p>Every one of the twelve partitions gets its own
+<code>Bitmap Index Scan</code> — cheap ones, since each partition’s
+local index quickly finds “zero rows here,” but <em>every partition
+still gets asked</em>. Compare that to Chapter 8, Exercise 3.1, where
+filtering on <code>recorded_at</code> (the actual partition key) made
+eleven of twelve partitions disappear from the plan entirely, before
+execution ever started. An index on a generated column makes searching
+that column fast; it does nothing at all for pruning, because pruning
+only ever looks at the partition key itself. 15.8 ms across 9.6 million
+rows is still fast — this is a real cost, just a much smaller one than
+the difference would be without any index at all.</p>
+<p><img src="imgs/ch16_pruning_vs_index.svg" alt="Timeline of all twelve sensor_readings partitions, none of them greyed out or pruned — every partition gets its own index scan for a reading_date filter, with 2024_06 highlighted as the one that actually matches, in direct contrast to Chapter 8's diagram where filtering by the partition key pruned eleven of twelve partitions before execution"/></p>
+<hr />
+<h3 id="exercise-4-generated-columns-reject-direct-writes">Exercise 4 —
+Generated Columns Reject Direct Writes</h3>
+<p><strong>4.1 — Try to <code>UPDATE</code> one</strong></p>
+<div class="sourceCode" id="cb768"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb768-1"><a href="#cb768-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> sensor_readings <span class="kw">SET</span> reading_date <span class="op">=</span> <span class="st">&#39;2020-01-01&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>ERROR:  column &quot;reading_date&quot; can only be updated to DEFAULT
+DETAIL:  Column &quot;reading_date&quot; is a generated column.</code></pre>
+<p><strong>4.2 — Try to <code>INSERT</code> one explicitly</strong></p>
+<div class="sourceCode" id="cb770"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb770-1"><a href="#cb770-1" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> sensor_readings (sensor_id, sensor_type, reading_value, recorded_at, reading_date)</span>
+<span id="cb770-2"><a href="#cb770-2" aria-hidden="true" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="dv">1</span>, <span class="st">&#39;temperature&#39;</span>, <span class="fl">50.0</span>, now(), <span class="st">&#39;2020-01-01&#39;</span>);</span></code></pre></div>
+<pre><code>ERROR:  cannot insert a non-DEFAULT value into column &quot;reading_date&quot;
+DETAIL:  Column &quot;reading_date&quot; is a generated column.</code></pre>
+<p>Both rejected, for the same reason: there is no path in PostgreSQL
+that lets application code — or a typo, or a well-meaning bulk import
+script — set a generated column to anything other than what its
+expression computes. This is the guarantee a trigger-maintained column
+can never quite make: a trigger stops a <em>normal</em> write path from
+getting out of sync, but nothing stops a different write path — a bulk
+<code>COPY</code>, a migration script, a DBA fixing something by hand at
+2 a.m. — from writing directly to the column and skipping the trigger
+entirely. A generated column has no other write path to skip.</p>
+<hr />
+<h3 id="exercise-5-normalizing-a-phone-number">Exercise 5 — Normalizing
+a Phone Number</h3>
+<p><strong>5.1 — Real messy data, on purpose</strong></p>
+<p>Chapter 15’s <code>contact_info</code> composite type stores
+<code>phone</code> as free-form text, and five Portsmith residents now
+have it filled in with five different formatting conventions — exactly
+the mess a real “phone number” field accumulates over time:</p>
+<div class="sourceCode" id="cb772"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb772-1"><a href="#cb772-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> full_name, (contact).phone <span class="kw">FROM</span> residents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="kw">BETWEEN</span> <span class="dv">1</span> <span class="kw">AND</span> <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>     full_name     |      phone
+--------------------+------------------
+ Adrian Foscolo     | 023 9281 4477
+ Marisol Quintero   | 023-9281-5522
+ Bennett Okoye      | (023) 9281 6633
+ Wilhelmina Strand  | +44 23 9281 7744
+ Tobias Renner      | 02392818855</code></pre>
+<p><strong>5.2 — Strip everything but the digits</strong></p>
+<div class="sourceCode" id="cb774"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb774-1"><a href="#cb774-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> residents <span class="kw">ADD</span> <span class="kw">COLUMN</span> phone_digits TEXT</span>
+<span id="cb774-2"><a href="#cb774-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> (<span class="fu">regexp_replace</span>((contact).phone, <span class="st">&#39;[^0-9]&#39;</span>, <span class="st">&#39;&#39;</span>, <span class="st">&#39;g&#39;</span>)) STORED;</span></code></pre></div>
+<div class="sourceCode" id="cb775"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb775-1"><a href="#cb775-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> full_name, (contact).phone, phone_digits <span class="kw">FROM</span> residents <span class="kw">WHERE</span> <span class="kw">id</span> <span class="kw">BETWEEN</span> <span class="dv">1</span> <span class="kw">AND</span> <span class="dv">5</span>;</span></code></pre></div>
+<pre><code>     full_name     |      phone       | phone_digits
+--------------------+------------------+---------------
+ Adrian Foscolo     | 023 9281 4477    | 02392814477
+ Marisol Quintero   | 023-9281-5522    | 02392815522
+ Bennett Okoye      | (023) 9281 6633  | 02392816633
+ Wilhelmina Strand  | +44 23 9281 7744 | 442392817744
+ Tobias Renner      | 02392818855      | 02392818855</code></pre>
+<p><code>(contact).phone</code> — a field pulled out of Chapter 15’s
+composite type — works inside a generated expression exactly like any
+other column reference. Four of the five now agree, digit-for-digit,
+despite arriving in four visibly different formats.</p>
+<p><strong>5.3 — Search with a fifth, still-different
+format</strong></p>
+<div class="sourceCode" id="cb777"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb777-1"><a href="#cb777-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> full_name <span class="kw">FROM</span> residents</span>
+<span id="cb777-2"><a href="#cb777-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  phone_digits <span class="op">=</span> <span class="fu">regexp_replace</span>(<span class="st">&#39;023.9281.5522&#39;</span>, <span class="st">&#39;[^0-9]&#39;</span>, <span class="st">&#39;&#39;</span>, <span class="st">&#39;g&#39;</span>);</span></code></pre></div>
+<pre><code>    full_name
+------------------
+ Marisol Quintero</code></pre>
+<p>A caller can type the number with dots, dashes, spaces, or nothing at
+all, run it through the identical normalization, and get a match —
+that’s the entire point of normalizing at write time instead of
+comparing raw, differently-formatted text.</p>
+<p><strong>5.4 — Where this normalization actually stops
+working</strong></p>
+<p>Look at Wilhelmina Strand’s row again: <code>442392817744</code>, not
+<code>02392817744</code> like everyone else’s. <code>+44</code> is the
+UK’s country code, and <code>023...</code> is the same number in
+domestic format with a leading <code>0</code> — the same real phone
+number, and this normalization treats them as two different ones,
+because stripping non-digit characters has no idea that <code>+44</code>
+and a leading <code>0</code> mean the same thing. Real phone number
+normalization needs an actual phone-numbering-plan library (Python’s
+<code>phonenumbers</code>, for instance) that understands country codes,
+domestic-format leading digits, and valid-length rules per country —
+this exercise’s <code>regexp_replace</code> is the honest, simple
+version of the idea, not the production-grade one, the same caution
+Chapter 15 gave the email-format domain.</p>
+<hr />
+<h3 id="exercise-6-generated-columns-vs.-triggers">Exercise 6 —
+Generated Columns vs. Triggers</h3>
+<p>Exercise 2 tore out a trigger and replaced it with a generated column
+doing the identical job. The comparison worth internalizing, now that
+you’ve built both:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Trigger</th>
+<th>Generated column</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Can reference other rows/tables</td>
+<td>Yes</td>
+<td>No — same row only</td>
+</tr>
+<tr class="even">
+<td>Can have side effects (<code>NOTIFY</code>, logging)</td>
+<td>Yes</td>
+<td>No — pure expression only</td>
+</tr>
+<tr class="odd">
+<td>Extra write path can bypass it</td>
+<td>Yes — anything that skips the trigger</td>
+<td>No — enforced at the column itself</td>
+</tr>
+<tr class="even">
+<td>Shows up in <code>\d</code> as part of the column</td>
+<td>No — hidden in a separate function</td>
+<td>Yes — visible in the column definition</td>
+</tr>
+<tr class="odd">
+<td>Recomputed automatically on backfill for existing rows</td>
+<td>Only if you remember to run an <code>UPDATE</code></td>
+<td>Yes — happens as part of <code>ALTER TABLE ADD COLUMN</code></td>
+</tr>
+</tbody>
+</table>
+<p>A generated column isn’t a strictly better trigger — it’s a
+<em>narrower</em> tool that happens to fully cover a specific, common
+case: “this column is a pure function of other columns in the same row,
+with no side effects.” Chapter 13’s
+<code>notify_job_status_change()</code> could never be a generated
+column — <code>pg_notify()</code> is a side effect, and the whole point
+of that trigger is to reach outside the row it fired on.
+<code>search_vector</code> and <code>reading_date</code> never needed to
+reach outside their own row at all, which is exactly what made them
+convertible. The question worth asking before reaching for either one:
+does this derived value ever need to know about anything other than the
+row it lives on? If yes, it’s a trigger. If no, it’s a generated column,
+and a generated column is simpler in every way that matters once the
+answer really is no.</p>
+<p><img src="imgs/ch16_write_paths.svg" alt="Two write paths compared: a trigger-maintained column depends on the trigger still being attached and enabled, and silently goes stale if it's disabled, dropped, or the column is written to directly; a generated column recomputes automatically from any write to the row and structurally rejects any direct write, with no other path to go stale through"/></p>
+<hr />
+<h2 id="summary-what-you-should-now-know-15">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>col type GENERATED ALWAYS AS (expr) STORED</code></td>
+<td>Computed once at write time, physically stored — the only kind
+PostgreSQL supports</td>
+</tr>
+<tr class="even">
+<td>Immutability requirement</td>
+<td>The expression can’t depend on session state (timezone, locale) —
+only on the row’s own columns</td>
+</tr>
+<tr class="odd">
+<td><code>AT TIME ZONE 'UTC'</code> inside the expression</td>
+<td>Fixes the classic <code>::date</code> immutability failure by
+pinning the zone into the expression itself</td>
+</tr>
+<tr class="even">
+<td>Adding a generated column to an existing table</td>
+<td>Backfills every existing row immediately, including every partition
+of a partitioned table</td>
+</tr>
+<tr class="odd">
+<td><code>DROP COLUMN</code> on a generated column</td>
+<td>Also drops every index that depended on it — rebuild them after</td>
+</tr>
+<tr class="even">
+<td>Index on a generated column</td>
+<td>Used like any other index, subject to the same planner cost
+decisions (including “seq scan is cheaper on a small table”)</td>
+</tr>
+<tr class="odd">
+<td>Generated column vs. partition key</td>
+<td>Indexing a derived column speeds up filtering on it; it does not
+enable partition pruning, which only ever looks at the actual partition
+key</td>
+</tr>
+<tr class="even">
+<td>Writing directly to a generated column</td>
+<td>Always rejected — <code>INSERT</code> and <code>UPDATE</code>
+both</td>
+</tr>
+<tr class="odd">
+<td>A domain/composite field inside a generated expression</td>
+<td>Fully supported — <code>(contact).phone</code> works exactly like
+any column reference</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is the same
+one Chapter 15 ended on, aimed at a different part of the schema: a
+generated column is a fact about what a value <em>is</em>, not a rule
+about what it’s allowed to become after the fact. Chapter 4’s trigger
+and this chapter’s <code>search_vector</code> compute the identical
+<code>tsvector</code> — but only one of them is structurally incapable
+of drifting out of sync, because only one of them removed every write
+path except the one that recomputes it correctly. That guarantee has a
+real, narrow boundary — no other rows, no side effects, nothing beyond
+the current row — and staying inside that boundary is the whole
+trade.</p>
+<hr />
+<em>Going further: Chapter 17’s foreign data wrappers occasionally
+interact with generated columns in an interesting way — a generated
+column can’t be added to a foreign table the way it can to a local one,
+since PostgreSQL doesn’t control how the remote side actually stores
+data. Chapter 20’s <code>pg_stat_statements</code> work is a natural
+place to revisit Exercise 3’s planner decision — watching real, measured
+query cost is how you’d actually confirm “the planner correctly avoided
+the index” rather than taking <code>EXPLAIN</code>’s cost estimate on
+faith. And it’s worth remembering Exercise 6’s dividing line the next
+time a derived column is on the table at all: reach for a generated
+column first, purely for the guarantee it makes, and only fall back to a
+trigger once the derivation genuinely needs to see past the row it lives
+on.</em>
 <div style="page-break-before: always;">
 
 </div>

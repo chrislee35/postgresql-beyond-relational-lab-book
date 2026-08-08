@@ -52,7 +52,7 @@ conventions used throughout the book.
 | 13 | [`LISTEN` / `NOTIFY`: Database-Native Pub/Sub](ch13_listen_notify.md) | Triggers, `pg_notify`, async Python clients |
 | 14 | [Advisory Locks: Distributed Coordination](ch14_advisory_locks.md) | Leader election, session vs. transaction locks |
 | 15 | [Custom Types, Domains, and Enums](ch15_custom_types.md) | Schema-level business rules |
-| 16 | Generated Columns | Derived values without triggers |
+| 16 | [Generated Columns](ch16_generated_columns.md) | Derived values without triggers |
 | 17 | Foreign Data Wrappers: PostgreSQL as a Data Hub | `postgres_fdw`, `file_fdw` |
 | 18 | Logical Replication and Change Data Capture | Publications, subscriptions, Debezium |
 | 19 | `pg_cron`: Scheduled Jobs Inside PostgreSQL | Idempotency, overlap prevention |
