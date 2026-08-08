@@ -1,0 +1,9 @@
+graph LR
+    Enum[("job_status<br/>pg_enum catalog")]
+    Psycopg["psycopg client<br/>register_enum()"]
+    REST["PostgREST<br/>OpenAPI document"]
+    PyEnum["live Python<br/>enum.Enum class"]
+    Spec["enum: [...]<br/>in the API schema"]
+
+    Enum -->|introspected by| Psycopg --> PyEnum
+    Enum -->|introspected by| REST --> Spec

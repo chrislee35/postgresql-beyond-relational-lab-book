@@ -1,0 +1,26 @@
+graph LR
+    subgraph Before["Clear all three dependents first"]
+        direction TB
+        D1["DROP DEFAULT"]
+        D2["DROP VIEW api.jobs"]
+        D3["DROP INDEX idx_jobs_claim_order"]
+    end
+
+    Convert["ALTER COLUMN status<br/>TYPE job_status<br/>now succeeds"]
+
+    subgraph After["Then rebuild all three"]
+        direction TB
+        R1["SET DEFAULT<br/>'queued'::job_status"]
+        R2["CREATE VIEW api.jobs<br/>+ re-GRANT"]
+        R3["CREATE INDEX<br/>idx_jobs_claim_order"]
+    end
+
+    D1 --> Convert
+    D2 --> Convert
+    D3 --> Convert
+    Convert --> R1
+    Convert --> R2
+    Convert --> R3
+
+    style Before fill:none,stroke:none
+    style After fill:none,stroke:none

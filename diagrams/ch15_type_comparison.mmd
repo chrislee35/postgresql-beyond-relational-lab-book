@@ -1,0 +1,19 @@
+graph TB
+    subgraph Composite["COMPOSITE TYPE"]
+        direction LR
+        C1["CREATE TYPE t<br/>AS (a, b, c)"] --> C2["one column,<br/>several named fields"]
+    end
+
+    subgraph Domain["DOMAIN"]
+        direction LR
+        D1["CREATE DOMAIN d<br/>AS base CHECK (...)"] --> D2["existing type plus<br/>a reusable constraint"]
+    end
+
+    subgraph Enum["ENUM"]
+        direction LR
+        E1["CREATE TYPE e<br/>AS ENUM (...)"] --> E2["a fixed set of<br/>labels, nothing else"]
+    end
+
+    style Composite fill:none,stroke:none
+    style Domain fill:none,stroke:none
+    style Enum fill:none,stroke:none

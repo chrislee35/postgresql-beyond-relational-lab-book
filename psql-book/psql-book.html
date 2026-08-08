@@ -808,6 +808,45 @@ Connection-Pool Pitfall</a></li>
 id="toc-summary-what-you-should-now-know-13">Summary — What You Should
 Now Know</a></li>
 </ul></li>
+<li><a href="#chapter-15-custom-types-domains-and-enums"
+id="toc-chapter-15-custom-types-domains-and-enums">Chapter 15 — Custom
+Types, Domains, and Enums</a>
+<ul>
+<li><a href="#background-14" id="toc-background-14">Background</a></li>
+<li><a href="#the-scenario-14" id="toc-the-scenario-14">The
+Scenario</a></li>
+<li><a href="#exercise-goals-14" id="toc-exercise-goals-14">Exercise
+Goals</a></li>
+<li><a href="#installation-14"
+id="toc-installation-14">Installation</a></li>
+<li><a href="#loading-the-data-14" id="toc-loading-the-data-14">Loading
+the Data</a></li>
+<li><a href="#exercises-14" id="toc-exercises-14">Exercises</a>
+<ul>
+<li><a href="#exercise-1-converting-text-check-into-a-real-enum"
+id="toc-exercise-1-converting-text-check-into-a-real-enum">Exercise 1 —
+Converting <code>TEXT</code> + <code>CHECK</code> Into a Real
+Enum</a></li>
+<li><a href="#exercise-2-adding-a-value-ordering-and-transaction-rules"
+id="toc-exercise-2-adding-a-value-ordering-and-transaction-rules">Exercise
+2 — Adding a Value: Ordering and Transaction Rules</a></li>
+<li><a href="#exercise-3-a-positive_integer-domain"
+id="toc-exercise-3-a-positive_integer-domain">Exercise 3 — A
+<code>positive_integer</code> Domain</a></li>
+<li><a href="#exercise-4-a-contact_info-composite-type"
+id="toc-exercise-4-a-contact_info-composite-type">Exercise 4 — A
+<code>contact_info</code> Composite Type</a></li>
+<li><a href="#exercise-5-an-email-domain"
+id="toc-exercise-5-an-email-domain">Exercise 5 — An Email
+Domain</a></li>
+<li><a href="#exercise-6-automatic-reflection"
+id="toc-exercise-6-automatic-reflection">Exercise 6 — Automatic
+Reflection</a></li>
+</ul></li>
+<li><a href="#summary-what-you-should-now-know-14"
+id="toc-summary-what-you-should-now-know-14">Summary — What You Should
+Now Know</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -11915,6 +11954,579 @@ explicitly: <code>FOR UPDATE SKIP LOCKED</code> coordinates access to
 </em>rows that exist<em>; advisory locks coordinate </em>processes<em>,
 around ideas that were never going to have a row of their own no matter
 how the schema was designed.</em>
+<div style="page-break-before: always;">
+
+</div>
+<h1 id="chapter-15-custom-types-domains-and-enums">Chapter 15 — Custom
+Types, Domains, and Enums</h1>
+<blockquote>
+<p><em>“A <code>CHECK</code> constraint says ‘reject this if it’s
+wrong.’ A type says ‘wrong isn’t a value this column can even
+hold.’”</em></p>
+</blockquote>
+<hr />
+<h2 id="background-14">Background</h2>
+<p>Every table in this book so far has leaned on <code>CHECK</code>
+constraints and plain base types — <code>TEXT</code>,
+<code>INTEGER</code>, <code>JSONB</code> — to keep bad data out. That
+works, but it puts the rule <em>next to</em> the column rather than
+<em>in</em> it: <code>jobs.status</code> has always been a
+<code>TEXT</code> column that happens to carry a
+<code>CHECK (status IN (...))</code> alongside it, and nothing about the
+column’s own type tells you that. PostgreSQL’s type system lets you go
+one level deeper and make the rule part of the type itself.</p>
+<p>Three tools, three different jobs:</p>
+<ul>
+<li><strong>Enums</strong> (<code>CREATE TYPE ... AS ENUM (...)</code>)
+replace “a <code>TEXT</code> column with a <code>CHECK</code> list” with
+a real type that can <em>only</em> hold one of a fixed set of labels.
+The database rejects anything else the moment you try to store it — not
+as a constraint violation, but as a type error, the same category of
+rejection as trying to put text in an integer column.</li>
+<li><strong>Domains</strong>
+(<code>CREATE DOMAIN ... AS base_type CHECK (...)</code>) attach a
+constraint to an <em>existing</em> type and give the result a name — a
+<code>positive_integer</code> is still an <code>INTEGER</code>
+underneath, but any column declared with that domain inherits the check
+automatically, once, instead of you retyping the same <code>CHECK</code>
+clause on every column that needs it.</li>
+<li><strong>Composite types</strong>
+(<code>CREATE TYPE ... AS (...)</code>) bundle several named fields into
+one type, the way a table’s row type already works, except you can use
+it as the type of a single <em>column</em> — a <code>contact_info</code>
+value is one column that internally holds a phone number, a postcode,
+and a preferred contact method together.</li>
+</ul>
+<p>All three live in the database’s own catalog, which means every tool
+that talks to PostgreSQL can discover them — a psycopg client, a
+PostgREST endpoint, even <code>psql</code>’s own <code>\d</code> output
+— without you writing a line of validation logic anywhere outside the
+schema. Exercise 6 is where that pays off directly.</p>
+<p><img src="imgs/ch15_type_comparison.svg" alt="Three type-system tools compared: ENUM creates a type that holds a fixed set of labels and nothing else; DOMAIN attaches a reusable constraint to an existing base type; COMPOSITE TYPE bundles several named fields into one column."/></p>
+<hr />
+<h2 id="the-scenario-14">The Scenario</h2>
+<p>This chapter adds typed columns to three tables already in the book,
+rather than any new ones:</p>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 33%" />
+<col style="width: 47%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>New column</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>jobs</code> (Ch3)</td>
+<td><code>status</code> <em>(converted in place)</em></td>
+<td><code>job_status</code> enum</td>
+</tr>
+<tr class="even">
+<td><code>businesses</code> (Ch1)</td>
+<td><code>employee_count</code></td>
+<td><code>positive_integer</code> domain</td>
+</tr>
+<tr class="odd">
+<td><code>residents</code> (Ch5)</td>
+<td><code>contact</code></td>
+<td><code>contact_info</code> composite (embeds a
+<code>uk_postcode</code> domain)</td>
+</tr>
+<tr class="even">
+<td><code>residents</code> (Ch5)</td>
+<td><code>email</code></td>
+<td><code>email_address</code> domain</td>
+</tr>
+</tbody>
+</table>
+<p><code>jobs.status</code> already existed as <code>TEXT</code> with a
+<code>CHECK</code> constraint — Exercise 1 converts it to a real enum in
+place, which turns out to be more interesting than it sounds, because
+Chapter 10’s <code>api.jobs</code> view is still sitting on top of
+it.</p>
+<hr />
+<h2 id="exercise-goals-14">Exercise Goals</h2>
+<p>By the end of this chapter you will be able to:</p>
+<ul>
+<li>Convert an existing <code>CHECK</code>-constrained <code>TEXT</code>
+column into a proper <code>ENUM</code>, and know every kind of object
+that can block that conversion before it actually works.</li>
+<li>Add a new value to an existing enum, control exactly where it sorts,
+and explain why you can’t use a value you just added in the same
+transaction that added it.</li>
+<li>Create a domain and watch PostgreSQL enforce its constraint on every
+column that uses it, everywhere, automatically.</li>
+<li>Build a composite type, store it in a column, and query its
+individual fields.</li>
+<li>Enforce a text format — a postcode, an email address — with a domain
+built on a regular expression <code>CHECK</code>.</li>
+<li>See enum values reflected automatically into a Python client and a
+PostgREST API, with no hand-written validation on either side.</li>
+</ul>
+<hr />
+<h2 id="installation-14">Installation</h2>
+<p>Nothing to install. <code>CREATE TYPE</code>,
+<code>CREATE DOMAIN</code>, and enums are all core SQL, no extension
+required. Exercise 6 reuses <code>psycopg</code> (Chapter 1) and,
+optionally, PostgREST (Chapter 10) if you still have it configured.</p>
+<hr />
+<h2 id="loading-the-data-14">Loading the Data</h2>
+<p>This chapter needs Chapters 1, 3, and 5’s data:</p>
+<div class="sourceCode" id="cb686"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb686-1"><a href="#cb686-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch01_seed.py   <span class="co"># businesses</span></span>
+<span id="cb686-2"><a href="#cb686-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch03_seed.py   <span class="co"># jobs</span></span>
+<span id="cb686-3"><a href="#cb686-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> data/ch05_seed.py   <span class="co"># residents</span></span></code></pre></div>
+<div class="sourceCode" id="cb687"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb687-1"><a href="#cb687-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="st">&#39;businesses&#39;</span> <span class="kw">AS</span> <span class="kw">table</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> businesses</span>
+<span id="cb687-2"><a href="#cb687-2" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;jobs&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> jobs</span>
+<span id="cb687-3"><a href="#cb687-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UNION</span> <span class="kw">ALL</span> <span class="kw">SELECT</span> <span class="st">&#39;residents&#39;</span>, <span class="fu">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> residents;</span></code></pre></div>
+<pre><code>     table    | count
+---------------+-------
+ businesses    |    48
+ jobs          |    48
+ residents     |    58</code></pre>
+<hr />
+<h2 id="exercises-14">Exercises</h2>
+<hr />
+<h3 id="exercise-1-converting-text-check-into-a-real-enum">Exercise 1 —
+Converting <code>TEXT</code> + <code>CHECK</code> Into a Real Enum</h3>
+<p><strong>1.1 — Define the type</strong></p>
+<div class="sourceCode" id="cb689"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb689-1"><a href="#cb689-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> job_status <span class="kw">AS</span> ENUM (<span class="st">&#39;queued&#39;</span>, <span class="st">&#39;in_progress&#39;</span>, <span class="st">&#39;completed&#39;</span>, <span class="st">&#39;failed&#39;</span>);</span></code></pre></div>
+<p>This creates the type — it doesn’t touch <code>jobs</code> yet.
+<code>jobs.status</code> is still <code>TEXT</code>, still governed by
+the original <code>CHECK</code> constraint from Chapter 3.</p>
+<p><strong>1.2 — Three things that block the conversion, in the order
+you’ll hit them</strong></p>
+<p>The obvious next move —
+<code>ALTER TABLE jobs ALTER COLUMN status TYPE job_status USING status::job_status;</code>
+— fails, and it fails for three separate reasons if you fix them one at
+a time instead of all at once. Each is worth seeing for real, because
+each is a genuinely common shape of dependency in any schema that’s been
+alive for more than one chapter:</p>
+<p><strong>Blocker 1 — the column’s own default:</strong></p>
+<pre><code>ERROR:  default for column &quot;status&quot; cannot be cast automatically to type job_status</code></pre>
+<p><code>status DEFAULT 'queued'</code> was set while the column was
+<code>TEXT</code>; the default expression has to be dropped before the
+column type can change, and re-added afterward.</p>
+<p><strong>Blocker 2 — a dependent view:</strong></p>
+<pre><code>ERROR:  cannot alter type of a column used by a view or rule
+DETAIL:  rule _RETURN on view api.jobs depends on column &quot;status&quot;</code></pre>
+<p>Chapter 10’s <code>api.jobs</code> view selects <code>status</code>
+directly. PostgreSQL won’t silently change a column’s type out from
+under a view built on top of it — the view has to be dropped and
+recreated around the change. This is exactly the kind of cross-chapter
+dependency a real production schema accumulates constantly, and exactly
+why this exercise is worth doing on the actual multi-chapter database
+instead of a clean scratch table.</p>
+<p><strong>Blocker 3 — a dependent partial index:</strong></p>
+<pre><code>ERROR:  operator does not exist: job_status = text
+HINT:  No operator matches the given name and argument types.</code></pre>
+<p><code>idx_jobs_claim_order</code> (Chapter 3) is a partial index with
+<code>WHERE status = 'queued'</code> baked into it. Once
+<code>status</code> is no longer <code>TEXT</code>, PostgreSQL has to
+rebuild that stored predicate — and a bare
+<code>job_status = text</code> comparison doesn’t exist as an operator;
+enums don’t implicitly compare against a different type the way a
+literal implicitly resolves against a column of a known type. This index
+has to be dropped and rebuilt too.</p>
+<p><img src="imgs/ch15_dependency_chain.svg" alt="Flowchart: three dependents (the column default, the api.jobs view, the idx_jobs_claim_order partial index) must each be dropped before ALTER COLUMN status TYPE job_status can succeed, then all three are rebuilt afterward — the default reset, the view and its grants recreated, and the index rebuilt against the new type"/></p>
+<p><strong>1.3 — The full sequence, correctly ordered, in one
+transaction</strong></p>
+<p>Run this as <code>postgres</code>, not your regular login role —
+<code>sudo -u postgres psql portsmith</code>. <code>api.jobs</code> is
+owned by <code>postgres</code> (it was created from that same role back
+in Chapter 10, Exercise 1.1), and a normal login role typically has no
+<code>USAGE</code> on the <code>api</code> schema at all, let alone
+ownership of the view sitting in it. Trying to run this as your own role
+fails immediately with <code>permission denied for schema api</code>
+before it ever gets near the actual type conversion:</p>
+<div class="sourceCode" id="cb693"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb693-1"><a href="#cb693-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb693-2"><a href="#cb693-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-3"><a href="#cb693-3" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">VIEW</span> <span class="cf">IF</span> <span class="kw">EXISTS</span> api.jobs;</span>
+<span id="cb693-4"><a href="#cb693-4" aria-hidden="true" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">INDEX</span> <span class="cf">IF</span> <span class="kw">EXISTS</span> idx_jobs_claim_order;</span>
+<span id="cb693-5"><a href="#cb693-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-6"><a href="#cb693-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> jobs <span class="kw">ALTER</span> <span class="kw">COLUMN</span> status <span class="kw">DROP</span> <span class="kw">DEFAULT</span>;</span>
+<span id="cb693-7"><a href="#cb693-7" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> jobs <span class="kw">DROP</span> <span class="kw">CONSTRAINT</span> <span class="cf">IF</span> <span class="kw">EXISTS</span> jobs_status_check;</span>
+<span id="cb693-8"><a href="#cb693-8" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> jobs <span class="kw">ALTER</span> <span class="kw">COLUMN</span> status <span class="kw">TYPE</span> job_status <span class="kw">USING</span> status:<span class="ch">:job_status</span>;</span>
+<span id="cb693-9"><a href="#cb693-9" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> jobs <span class="kw">ALTER</span> <span class="kw">COLUMN</span> status <span class="kw">SET</span> <span class="kw">DEFAULT</span> <span class="st">&#39;queued&#39;</span>:<span class="ch">:job_status</span>;</span>
+<span id="cb693-10"><a href="#cb693-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-11"><a href="#cb693-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> idx_jobs_claim_order</span>
+<span id="cb693-12"><a href="#cb693-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> jobs (priority, created_at, <span class="kw">id</span>)</span>
+<span id="cb693-13"><a href="#cb693-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span>;</span>
+<span id="cb693-14"><a href="#cb693-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-15"><a href="#cb693-15" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">VIEW</span> api.jobs <span class="kw">AS</span></span>
+<span id="cb693-16"><a href="#cb693-16" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span>, job_type, payload, priority, status, created_at</span>
+<span id="cb693-17"><a href="#cb693-17" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   jobs;</span>
+<span id="cb693-18"><a href="#cb693-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-19"><a href="#cb693-19" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> <span class="kw">SELECT</span> <span class="kw">ON</span> api.jobs <span class="kw">TO</span> web_anon;</span>
+<span id="cb693-20"><a href="#cb693-20" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> <span class="kw">INSERT</span> (job_type, payload, priority) <span class="kw">ON</span> api.jobs <span class="kw">TO</span> web_anon;</span>
+<span id="cb693-21"><a href="#cb693-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb693-22"><a href="#cb693-22" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<p>Wrapping the whole thing in <code>BEGIN</code>/<code>COMMIT</code>
+matters here specifically because <code>psql</code>’s non-interactive
+<code>-f</code> mode does <em>not</em> wrap a script in one implicit
+transaction the way a <code>-c "stmt1; stmt2;"</code> invocation does —
+without the explicit <code>BEGIN</code>, a failure partway through a
+script like this one leaves the schema in whatever half-converted state
+the successful statements got it to, which is exactly what happened
+during this chapter’s own testing before the transaction wrapper was
+added.</p>
+<p>The <code>IF EXISTS</code>/<code>IF NOT EXISTS</code> on every
+<code>DROP</code>/<code>CREATE</code> above earn their keep for the same
+reason: because the whole block is one transaction, any single failure
+aborts everything in it, including statements that already succeeded —
+so if this script is ever run a second time (after an earlier run
+partially failed, or simply to double-check the result), the objects
+from a <em>previous successful</em> run are still sitting there. Without
+<code>IF EXISTS</code>, a re-run’s
+<code>DROP CONSTRAINT jobs_status_check</code> would error with
+“constraint … does not exist” the moment <code>status</code> is already
+a <code>job_status</code>, aborting the whole transaction over nothing
+actually wrong. With it, this script is safe to run again at any point —
+fully unconverted, partially converted, or already done — and either
+converges to the same end state or changes nothing at all.</p>
+<p><strong>1.4 — Confirm it, and confirm the rejection</strong></p>
+<div class="sourceCode" id="cb694"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb694-1"><a href="#cb694-1" aria-hidden="true" tabindex="-1"></a>\d jobs</span></code></pre></div>
+<pre><code> status | job_status | | not null | &#39;queued&#39;::job_status
+...
+Indexes:
+    &quot;idx_jobs_claim_order&quot; btree (priority, created_at, id) WHERE status = &#39;queued&#39;::job_status</code></pre>
+<div class="sourceCode" id="cb696"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb696-1"><a href="#cb696-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;archived_forever&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
+<pre><code>ERROR:  invalid input value for enum job_status: &quot;archived_forever&quot;</code></pre>
+<p>(Deliberately not <code>'cancelled'</code> here — Exercise 2 is about
+to make that one a real value, and if you’re re-running this exercise on
+a database that’s already been through Exercise 2,
+<code>'cancelled'</code> would no longer be rejected.
+<code>'archived_forever'</code> is never added anywhere in this chapter,
+so this check stays valid no matter what order you run things in or how
+many times you re-run it.)</p>
+<p>Compare this to Chapter 3’s original <code>CHECK</code> violation
+message — same outcome, a rejected write, but a completely different
+category of error. <code>'archived_forever'</code> isn’t
+<em>disallowed</em>, from PostgreSQL’s point of view; it simply isn’t a
+<code>job_status</code> at all, the same way <code>'abc'</code> isn’t an
+<code>INTEGER</code>.</p>
+<hr />
+<h3
+id="exercise-2-adding-a-value-ordering-and-transaction-rules">Exercise 2
+— Adding a Value: Ordering and Transaction Rules</h3>
+<p><strong>2.1 — Add a value</strong></p>
+<div class="sourceCode" id="cb698"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb698-1"><a href="#cb698-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TYPE</span> job_status <span class="kw">ADD</span> <span class="fu">VALUE</span> <span class="st">&#39;cancelled&#39;</span>;</span>
+<span id="cb698-2"><a href="#cb698-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> enum_range(<span class="kw">NULL</span>:<span class="ch">:job_status</span>);</span></code></pre></div>
+<pre><code>                   enum_range
+---------------------------------------------------
+ {queued,in_progress,completed,failed,cancelled}</code></pre>
+<p>New values are appended at the end by default.
+<code>enum_range</code> returns every label in the type’s actual sort
+order — enums order by <em>declaration position</em>, not
+alphabetically, which is why <code>'cancelled'</code> sorts after
+<code>'failed'</code> here despite the alphabet disagreeing.</p>
+<p><strong>2.2 — Control exactly where it lands</strong></p>
+<div class="sourceCode" id="cb700"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb700-1"><a href="#cb700-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TYPE</span> job_status <span class="kw">ADD</span> <span class="fu">VALUE</span> <span class="st">&#39;on_hold&#39;</span> <span class="kw">BEFORE</span> <span class="st">&#39;in_progress&#39;</span>;</span>
+<span id="cb700-2"><a href="#cb700-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> enum_range(<span class="kw">NULL</span>:<span class="ch">:job_status</span>);</span></code></pre></div>
+<pre><code>                       enum_range
+---------------------------------------------------------
+ {queued,on_hold,in_progress,completed,failed,cancelled}</code></pre>
+<p><code>BEFORE</code>/<code>AFTER</code> exist precisely because
+append-only ordering isn’t always what you want — <code>'on_hold'</code>
+belongs conceptually between <code>queued</code> and
+<code>in_progress</code>, and now it sorts there too, which matters
+anywhere this column gets used in an <code>ORDER BY</code>.</p>
+<p><strong>2.3 — The rule that catches almost everyone once</strong></p>
+<div class="sourceCode" id="cb702"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb702-1"><a href="#cb702-1" aria-hidden="true" tabindex="-1"></a><span class="cf">BEGIN</span>;</span>
+<span id="cb702-2"><a href="#cb702-2" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TYPE</span> job_status <span class="kw">ADD</span> <span class="fu">VALUE</span> <span class="st">&#39;archived&#39;</span>;</span>
+<span id="cb702-3"><a href="#cb702-3" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> jobs <span class="kw">SET</span> status <span class="op">=</span> <span class="st">&#39;archived&#39;</span> <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span>;</span>
+<span id="cb702-4"><a href="#cb702-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COMMIT</span>;</span></code></pre></div>
+<pre><code>ERROR:  unsafe use of new value &quot;archived&quot; of enum type job_status
+HINT:  New enum values must be committed before they can be used.</code></pre>
+<p><code>ADD VALUE</code> is allowed inside a transaction block — that
+restriction was lifted back in PostgreSQL 12 — but the new label still
+can’t be <em>used</em> until the transaction that added it actually
+commits. PostgreSQL can’t yet guarantee the value will still exist if
+this transaction rolls back, so it refuses to let anything reference it
+in the meantime. (This transaction did roll back here, which is exactly
+why <code>'archived'</code> doesn’t appear in 2.2’s output above — the
+<code>ADD VALUE</code> itself is fully transactional too.) Add the value
+and use it in two separate transactions, and this is a non-issue.</p>
+<hr />
+<h3 id="exercise-3-a-positive_integer-domain">Exercise 3 — A
+<code>positive_integer</code> Domain</h3>
+<p><strong>3.1 — Define it once, use it anywhere</strong></p>
+<div class="sourceCode" id="cb704"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb704-1"><a href="#cb704-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">DOMAIN</span> positive_integer <span class="kw">AS</span> <span class="dt">INTEGER</span> <span class="kw">CHECK</span> (<span class="fu">VALUE</span> <span class="op">&gt;</span> <span class="dv">0</span>);</span>
+<span id="cb704-2"><a href="#cb704-2" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> businesses <span class="kw">ADD</span> <span class="kw">COLUMN</span> employee_count positive_integer;</span></code></pre></div>
+<p><code>VALUE</code> inside a domain’s <code>CHECK</code> refers to
+whatever’s being validated — the same role <code>NEW.column</code> plays
+in a trigger, just scoped to a single value instead of a whole row.</p>
+<p><strong>3.2 — It enforces itself, everywhere,
+immediately</strong></p>
+<div class="sourceCode" id="cb705"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb705-1"><a href="#cb705-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses <span class="kw">SET</span> employee_count <span class="op">=</span> <span class="dv">12</span> <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;The Gilded Clam&#39;</span>;</span></code></pre></div>
+<pre><code>UPDATE 1</code></pre>
+<div class="sourceCode" id="cb707"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb707-1"><a href="#cb707-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses <span class="kw">SET</span> employee_count <span class="op">=</span> <span class="op">-</span><span class="dv">5</span> <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;Anchor &amp; Oar Tavern&#39;</span>;</span></code></pre></div>
+<pre><code>ERROR:  value for domain positive_integer violates check constraint &quot;positive_integer_check&quot;</code></pre>
+<div class="sourceCode" id="cb709"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb709-1"><a href="#cb709-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> businesses <span class="kw">SET</span> employee_count <span class="op">=</span> <span class="dv">0</span> <span class="kw">WHERE</span> name <span class="op">=</span> <span class="st">&#39;Anchor &amp; Oar Tavern&#39;</span>;</span></code></pre></div>
+<pre><code>ERROR:  value for domain positive_integer violates check constraint &quot;positive_integer_check&quot;</code></pre>
+<p>Zero fails too — <code>&gt; 0</code>, not <code>&gt;= 0</code>, meant
+exactly what it said. Every future column ever declared
+<code>positive_integer</code> gets this exact rule for free, with no
+<code>CHECK</code> clause to remember to copy.</p>
+<hr />
+<h3 id="exercise-4-a-contact_info-composite-type">Exercise 4 — A
+<code>contact_info</code> Composite Type</h3>
+<p><strong>4.1 — A domain nested inside a composite type</strong></p>
+<p>Portsmith’s real-world namesake, Portsmouth, England, has postcodes
+starting with “PO” — worth getting right rather than reaching for a
+generic example:</p>
+<div class="sourceCode" id="cb711"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb711-1"><a href="#cb711-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">DOMAIN</span> uk_postcode <span class="kw">AS</span> TEXT</span>
+<span id="cb711-2"><a href="#cb711-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">CHECK</span> (<span class="fu">VALUE</span> ~ <span class="st">&#39;^[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2}$&#39;</span>);</span>
+<span id="cb711-3"><a href="#cb711-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb711-4"><a href="#cb711-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> contact_info <span class="kw">AS</span> (</span>
+<span id="cb711-5"><a href="#cb711-5" aria-hidden="true" tabindex="-1"></a>    phone             TEXT,</span>
+<span id="cb711-6"><a href="#cb711-6" aria-hidden="true" tabindex="-1"></a>    postcode          uk_postcode,</span>
+<span id="cb711-7"><a href="#cb711-7" aria-hidden="true" tabindex="-1"></a>    preferred_contact TEXT</span>
+<span id="cb711-8"><a href="#cb711-8" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb711-9"><a href="#cb711-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb711-10"><a href="#cb711-10" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> residents <span class="kw">ADD</span> <span class="kw">COLUMN</span> contact contact_info;</span></code></pre></div>
+<p>A composite type’s fields aren’t limited to base types —
+<code>postcode</code> here is a full domain, constraint included, nested
+one level inside another type. Validation composes the same way the
+types do.</p>
+<p><strong>4.2 — Store and query it</strong></p>
+<div class="sourceCode" id="cb712"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb712-1"><a href="#cb712-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> residents</span>
+<span id="cb712-2"><a href="#cb712-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    contact <span class="op">=</span> <span class="kw">ROW</span>(<span class="st">&#39;023 9281 4477&#39;</span>, <span class="st">&#39;PO1 3AX&#39;</span>, <span class="st">&#39;phone&#39;</span>):<span class="ch">:contact_info</span></span>
+<span id="cb712-3"><a href="#cb712-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  full_name <span class="op">=</span> <span class="st">&#39;Adrian Foscolo&#39;</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb713"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb713-1"><a href="#cb713-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> full_name, (contact).phone, (contact).postcode</span>
+<span id="cb713-2"><a href="#cb713-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span>   residents</span>
+<span id="cb713-3"><a href="#cb713-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  full_name <span class="op">=</span> <span class="st">&#39;Adrian Foscolo&#39;</span>;</span></code></pre></div>
+<pre><code>    full_name    |     phone     | postcode
+------------------+---------------+----------
+ Adrian Foscolo   | 023 9281 4477 | PO1 3AX</code></pre>
+<p><code>(contact).phone</code> — the parentheses are required; without
+them, <code>contact.phone</code> parses as “column <code>phone</code> of
+table <code>contact</code>,” not “field <code>phone</code> of column
+<code>contact</code>.” One column, <code>\d residents</code> shows one
+<code>contact_info</code> entry, but it carries three named,
+individually queryable fields.</p>
+<p><strong>4.3 — The nested domain still enforces itself</strong></p>
+<div class="sourceCode" id="cb715"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb715-1"><a href="#cb715-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> residents</span>
+<span id="cb715-2"><a href="#cb715-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SET</span>    contact <span class="op">=</span> <span class="kw">ROW</span>(<span class="st">&#39;023 9281 0000&#39;</span>, <span class="st">&#39;NOTVALID&#39;</span>, <span class="st">&#39;email&#39;</span>):<span class="ch">:contact_info</span></span>
+<span id="cb715-3"><a href="#cb715-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span>  full_name <span class="op">=</span> <span class="st">&#39;Marisol Quintero&#39;</span>;</span></code></pre></div>
+<pre><code>ERROR:  value for domain uk_postcode violates check constraint &quot;uk_postcode_check&quot;</code></pre>
+<p>The <code>CHECK</code> fires from two levels down — PostgreSQL
+validates every domain-typed field of a composite value the same way it
+would validate a plain column, whether or not that field happens to be
+buried inside something else on its way into the table.</p>
+<hr />
+<h3 id="exercise-5-an-email-domain">Exercise 5 — An Email Domain</h3>
+<p><strong>5.1 — A dedicated, standalone domain</strong></p>
+<div class="sourceCode" id="cb717"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb717-1"><a href="#cb717-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">DOMAIN</span> email_address <span class="kw">AS</span> TEXT</span>
+<span id="cb717-2"><a href="#cb717-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">CHECK</span> (<span class="fu">VALUE</span> ~ <span class="st">&#39;^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$&#39;</span>);</span>
+<span id="cb717-3"><a href="#cb717-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb717-4"><a href="#cb717-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> residents <span class="kw">ADD</span> <span class="kw">COLUMN</span> email email_address;</span></code></pre></div>
+<p><strong>5.2 — Two different ways to fail</strong></p>
+<div class="sourceCode" id="cb718"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb718-1"><a href="#cb718-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> residents <span class="kw">SET</span> email <span class="op">=</span> <span class="st">&#39;adrian.foscolo@example.com&#39;</span> <span class="kw">WHERE</span> full_name <span class="op">=</span> <span class="st">&#39;Adrian Foscolo&#39;</span>;</span></code></pre></div>
+<pre><code>UPDATE 1</code></pre>
+<div class="sourceCode" id="cb720"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb720-1"><a href="#cb720-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> residents <span class="kw">SET</span> email <span class="op">=</span> <span class="st">&#39;not-an-email&#39;</span> <span class="kw">WHERE</span> full_name <span class="op">=</span> <span class="st">&#39;Marisol Quintero&#39;</span>;</span></code></pre></div>
+<pre><code>ERROR:  value for domain email_address violates check constraint &quot;email_address_check&quot;</code></pre>
+<div class="sourceCode" id="cb722"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb722-1"><a href="#cb722-1" aria-hidden="true" tabindex="-1"></a><span class="kw">UPDATE</span> residents <span class="kw">SET</span> email <span class="op">=</span> <span class="st">&#39;someone@localhost&#39;</span> <span class="kw">WHERE</span> full_name <span class="op">=</span> <span class="st">&#39;Marisol Quintero&#39;</span>;</span></code></pre></div>
+<pre><code>ERROR:  value for domain email_address violates check constraint &quot;email_address_check&quot;</code></pre>
+<p><code>'someone@localhost'</code> is a technically-valid email address
+by the actual internet standard — real mail servers accept it — and this
+regex still rejects it, because it has no <code>.</code>-separated
+top-level domain. Every regex-based domain like this one is a
+deliberate, imperfect trade: strict enough to catch obvious garbage,
+permissive enough not to reject real addresses your business actually
+needs, and never a substitute for verifying an address by actually
+sending mail to it.</p>
+<hr />
+<h3 id="exercise-6-automatic-reflection">Exercise 6 — Automatic
+Reflection</h3>
+<p><strong>6.1 — <code>psycopg</code>, by default</strong></p>
+<div class="sourceCode" id="cb724"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb724-1"><a href="#cb724-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb724-2"><a href="#cb724-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb724-3"><a href="#cb724-3" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> psycopg.<span class="ex">connect</span>(<span class="st">&quot;dbname=portsmith&quot;</span>) <span class="im">as</span> conn:</span>
+<span id="cb724-4"><a href="#cb724-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb724-5"><a href="#cb724-5" aria-hidden="true" tabindex="-1"></a>        cur.execute(<span class="st">&quot;SELECT id, status FROM jobs WHERE id = 1;&quot;</span>)</span>
+<span id="cb724-6"><a href="#cb724-6" aria-hidden="true" tabindex="-1"></a>        row <span class="op">=</span> cur.fetchone()</span>
+<span id="cb724-7"><a href="#cb724-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;value: </span><span class="sc">{</span>row[<span class="dv">1</span>]<span class="sc">!r}</span><span class="ss">&quot;</span>)</span>
+<span id="cb724-8"><a href="#cb724-8" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;python type: </span><span class="sc">{</span><span class="bu">type</span>(row[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<pre><code>value: &#39;in_progress&#39;
+python type: &lt;class &#39;str&#39;&gt;</code></pre>
+<p>No configuration, no registration — an enum column just arrives as a
+plain Python string, because PostgreSQL’s own wire protocol already
+tells the driver “this value is text-shaped,” and <code>psycopg</code>
+doesn’t need to know anything about <code>job_status</code> specifically
+to hand it back correctly.</p>
+<p><strong>6.2 — <code>psycopg</code>, fully reflected as a real Python
+enum</strong></p>
+<div class="sourceCode" id="cb726"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb726-1"><a href="#cb726-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> psycopg</span>
+<span id="cb726-2"><a href="#cb726-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> psycopg.types.enum <span class="im">import</span> register_enum, EnumInfo</span>
+<span id="cb726-3"><a href="#cb726-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb726-4"><a href="#cb726-4" aria-hidden="true" tabindex="-1"></a><span class="cf">with</span> psycopg.<span class="ex">connect</span>(<span class="st">&quot;dbname=portsmith&quot;</span>) <span class="im">as</span> conn:</span>
+<span id="cb726-5"><a href="#cb726-5" aria-hidden="true" tabindex="-1"></a>    info <span class="op">=</span> EnumInfo.fetch(conn, <span class="st">&quot;job_status&quot;</span>)</span>
+<span id="cb726-6"><a href="#cb726-6" aria-hidden="true" tabindex="-1"></a>    register_enum(info, conn)</span>
+<span id="cb726-7"><a href="#cb726-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb726-8"><a href="#cb726-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">&quot;labels from the database:&quot;</span>, info.labels)</span>
+<span id="cb726-9"><a href="#cb726-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb726-10"><a href="#cb726-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> conn.cursor() <span class="im">as</span> cur:</span>
+<span id="cb726-11"><a href="#cb726-11" aria-hidden="true" tabindex="-1"></a>        cur.execute(<span class="st">&quot;SELECT id, status FROM jobs WHERE id = 1;&quot;</span>)</span>
+<span id="cb726-12"><a href="#cb726-12" aria-hidden="true" tabindex="-1"></a>        row <span class="op">=</span> cur.fetchone()</span>
+<span id="cb726-13"><a href="#cb726-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;value: </span><span class="sc">{</span>row[<span class="dv">1</span>]<span class="sc">!r}</span><span class="ss">&quot;</span>)</span>
+<span id="cb726-14"><a href="#cb726-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f&quot;python type: </span><span class="sc">{</span><span class="bu">type</span>(row[<span class="dv">1</span>])<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<pre><code>labels from the database: [&#39;queued&#39;, &#39;on_hold&#39;, &#39;in_progress&#39;, &#39;completed&#39;, &#39;failed&#39;, &#39;cancelled&#39;]
+value: &lt;Job_Status.in_progress: 3&gt;
+python type: &lt;enum &#39;Job_Status&#39;&gt;</code></pre>
+<p><code>EnumInfo.fetch()</code> reads the <em>live</em> set of labels
+straight out of <code>pg_enum</code> — all six, including
+<code>on_hold</code> and <code>cancelled</code> from Exercise 2 — and
+<code>register_enum()</code> builds and wires up a real Python
+<code>enum.Enum</code> class from them, on the spot. Change the
+database’s enum next month and this code doesn’t change at all; it
+reflects whatever the type currently contains.</p>
+<p><strong>6.3 — PostgREST’s OpenAPI document</strong></p>
+<p>With PostgREST running against this database (Chapter 10’s
+setup):</p>
+<div class="sourceCode" id="cb728"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb728-1"><a href="#cb728-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> http://localhost:3000/ <span class="kw">|</span> <span class="ex">jq</span> <span class="st">&#39;.definitions.jobs.properties.status&#39;</span></span></code></pre></div>
+<div class="sourceCode" id="cb729"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb729-1"><a href="#cb729-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb729-2"><a href="#cb729-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;enum&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;queued&quot;</span><span class="ot">,</span> <span class="st">&quot;on_hold&quot;</span><span class="ot">,</span> <span class="st">&quot;in_progress&quot;</span><span class="ot">,</span> <span class="st">&quot;completed&quot;</span><span class="ot">,</span> <span class="st">&quot;failed&quot;</span><span class="ot">,</span> <span class="st">&quot;cancelled&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb729-3"><a href="#cb729-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;format&quot;</span><span class="fu">:</span> <span class="st">&quot;public.job_status&quot;</span><span class="fu">,</span></span>
+<span id="cb729-4"><a href="#cb729-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;string&quot;</span></span>
+<span id="cb729-5"><a href="#cb729-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>The exact same six labels, discovered the exact same way — by
+introspecting <code>job_status</code> directly — and published
+automatically in the API’s own schema document. No route was written to
+expose this list anywhere; it’s a side effect of the column’s type being
+what it is.</p>
+<p><strong>6.4 — And the API enforces it too, for free</strong></p>
+<div class="sourceCode" id="cb730"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb730-1"><a href="#cb730-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> <span class="st">&quot;http://localhost:3000/jobs?status=eq.bogus&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb731"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb731-1"><a href="#cb731-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;code&quot;</span><span class="fu">:</span><span class="st">&quot;22P02&quot;</span><span class="fu">,</span><span class="dt">&quot;details&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;hint&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;message&quot;</span><span class="fu">:</span><span class="st">&quot;invalid input value for enum job_status: </span><span class="ch">\&quot;</span><span class="st">bogus</span><span class="ch">\&quot;</span><span class="st">&quot;</span><span class="fu">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb732"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb732-1"><a href="#cb732-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> <span class="at">-o</span> /dev/null <span class="at">-w</span> <span class="st">&quot;%{http_code}\n&quot;</span> <span class="st">&quot;http://localhost:3000/jobs?status=eq.bogus&quot;</span></span></code></pre></div>
+<pre><code>400</code></pre>
+<p>The exact same error PostgreSQL raised back in Exercise 1.4, now
+arriving as a <code>400</code> over HTTP with PostgreSQL’s own error
+code and message intact. PostgREST didn’t validate this value against a
+list it maintains — it never has to. The type validated it, at the one
+place that was always going to be authoritative regardless of which
+client asked.</p>
+<p><img src="imgs/ch15_reflection_flow.svg" alt="One job_status entry in the pg_enum catalog, fanning out to two independent consumers: psycopg's register_enum() builds a live Python enum.Enum class from it, and PostgREST's OpenAPI document lists it as an enum array in the API schema — both automatically derived, neither hand-written"/></p>
+<hr />
+<h2 id="summary-what-you-should-now-know-14">Summary — What You Should
+Now Know</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>CREATE TYPE name AS ENUM (...)</code></td>
+<td>A type that can only hold one of a fixed set of labels</td>
+</tr>
+<tr class="even">
+<td><code>ALTER TABLE ... ALTER COLUMN ... TYPE enum USING col::enum</code></td>
+<td>Convert an existing column — after clearing its default and any
+dependent views/indexes</td>
+</tr>
+<tr class="odd">
+<td><code>ALTER TYPE ... ADD VALUE [BEFORE\|AFTER 'x']</code></td>
+<td>Add a label; position controls sort order, not just membership</td>
+</tr>
+<tr class="even">
+<td>New enum values in a transaction</td>
+<td>Addable, but unusable until that transaction commits</td>
+</tr>
+<tr class="odd">
+<td><code>CREATE DOMAIN name AS base_type CHECK (VALUE ...)</code></td>
+<td>A named, reusable constraint on top of an existing type</td>
+</tr>
+<tr class="even">
+<td><code>CREATE TYPE name AS (field type, ...)</code></td>
+<td>A composite type — several named fields as one column</td>
+</tr>
+<tr class="odd">
+<td><code>(composite_col).field</code></td>
+<td>Access one field of a composite column — parentheses required</td>
+</tr>
+<tr class="even">
+<td>A domain nested inside a composite field</td>
+<td>Still fully enforced, at whatever depth it’s used</td>
+</tr>
+<tr class="odd">
+<td><code>EnumInfo.fetch()</code> + <code>register_enum()</code>
+(psycopg)</td>
+<td>Build a live Python <code>Enum</code> class from a database enum’s
+current labels</td>
+</tr>
+<tr class="even">
+<td>PostgREST’s <code>/</code> OpenAPI document</td>
+<td>Lists a column’s enum values automatically, from the type, with no
+route written for it</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The key design insight</strong> from this chapter is where
+the rule actually lives. A <code>CHECK</code> constraint and a custom
+type can enforce the identical rule — Chapter 3’s original
+<code>status IN (...)</code> and this chapter’s <code>job_status</code>
+enum reject exactly the same bad values — but only one of them is a fact
+every tool touching the database can discover on its own, without being
+told. <code>psycopg</code> didn’t need to be taught what
+<code>job_status</code> allows; PostgREST didn’t need a hand-written
+validator for it either. Both found out by asking PostgreSQL, because
+the rule was never bolted onto the column from outside — it was what the
+column’s type actually <em>was</em>.</p>
+<hr />
+<em>Going further: Chapter 16’s generated columns are this chapter’s
+natural next step — where a domain or enum constrains what a column can
+</em>hold<em>, a generated column controls what a column </em>is<em>,
+computed automatically from the rest of the row. The
+<code>positive_integer</code> and <code>email_address</code> domains
+built here are deliberately simple; production schemas often layer
+several domains and composite types together the way
+<code>contact_info</code> nested <code>uk_postcode</code> in Exercise 4,
+one constraint at a time, until the type system is carrying most of what
+used to live in application-layer validation code. And Exercise 1’s
+dependency chain — a default, a view, a partial index, all blocking one
+column’s type change — is worth remembering the next time any column
+with a few chapters of history behind it needs to change shape:
+<code>\d</code> on the table first, always, before the
+<code>ALTER</code>.</em>
 <div style="page-break-before: always;">
 
 </div>
