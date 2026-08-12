@@ -41,7 +41,6 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 ---
 
 *Edition 1.0 — Portsmith, 2026*
-<div style="page-break-before: always;"></div>
 # Chapter 1 — JSONB: Semi-Structured Data Without a Schema Tax
 
 > *"A schema is a prediction about the future. JSONB lets you hedge."*
@@ -935,7 +934,6 @@ of the harbour, and which neighbourhood does each one belong to.
 pagination and single-value extraction. For write-heavy workloads, profile
 whether `JSONB` or a computed stored column (Chapter 16) gives better
 `INSERT`/`UPDATE` throughput on your hardware.*
-<div style="page-break-before: always;"></div>
 # Chapter 2 — PostGIS: Geospatial Queries on Real Geometry
 
 > *"A city is not a list of rows. It is a shape on the ground."*
@@ -1838,7 +1836,6 @@ shortest-path algorithms over road network graphs. For importing real boundary
 data, `shp2pgsql` converts ESRI Shapefiles directly into PostGIS-compatible
 `INSERT` statements, and `ogr2ogr` handles GeoJSON, KML, GeoPackage, and dozens
 of other formats.*
-<div style="page-break-before: always;"></div>
 # Chapter 3 — Job Queues: `FOR UPDATE SKIP LOCKED`
 
 > *"A queue is just a table that everyone is racing to read."*
@@ -2710,7 +2707,6 @@ guaranteed ordering at very high throughput, or consumer groups — that's
 the point at which a dedicated broker starts to earn its operational cost.
 For most applications below that scale, the table you just built is
 enough.*
-<div style="page-break-before: always;"></div>
 # Chapter 4 — Full-Text Search: `tsvector`, Stopwords, and Ranking
 
 > *"Grep finds characters. Full-text search finds meaning — or at least gets
@@ -3663,7 +3659,6 @@ body matches) and consider whether a dedicated search engine becomes
 worthwhile once ranking quality and query latency requirements outgrow what
 a GIN index over a single table can deliver — the honest answer, for most
 applications, is later than you'd expect.*
-<div style="page-break-before: always;"></div>
 # Chapter 5 — Fuzzy Matching: `pg_trgm`
 
 > *"Every registry that outlives a year of real data entry ends up with the
@@ -4414,7 +4409,6 @@ look at dedicated record-linkage tools (e.g. the `dedupe` Python library),
 which combine trigram-style string similarity with other fields — address,
 phone number, date of birth — and a trained classifier, instead of a single
 threshold on a single column.*
-<div style="page-break-before: always;"></div>
 # Chapter 6 — Vector Search: `pgvector` for Embeddings
 
 > *"Full-text search finds documents that use your words. Vector search
@@ -5583,7 +5577,6 @@ explicit **citations** in the generated answer so a user can verify a
 claim against the source chunk rather than trusting the model's summary
 outright. None of that changes the shape of what you built here — it's
 still retrieval, then generation, with more care taken at each step.*
-<div style="page-break-before: always;"></div>
 # Chapter 7 — IP and Network Filtering: `ip4r`
 
 > *"An IP address is a number. A CIDR block is a range. PostgreSQL's
@@ -6524,7 +6517,6 @@ ever become the bottleneck rather than the safeguard, that's the point at
 which a dedicated in-memory limiter (Redis and similar) starts to earn
 its keep — but plenty of systems never reach the traffic level where that
 trade-off is worth the added moving part.*
-<div style="page-break-before: always;"></div>
 # Chapter 8 — Declarative Partitioning and BRIN Indexes
 
 > *"A table doesn't get slow because it's big. It gets slow because every
@@ -7441,7 +7433,6 @@ every block range ends up spanning the entire value domain. Check
 `correlation` before reaching for BRIN, the same way Exercise 4 did here
 — it's a bet on the physical shape of your data, not a strictly smaller
 B-tree.*
-<div style="page-break-before: always;"></div>
 # Chapter 9 — Materialized Views: Precomputing Expensive Aggregations
 
 > *"A view is a promise to run the query again. A materialized view is a
@@ -8243,7 +8234,6 @@ for that recomputation. Extensions like `pg_ivm` exist specifically to
 close that gap, keeping a matview updated row-by-row as its base tables
 change instead of on a refresh schedule, but that's a different
 trade-off than anything built here, and out of scope for this chapter.*
-<div style="page-break-before: always;"></div>
 # Chapter 10 — PostgREST: A Web-Native REST API from Your Schema
 
 > *"PostgREST doesn't generate an API from your schema. It *is* your
@@ -9103,7 +9093,6 @@ all be scoped per-column the same way `INSERT` was here — is worth a
 deliberate read through the `GRANT` documentation before exposing any
 table this way for real, well beyond what one chapter's exercises can
 cover.*
-<div style="page-break-before: always;"></div>
 # Chapter 11 — Window Functions: Analytics Beyond `GROUP BY`
 
 > *"`GROUP BY` answers a question by throwing away the rows that don't
@@ -9938,7 +9927,6 @@ current row" — recursive CTEs walk relationships the data itself defines
 (a parent, a neighbour node), where window functions walk an *ordering*
 you impose yourself; knowing which kind of "related rows" a problem
 actually has is most of the work of picking the right one.*
-<div style="page-break-before: always;"></div>
 # Chapter 12 — Recursive CTEs: Graphs and Hierarchies
 
 > *"SQL doesn't have loops. `WITH RECURSIVE` is a query that keeps
@@ -10643,7 +10631,6 @@ production answer to "I need real shortest-path routing, not the
 smallest example that demonstrates the idea" — turn restrictions,
 one-way streets, and genuine Dijkstra/A* implementations, all built on
 top of the same PostGIS geometry this chapter's road graph came from.*
-<div style="page-break-before: always;"></div>
 # Chapter 13 — `LISTEN`/`NOTIFY`: Database-Native Pub/Sub
 
 > *"Polling asks 'did anything happen yet?' a thousand times a minute.
@@ -11342,7 +11329,6 @@ replication when the requirement is "give me the data," and
 a scheduled job that sweeps for log rows newer than a dashboard's last
 checkpoint is exactly how that dashboard recovers from having been
 disconnected, the catch-up path `NOTIFY` alone can never provide.*
-<div style="page-break-before: always;"></div>
 # Chapter 14 — Advisory Locks: Distributed Coordination
 
 > *"Every lock in this book so far has been about a row. This one isn't
@@ -11929,7 +11915,6 @@ Chapter 3 explicitly: `FOR UPDATE SKIP LOCKED` coordinates access to
 *rows that exist*; advisory locks coordinate *processes*, around ideas
 that were never going to have a row of their own no matter how the
 schema was designed.*
-<div style="page-break-before: always;"></div>
 # Chapter 15 — Custom Types, Domains, and Enums
 
 > *"A `CHECK` constraint says 'reject this if it's wrong.' A type says
@@ -12585,7 +12570,6 @@ in application-layer validation code. And Exercise 1's dependency chain
 change — is worth remembering the next time any column with a few
 chapters of history behind it needs to change shape: `\d` on the table
 first, always, before the `ALTER`.*
-<div style="page-break-before: always;"></div>
 # Chapter 16 — Generated Columns
 
 > *"A trigger is a promise that someone wrote the sync logic correctly.
@@ -13214,4 +13198,4127 @@ worth remembering Exercise 6's dividing line the next time a derived
 column is on the table at all: reach for a generated column first,
 purely for the guarantee it makes, and only fall back to a trigger once
 the derivation genuinely needs to see past the row it lives on.*
-<div style="page-break-before: always;"></div>
+# Chapter 17 — Foreign Data Wrappers: PostgreSQL as a Data Hub
+
+> *"A foreign table looks exactly like a table. Everything a DBA would
+> ask before letting you near someone else's data — do you have the
+> extension, do you have a credential, can you actually reach the file
+> — still has to be answered. It just gets asked in `CREATE SERVER`
+> instead of a ticket queue."*
+
+---
+
+## Background
+
+Every table in this book so far has lived inside `portsmith`. A
+**foreign data wrapper (FDW)** lets a table live somewhere else
+entirely — another PostgreSQL database, a CSV file on disk, an S3
+bucket — while still being queried with ordinary `SELECT`, `JOIN`, and
+`WHERE`, exactly like a local one. No ETL job copies the data in first;
+the query reaches out and reads it at query time, through whichever FDW
+you've told it to use.
+
+The shape is always the same, four pieces:
+
+- **The extension** (`postgres_fdw`, `file_fdw`, ...) — the driver that
+  knows how to actually talk to one kind of remote source.
+- **A server** — one specific remote endpoint: a hostname and database,
+  or a directory of files, registered under a name.
+- **A user mapping** — which local role authenticates as which remote
+  identity, since "you're logged into `portsmith`" says nothing about
+  who you are anywhere else.
+- **A foreign table** — the local name for a remote shape of data,
+  declared once (by hand, or generated wholesale with `IMPORT FOREIGN
+  SCHEMA` in Exercise 4).
+
+<img src="imgs/ch17_fdw_architecture.png" alt="Four-piece FDW architecture flowing left to right: an extension (postgres_fdw or file_fdw), to a server representing one remote endpoint, to a user mapping translating a local role into a remote identity, to a foreign table giving a local name to the remote shape of data, finally reaching the actual remote data"/>
+
+What makes this chapter worth doing hands-on rather than reading about
+is that almost none of it works on the first try, and every wall you
+hit is a real, deliberate security boundary rather than a bug —
+extensions need a privileged role to install, foreign-data wrappers
+need explicit `USAGE` before anyone else can touch them, and a remote
+connection needs a real credential even when the same connection would
+succeed instantly without one. This chapter hits all three, in order,
+exactly where a first-time setup actually hits them.
+
+---
+
+## The Scenario
+
+| Object                         | Lives in                          | Purpose                                             |
+|-----------------------------------|--------------------------------------|--------------------------------------------------------|
+| `businesses_archive`               | `portsmith_legacy` (a second database) | Closed Portsmith businesses, pre-migration records     |
+| `census_2020.csv`                   | Server filesystem                    | 2020 population/household figures, one row per neighbourhood |
+| `legacy_import.businesses_archive`   | *(built here, via `IMPORT FOREIGN SCHEMA`)* | The same archive, imported wholesale instead of hand-declared |
+| `sensor_readings/*.parquet`          | MinIO bucket `portsmith-bucket`        | Chapter 8's full 9.6M-row table, exported one file per month |
+
+`portsmith_legacy` is a genuinely separate PostgreSQL database — not a
+schema inside `portsmith` — created specifically to give `postgres_fdw`
+something real to reach across to. Everything in this chapter is a real
+network round-trip (over `localhost`) or a real file read, not a
+simulation.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Install `postgres_fdw`, register a remote PostgreSQL database as a
+  server, and query one of its tables as if it were local — and know
+  every privilege that has to be granted along the way, and why.
+- Confirm, with `EXPLAIN`, that a `WHERE` clause against a foreign table
+  actually executes on the remote server instead of being pulled over
+  the wire in full.
+- Query a CSV file as a table with `file_fdw`, join it against local
+  data, and know exactly whose filesystem permissions actually govern
+  whether that works.
+- Import an entire remote schema in one statement instead of
+  hand-declaring every foreign table.
+- Write through a foreign table with a plain `INSERT`, and verify the
+  row actually landed on the remote server.
+- Export real PostgreSQL data to Parquet and upload it to S3-compatible
+  storage, and describe the `parquet_s3_fdw` architecture for querying
+  it straight back — what problem it solves, and what the one genuinely
+  hard-to-install piece still involves.
+
+---
+
+## Installation
+
+### 1 — A second database
+
+```bash
+createdb portsmith_legacy
+```
+
+If this fails with `permission denied to create database`, your role
+needs `CREATEDB`:
+
+```sql
+-- as postgres
+ALTER ROLE your_role CREATEDB;
+```
+
+### 2 — The extensions
+
+```sql
+-- as postgres — CREATE EXTENSION requires a privileged role
+CREATE EXTENSION postgres_fdw;
+CREATE EXTENSION file_fdw;
+```
+
+Both ship with core PostgreSQL — no separate package to install, but
+creating them requires a role with sufficient privilege, almost always
+`postgres` itself in a development setup like this one.
+
+### 3 — Exercise 6's Python packages (optional)
+
+Only needed if you're doing the hands-on half of Exercise 6:
+
+```bash
+source .venv/bin/activate
+pip install pyarrow boto3 duckdb
+```
+
+---
+
+## Loading the Data
+
+**In `portsmith_legacy`** — the "legacy" archive:
+
+```sql
+CREATE TABLE businesses_archive (
+    biz_id        INTEGER PRIMARY KEY,
+    biz_name      TEXT NOT NULL,
+    addr          TEXT NOT NULL,
+    neighbourhood TEXT NOT NULL,
+    closed_date   DATE NOT NULL,
+    reason        TEXT
+);
+
+INSERT INTO businesses_archive (biz_id, biz_name, addr, neighbourhood, closed_date, reason) VALUES
+    (1001, 'Portsmith Cannery Co.',        '2 Dock Road',          'Industrial Port',     '2011-03-15', 'relocated out of city'),
+    (1002, 'The Anchor & Rope',            '18 Wharf Street',      'Harbour District',    '2014-07-01', 'owner retired'),
+    (1003, 'Old Town Print Shop',          '9 Market Street',      'Old Town',            '2016-11-30', 'business closed'),
+    (1004, 'Northgate Ironworks',          '44 Bay Street',        'Northgate',           '2009-05-20', 'relocated out of city'),
+    (1005, 'Riverside Boat Repair',        '3 Quay Street',        'Riverside',           '2018-02-14', 'owner retired'),
+    (1006, 'University Quarter Bindery',   '61 Lighthouse Avenue', 'University Quarter',  '2013-09-01', 'business closed'),
+    (1007, 'Portsmith Rope & Sail',        '7 Anchor Lane',        'Harbour District',    '2007-01-10', 'merged with another business'),
+    (1008, 'Dockside Chandlery',           '15 Fisherman''s Row',  'Industrial Port',     '2019-06-25', 'business closed');
+```
+
+**On the server filesystem** — `data/ch17_census.csv`:
+
+```csv
+neighbourhood,population_2020,households_2020,median_age
+Harbour District,8420,3610,41.2
+Old Town,6150,2890,44.7
+Northgate,11730,4920,36.5
+Riverside,9280,3945,39.8
+University Quarter,7460,2210,24.3
+Industrial Port,5340,2280,45.1
+```
+
+### Verify
+
+```sql
+-- in portsmith_legacy
+SELECT COUNT(*) FROM businesses_archive;
+```
+
+```
+ count
+-------
+     8
+```
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — `postgres_fdw`: Server, User Mapping, Foreign Table
+
+**1.1 — Register the remote server**
+
+Back in `portsmith`:
+
+```sql
+CREATE SERVER portsmith_legacy_srv
+    FOREIGN DATA WRAPPER postgres_fdw
+    OPTIONS (host 'localhost', port '5432', dbname 'portsmith_legacy');
+```
+
+If this fails with `permission denied for foreign-data wrapper
+postgres_fdw`, the role creating the server needs `USAGE` on the FDW
+itself — creating the *extension* doesn't automatically hand every
+other role the right to use it:
+
+```sql
+-- as postgres
+GRANT USAGE ON FOREIGN DATA WRAPPER postgres_fdw TO your_role;
+```
+
+**1.2 — Map your local role to a remote identity**
+
+```sql
+CREATE USER MAPPING FOR CURRENT_USER
+    SERVER portsmith_legacy_srv
+    OPTIONS (user 'chris');
+```
+
+**1.3 — Declare the foreign table**
+
+```sql
+CREATE FOREIGN TABLE businesses_archive (
+    biz_id        INTEGER,
+    biz_name      TEXT,
+    addr          TEXT,
+    neighbourhood TEXT,
+    closed_date   DATE,
+    reason        TEXT
+) SERVER portsmith_legacy_srv OPTIONS (schema_name 'public', table_name 'businesses_archive');
+```
+
+**1.4 — Query it, and hit the gotcha that catches almost everyone**
+
+```sql
+SELECT * FROM businesses_archive ORDER BY biz_id;
+```
+
+```
+ERROR:  password or GSSAPI delegated credentials required
+DETAIL:  Non-superusers must delegate GSSAPI credentials or provide a password in the user mapping.
+```
+
+This is surprising the first time: the exact same role, over the exact
+same `localhost` connection, can already reach `portsmith_legacy`
+directly with no password prompt at all — but `postgres_fdw` refuses to
+let a *non-superuser*'s user mapping ride on that trust. The reasoning
+is a real security concern, not bureaucracy: without this check, any
+role could create a user mapping claiming to be a powerful remote user
+and inherit that user's privileges on the remote side with nothing to
+prove it. The fix is to give the mapping an actual credential:
+
+```sql
+ALTER ROLE chris PASSWORD 'fdw-demo-password';
+
+ALTER USER MAPPING FOR CURRENT_USER
+    SERVER portsmith_legacy_srv
+    OPTIONS (ADD password 'fdw-demo-password');
+```
+
+```sql
+SELECT * FROM businesses_archive ORDER BY biz_id;
+```
+
+```
+ biz_id |          biz_name          |         addr         |   neighbourhood    | closed_date |            reason
+--------+-----------------------------+-----------------------+---------------------+-------------+-------------------------------
+   1001 | Portsmith Cannery Co.       | 2 Dock Road           | Industrial Port     | 2011-03-15  | relocated out of city
+   1002 | The Anchor & Rope           | 18 Wharf Street       | Harbour District    | 2014-07-01  | owner retired
+   1003 | Old Town Print Shop         | 9 Market Street       | Old Town            | 2016-11-30  | business closed
+   1004 | Northgate Ironworks         | 44 Bay Street         | Northgate           | 2009-05-20  | relocated out of city
+   1005 | Riverside Boat Repair       | 3 Quay Street         | Riverside           | 2018-02-14  | owner retired
+   1006 | University Quarter Bindery  | 61 Lighthouse Avenue  | University Quarter  | 2013-09-01  | business closed
+   1007 | Portsmith Rope & Sail       | 7 Anchor Lane         | Harbour District    | 2007-01-10  | merged with another business
+   1008 | Dockside Chandlery          | 15 Fisherman's Row    | Industrial Port     | 2019-06-25  | business closed
+(8 rows)
+```
+
+Eight rows, physically stored in a different database, returned by a
+plain `SELECT` with no hint anywhere in the syntax that they came from
+anywhere else.
+
+---
+
+### Exercise 2 — Confirming Filters Push Down
+
+```sql
+EXPLAIN (VERBOSE)
+SELECT biz_name, closed_date FROM businesses_archive WHERE neighbourhood = 'Harbour District';
+```
+
+```
+ Foreign Scan on public.businesses_archive  (cost=100.00..127.20 rows=7 width=36)
+   Output: biz_name, closed_date
+   Remote SQL: SELECT biz_name, closed_date FROM public.businesses_archive WHERE ((neighbourhood = 'Harbour District'))
+```
+
+`Remote SQL` is the whole point: `postgres_fdw` didn't pull all eight
+rows to `portsmith` and filter them here. It translated the query —
+`WHERE`, and only the two selected columns — into real SQL, sent it to
+`portsmith_legacy`, and let that server do the filtering with its own
+planner and its own (in a real deployment) indexes. Every row that
+doesn't match Harbour District never crosses the network at all.
+
+---
+
+### Exercise 3 — `file_fdw`: a CSV as a Table
+
+**3.1 — Server and foreign table**
+
+```sql
+CREATE SERVER census_files FOREIGN DATA WRAPPER file_fdw;
+
+CREATE FOREIGN TABLE census_2020 (
+    neighbourhood    TEXT,
+    population_2020   INTEGER,
+    households_2020   INTEGER,
+    median_age        NUMERIC
+) SERVER census_files OPTIONS (
+    filename '/home/you/book/data/ch17_census.csv',   -- your actual checkout path
+    format 'csv',
+    header 'true'
+);
+```
+
+If this fails with `permission denied to set the "filename" option`,
+`file_fdw` restricts which roles can point a foreign table at an
+arbitrary local file — for good reason, since it would otherwise let
+any role read anything the PostgreSQL server process itself can read:
+
+```sql
+-- as postgres
+GRANT pg_read_server_files TO your_role;
+```
+
+**3.2 — The gotcha that actually matters: whose filesystem is this?**
+
+```sql
+SELECT * FROM census_2020;
+```
+
+```
+ERROR:  could not open file "/home/you/book/data/ch17_census.csv" for reading: Permission denied
+```
+
+The client running `psql` can read this file fine — but `file_fdw`
+doesn't read the file from the client. It reads it from the *server
+process*, running as its own OS user (`postgres`, typically), and that
+user has to have its own filesystem path to the file, readable by
+*it*, independent of who's connected. A file sitting inside a user's
+home directory — mode `700` by default on most systems — is invisible
+to every other OS user no matter what the file's own permissions say,
+because the *directory* blocks entry before the file's permissions ever
+get checked. The fix isn't to loosen a home directory's permissions;
+it's to put the file somewhere server-readable in the first place —
+`/tmp` for a throwaway demo like this one, a dedicated data directory
+with the right ownership for anything real:
+
+```bash
+cp data/ch17_census.csv /tmp/ch17_census.csv
+chmod 644 /tmp/ch17_census.csv
+```
+
+```sql
+ALTER FOREIGN TABLE census_2020 OPTIONS (SET filename '/tmp/ch17_census.csv');
+
+SELECT * FROM census_2020;
+```
+
+```
+    neighbourhood    | population_2020 | households_2020 | median_age
+----------------------+------------------+------------------+------------
+ Harbour District     |             8420 |             3610 |       41.2
+ Old Town             |             6150 |             2890 |       44.7
+ Northgate            |            11730 |             4920 |       36.5
+ Riverside            |             9280 |             3945 |       39.8
+ University Quarter   |             7460 |             2210 |       24.3
+ Industrial Port      |             5340 |             2280 |       45.1
+(6 rows)
+```
+
+**3.3 — Join it against local data**
+
+```sql
+SELECT c.neighbourhood, c.population_2020, COUNT(b.id) AS business_count
+FROM   census_2020 c
+JOIN   businesses b ON b.neighbourhood = c.neighbourhood
+GROUP  BY c.neighbourhood, c.population_2020
+ORDER  BY c.population_2020 DESC;
+```
+
+```
+    neighbourhood    | population_2020 | business_count
+----------------------+------------------+-----------------
+ Northgate            |            11730 |               9
+ Riverside            |            9280  |               9
+ Harbour District     |            8420  |               9
+ University Quarter   |            7460  |               5
+ Old Town             |            6150  |               9
+ Industrial Port      |            5340  |               7
+(6 rows)
+```
+
+A flat file and a real table, joined with ordinary SQL — nothing about
+the query syntax distinguishes `census_2020` (a CSV) from `businesses`
+(an actual table).
+
+**3.4 — The contrast with Exercise 2: no pushdown here**
+
+```sql
+EXPLAIN SELECT * FROM census_2020 WHERE neighbourhood = 'Northgate';
+```
+
+```
+ Foreign Scan on census_2020  (cost=0.00..1.21 rows=1 width=72)
+   Filter: (neighbourhood = 'Northgate'::text)
+   Foreign File: /tmp/ch17_census.csv
+```
+
+`Filter:`, not `Remote SQL:`. A flat file has no query engine of its
+own to push anything down *to* — `file_fdw` has no choice but to read
+every row of the file into PostgreSQL and filter locally, every time.
+For a six-row census file that's irrelevant; for a multi-gigabyte CSV
+it's the entire performance story, and it's the exact gap Exercise 6's
+`parquet_s3_fdw` pattern exists to close.
+
+<img src="imgs/ch17_pushdown_contrast.png" alt="Side-by-side comparison: postgres_fdw translates a WHERE clause into Remote SQL executed on portsmith_legacy, so only matching rows cross the network; file_fdw applies the same shape of WHERE clause as a local Filter after reading the entire file, so every row is read regardless of whether it matches"/>
+
+---
+
+### Exercise 4 — Importing a Whole Schema at Once
+
+Exercise 1 declared `businesses_archive` by hand, column by column —
+fine for one table, tedious for a real legacy database with dozens.
+`IMPORT FOREIGN SCHEMA` asks the remote server for its own schema and
+generates matching foreign tables automatically:
+
+```sql
+CREATE SCHEMA legacy_import;
+
+IMPORT FOREIGN SCHEMA public
+    FROM SERVER portsmith_legacy_srv
+    INTO legacy_import;
+```
+
+```sql
+\d legacy_import.businesses_archive
+```
+
+```
+                    Foreign table "legacy_import.businesses_archive"
+    Column     |  Type   | Collation | Nullable | Default |          FDW options
+----------------+---------+-----------+----------+---------+--------------------------------
+ biz_id         | integer |           | not null |         | (column_name 'biz_id')
+ biz_name       | text    |           | not null |         | (column_name 'biz_name')
+ addr           | text    |           | not null |         | (column_name 'addr')
+ neighbourhood  | text    |           | not null |         | (column_name 'neighbourhood')
+ closed_date    | date    |           | not null |         | (column_name 'closed_date')
+ reason         | text    |           |          |         | (column_name 'reason')
+Server: portsmith_legacy_srv
+```
+
+Every column, every type, matched exactly — not retyped by hand, read
+directly off the remote catalog. `IMPORT FOREIGN SCHEMA` also accepts
+`LIMIT TO (...)` or `EXCEPT (...)` clauses to import only part of a
+schema, worth knowing the moment a real legacy database has hundreds of
+tables and you need eight of them.
+
+---
+
+### Exercise 5 — Writing Through a Foreign Table
+
+```sql
+INSERT INTO businesses_archive (biz_id, biz_name, addr, neighbourhood, closed_date, reason)
+VALUES (1009, 'Old Brewery Annex', '12 Ring Road', 'Industrial Port', '2021-08-30', 'demolished for redevelopment');
+```
+
+```
+INSERT 0 1
+```
+
+Verify it landed on the actual remote database, not just in a local
+cache:
+
+```sql
+-- connect directly to portsmith_legacy
+SELECT biz_id, biz_name FROM businesses_archive WHERE biz_id = 1009;
+```
+
+```
+ biz_id |     biz_name
+--------+--------------------
+   1009 | Old Brewery Annex
+```
+
+A plain `INSERT` against `portsmith`, and the row is sitting in
+`portsmith_legacy` — `postgres_fdw` supports writes as well as reads,
+translated into a real `INSERT` on the remote side, subject to every
+constraint that database enforces on its own table (a duplicate
+`biz_id` would fail here exactly as it would connecting directly).
+`file_fdw` cannot do this — a CSV file has no transactional write
+protocol to translate an `INSERT` into, and Chapter 17's file-based
+foreign tables are read-only for exactly that reason.
+
+---
+
+### Exercise 6 — The `parquet_s3_fdw` Pattern
+
+**6.1 — The problem this solves**
+
+`sensor_readings` (Chapter 8) is 9.6 million rows and only grows. Most
+of it, most of the time, is cold — nobody's actively querying January's
+readings in November. Keeping years of it in PostgreSQL forever is
+possible but not free: it's backed up on every backup, it's vacuumed on
+every autovacuum pass, it occupies disk that costs money whether or not
+anyone reads it. A common real-world answer is to export aging
+partitions out of PostgreSQL entirely into **Parquet** — a columnar file
+format built for exactly this: cheap object storage (S3 or, for local
+development, an S3-compatible server like **MinIO**), with per-column
+compression and the ability to skip whole chunks of a file that can't
+possibly match a filter, without reading them.
+
+The catch that would normally follow: exporting the data means it's no
+longer queryable with plain SQL, from the same connection, joined
+against whatever's still live in PostgreSQL. `parquet_s3_fdw` closes
+that gap — a foreign data wrapper that reads Parquet files sitting in
+S3-compatible storage as ordinary foreign tables, pushing down both
+column selection and predicate filtering into the Parquet reader itself
+(Parquet's own format stores per-column statistics, min/max values per
+row group, that let a reader skip entire chunks without decompressing
+them — a real analog to `postgres_fdw`'s `Remote SQL` pushdown from
+Exercise 2, just implemented against a file format instead of a second
+database).
+
+**6.2 — The half of this that's completely real: export and upload**
+
+Getting data *into* Parquet, in S3-compatible storage, needs nothing
+exotic — `pyarrow` to write the files, `boto3` (or any S3-compatible
+client) to upload them, and MinIO running locally in Docker to receive
+them:
+
+```bash
+docker run -p 9000:9000 -p 9001:9001 minio/minio server /data --console-address ":9001"
+```
+
+```python
+#!/usr/bin/env python3.12
+# ch17_export_to_parquet.py — one Parquet file per monthly partition
+import io
+from datetime import date, timedelta
+
+import boto3
+import psycopg
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY = "http://localhost:9000", "minioadmin", "minioadmin"
+BUCKET = "portsmith-bucket"
+
+QUERY = """
+SELECT sensor_id, sensor_type, reading_value, recorded_at, reading_date
+FROM   sensor_readings
+WHERE  reading_date >= %(start)s AND reading_date < %(end)s
+ORDER  BY recorded_at
+"""
+
+def export_month(conn, year_month: str) -> pa.Table:
+    year, month = (int(p) for p in year_month.split("-"))
+    start = date(year, month, 1)
+    end = (date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1))
+    with conn.cursor() as cur:
+        cur.execute(QUERY, {"start": start, "end": end})
+        rows = cur.fetchall()
+    cols = ["sensor_id", "sensor_type", "reading_value", "recorded_at", "reading_date"]
+    return pa.table({c: [r[i] for r in rows] for i, c in enumerate(cols)})
+
+# ... build an S3 client pointed at MINIO_ENDPOINT, create the bucket if
+# needed, then for each month: export_month(), pq.write_table() into an
+# in-memory buffer, s3.upload_fileobj() to sensor_readings/{month}.parquet
+```
+
+Run against all of `sensor_readings`' eleven populated months:
+
+```
+  2024-02: 835,200 rows -> s3://portsmith-bucket/sensor_readings/2024-02.parquet (1,420,131 bytes)
+  2024-03: 892,800 rows -> s3://portsmith-bucket/sensor_readings/2024-03.parquet (1,540,196 bytes)
+  ...
+  2024-12: 891,648 rows -> s3://portsmith-bucket/sensor_readings/2024-12.parquet (1,527,345 bytes)
+done — 9,646,849 rows, 16,673,067 bytes across 11 files
+```
+
+9.6 million real rows, genuinely uploaded to genuinely running
+S3-compatible storage, in under three minutes. And the number worth
+sitting with: `sensor_readings` occupies **772 MB** in PostgreSQL
+(table plus every index, summed across all its partitions); the same
+data, as Parquet with Snappy compression, is **16.7 MB** — about **46
+times smaller**. That gap is column-oriented storage and per-column
+compression doing exactly what they're for: `sensor_readings` has five
+columns, several of them low-cardinality (`sensor_type` is one of three
+values, repeated 9.6 million times) or smoothly-changing
+(`recorded_at`, `reading_date`), and a columnar format compresses runs
+of similar values far more efficiently than a row-oriented table ever
+will.
+
+**6.3 — The half of this chapter that stays a sketch: the FDW itself**
+
+Querying these files back from PostgreSQL — the actual
+`parquet_s3_fdw` part — is where this exercise stops being fully
+hands-on. It isn't a core PostgreSQL extension the way `postgres_fdw`
+and `file_fdw` are; it's a third-party project built against Apache
+Arrow's C++ libraries, compiled from source in most environments rather
+than installed with `apt`. Getting a working build means matching
+Arrow/Parquet library versions to your exact PostgreSQL version, a
+real, multi-step undertaking well outside what a single exercise can
+responsibly walk through. What follows is the setup this chapter would
+ask you to do if it did — worth understanding piece by piece, and worth
+treating as a genuine follow-on project now that the data is actually
+sitting in MinIO waiting for it:
+
+1. **Build and install `parquet_s3_fdw`** against your PostgreSQL
+   version's server headers.
+2. **`CREATE SERVER`**, pointing at the MinIO endpoint instead of a
+   PostgreSQL host — an access key and secret in place of a username
+   and password, the S3 analog of Exercise 1's user mapping.
+3. **`CREATE FOREIGN TABLE`** (or `IMPORT FOREIGN SCHEMA`, if the
+   extension supports inferring the Parquet schema — implementations
+   vary), mapping Parquet columns the same way Exercise 4 mapped a
+   remote PostgreSQL table's columns.
+4. **Query it** — a `WHERE reading_date = '2024-06-15'` against all
+   eleven exported files should skip most of their row groups
+   entirely, the same shape of win Exercise 2's `Remote SQL` pushdown
+   demonstrated, just decided by Parquet's own per-column statistics
+   instead of a remote query planner.
+
+The architecture, end to end: PostgreSQL stays the single query
+interface for both hot data (still in `sensor_readings`) and cold data
+(exported to Parquet in MinIO/S3, exactly as Exercise 6.2 just did for
+real), joinable in the same query, without standing up a separate query
+engine like Trino or Presto just to read files a data lake already has
+sitting in object storage.
+
+**6.4 — Verifying the pruning story independently, with DuckDB**
+
+`parquet_s3_fdw` isn't the only thing that can read Parquet off
+S3-compatible storage — **DuckDB** can too, natively, and installing it
+is one `pip install duckdb` rather than a source build. It's a useful
+second opinion here: query the exported files directly, with no
+PostgreSQL involved at all, and confirm the row-group pruning story
+Exercise 6.1 promised is actually true.
+
+```python
+#!/usr/bin/env python3.12
+# ch17_query_parquet.py
+import duckdb
+
+con = duckdb.connect()
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute("""
+    SET s3_endpoint = 'localhost:9000';
+    SET s3_access_key_id = 'minioadmin';
+    SET s3_secret_access_key = 'minioadmin';
+    SET s3_use_ssl = false;
+    SET s3_url_style = 'path';
+""")
+
+GLOB = "s3://portsmith-bucket/sensor_readings/*.parquet"
+
+print(con.execute(f"SELECT COUNT(*) FROM read_parquet('{GLOB}')").fetchone())
+
+con.execute(f"""
+    EXPLAIN ANALYZE SELECT COUNT(*) FROM read_parquet('{GLOB}')
+    WHERE reading_date = DATE '2024-06-15'
+""")
+for row in con.fetchall():
+    print(row[1])
+```
+
+```
+(9646849,)
+```
+
+Nine million, six hundred forty-six thousand, eight hundred forty-nine
+— matching Exercise 6.2's own upload total exactly, confirming nothing
+was lost or duplicated across eleven separate uploads. Then the
+pruning check:
+
+```
+HTTPFS HTTP Stats
+  in: 2.7 KiB
+  out: 0 bytes
+  #GET: 1
+Total Time: 0.0048s
+
+TABLE_SCAN (READ_PARQUET)
+  Filters: reading_date='2024-06-15':DATE
+  Total Files Read: 11
+  28,801 rows
+```
+
+**2.7 KiB** of actual data transferred, one HTTP `GET`, to answer a
+query that matched 28,801 rows — out of 16.7 MB and 9.6 million rows
+total. `Total Files Read: 11` looks like it contradicts that at first —
+DuckDB *did* open every file — but opening a Parquet file only costs
+reading its footer, a small block of per-row-group statistics; the
+actual column data for row groups that can't contain `2024-06-15`
+never gets requested at all. (This number reflects the two queries
+that ran before it in the same session already having warmed DuckDB's
+metadata cache for these files — a cold connection running only the
+`EXPLAIN ANALYZE` query would transfer somewhat more, closer to 180 KiB,
+still a small fraction of the total.) Either way, this is Exercise 2's
+`Remote SQL` pushdown story again, a third time in one chapter: a
+system that understands the shape of its own storage well enough to
+answer "which parts of this can I skip" before reading them.
+
+Every wall this chapter actually hit, in the order it hit them:
+
+<img src="imgs/ch17_privilege_walls.png" alt="Flowchart of five sequential privilege gates hit while building this chapter: createdb requires CREATEDB or fails with permission denied to create database; CREATE EXTENSION postgres_fdw requires superuser or fails with must be superuser to create this extension; CREATE SERVER requires USAGE on the foreign-data wrapper or fails with permission denied for foreign-data wrapper; querying the foreign table requires a password in the user mapping for non-superusers or fails with password or GSSAPI credentials required; and CREATE FOREIGN TABLE with a filename option requires the pg_read_server_files role or fails with only pg_read_server_files may set this option. Clearing all five reaches successful queries."/>
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it does |
+|------|---------------|
+| `CREATE EXTENSION postgres_fdw` / `file_fdw` | Installs the driver — requires a privileged role |
+| `GRANT USAGE ON FOREIGN DATA WRAPPER ... TO role` | Required before a non-privileged role can create a server with that FDW |
+| `CREATE SERVER` | Registers one remote endpoint under a name |
+| `CREATE USER MAPPING` | Maps a local role to a remote identity — non-superusers must supply a real password |
+| `CREATE FOREIGN TABLE` | Declares a local name for a remote shape of data, column by column |
+| `IMPORT FOREIGN SCHEMA ... INTO schema` | Generates foreign tables for an entire remote schema automatically |
+| `EXPLAIN` on a foreign table (`postgres_fdw`) | `Remote SQL:` — confirms filtering happened on the remote server, not locally |
+| `EXPLAIN` on a foreign table (`file_fdw`) | `Filter:` — confirms the whole file was read and filtered locally instead |
+| `pg_read_server_files` | The role membership `file_fdw` requires before pointing at an arbitrary local file |
+| File permissions for `file_fdw` | Governed by the PostgreSQL *server process's* OS user, not the connecting client |
+| `INSERT` through a `postgres_fdw` foreign table | A real write, translated and executed on the remote server |
+| `parquet_s3_fdw` | Same pattern as `postgres_fdw`, aimed at columnar files in S3-compatible storage instead of another database |
+
+**The key design insight** from this chapter is that a foreign data
+wrapper's job is to make remote data *look* exactly like local data —
+and it succeeds completely at that, right up until you touch something
+that was never really local to begin with: a credential, a filesystem
+permission, a network round-trip. Every gotcha this chapter walked
+through was one of those seams showing through the illusion on purpose,
+not by accident — PostgreSQL enforcing, at each layer, that querying
+someone else's data still has to answer the same questions it always
+would have, just inside `CREATE SERVER` and `CREATE USER MAPPING`
+instead of a separate integration layer you'd otherwise have to build
+and maintain by hand.
+
+---
+
+*Going further: Chapter 18's logical replication solves a related but
+genuinely different problem — where this chapter queries remote data
+live, at read time, replication *copies* it, continuously, so a second
+database has its own independent, current copy to query locally. Reach
+for an FDW when the data should stay in one place and be reached
+across; reach for replication when a second copy, kept in sync, is
+what you actually need. And Exercise 6's `parquet_s3_fdw` sketch is
+worth revisiting once Chapter 19's `pg_cron` is in hand — a scheduled
+job that exports aging `sensor_readings` partitions to Parquet and
+drops them locally, the same way Chapter 8's own "going further" note
+imagined `pg_partman` automating partition lifecycle management, is
+exactly the kind of recurring maintenance `pg_cron` is suited to run
+unattended.*
+# Chapter 18 — Logical Replication and Change Data Capture
+
+> *A foreign data wrapper asks a question and waits for an answer,
+> every time. A subscription asks once, then never stops listening.*
+
+---
+
+## Background
+
+Chapter 17 reached across to another database at query time, live,
+through `postgres_fdw` — every `SELECT` was a real network round-trip,
+answered fresh. **Logical replication** solves a different problem: it
+streams every row-level change out of PostgreSQL, continuously, so a
+second database ends up with its own independent, current copy —
+queryable locally, with its own indexes, at none of the join-time
+latency an FDW pays.
+
+The mechanism underneath is the same **write-ahead log (WAL)** every
+PostgreSQL install already produces for crash recovery, decoded into a
+stream of logical changes (`INSERT`, `UPDATE`, `DELETE`) instead of the
+physical byte-level records **physical replication** (streaming
+standbys) sends. Two pieces make it work:
+
+- **A publication** — created on the source ("publisher"), naming which
+  tables (and optionally which columns, and which rows) should be
+  streamed out.
+- **A subscription** — created on the destination ("subscriber"),
+  pointing at a publisher and a publication, pulling changes in and
+  applying them.
+
+Underneath every subscription is a **replication slot** — a durable
+bookmark on the publisher that says "don't let WAL older than this be
+recycled, a consumer still needs it." That's the whole safety
+contract: as long as the slot exists, the publisher retains whatever
+WAL the subscriber hasn't confirmed yet, even across a subscriber
+outage. It's also the whole *risk*: a slot nobody's draining anymore
+retains WAL forever, silently filling disk.
+
+<img src="imgs/ch18_pub_sub_architecture.png" alt="Portsmith (publisher) writes WAL; a replication slot named portsmith_sub using the pgoutput plugin feeds CREATE SUBSCRIPTION on portsmith_legacy, applying changes to its own local businesses and jobs tables; a second, independent replication slot named demo_test_decoding using the test_decoding plugin feeds a Python script reading the replication protocol directly with psycopg, printing human-readable change records"/>
+
+This chapter builds both paths off the same publisher: the standard
+`CREATE SUBSCRIPTION` route or the second row shows the raw protocol,
+read directly from Python.
+
+---
+
+## The Scenario
+
+| Object                    | Lives in                                | Purpose                                                         |
+|---------------------------|------------------------------------------|-------------------------------------------------------------------|
+| `portsmith_pub`             | `portsmith` (publisher)                   | Publication covering `businesses` (partial columns, row-filtered) and `jobs` (all columns) |
+| `portsmith_sub`              | `portsmith_legacy` (subscriber)           | Subscription consuming `portsmith_pub`, backed by a slot of the same name on the publisher |
+| `businesses` / `jobs`         | Both databases                           | Chapter 1 / Chapter 3's tables — subscriber's copies are narrower, no PostGIS geometry, no generated columns |
+| `demo_test_decoding`          | `portsmith` (publisher)                   | A second, independent slot, read directly by Python instead of by a subscription |
+| `data/ch18_replication_stream.py` | *(new)*                            | Consumes `demo_test_decoding` at the wire protocol level |
+
+`portsmith_legacy` is the same second database Chapter 17 created —
+reused here as the subscriber, on the same PostgreSQL instance as the
+publisher. That choice is convenient for a lab environment and, as
+Exercise 2 shows, not free: it creates a real deadlock a genuinely
+separate instance wouldn't.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Turn on logical replication, create a publication scoped to specific
+  tables and columns, and understand what a replication slot actually
+  guarantees.
+- Stand up a subscription, understand exactly why doing so on the same
+  instance as the publisher can deadlock, and know the real fix.
+- Read `pg_replication_slots` and `pg_stat_replication` to check lag and
+  confirm a subscriber is actually keeping up.
+- Filter a publication by row, and navigate the replica identity
+  requirements that come with filtering on a non-key column.
+- Consume the logical replication protocol directly from Python,
+  without `CREATE SUBSCRIPTION` at all.
+- Describe how Debezium turns this same protocol into a Kafka event
+  stream — the production-grade version of Exercise 5's hand-rolled
+  script.
+
+---
+
+## Installation
+
+### `wal_level = logical`
+
+Logical decoding needs more information in the WAL than PostgreSQL
+writes by default:
+
+```sql
+-- as postgres, in postgresql.conf, or:
+ALTER SYSTEM SET wal_level = 'logical';
+```
+
+```
+# postgresql.conf
+wal_level = logical    # (change requires restart)
+```
+
+Like `shared_preload_libraries` in the previous two chapters' setup,
+this needs a full restart, not just a config reload:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+```sql
+SHOW wal_level;
+```
+
+```
+ wal_level
+-----------
+ logical
+```
+
+No other extension is needed — logical replication is built into core
+PostgreSQL.
+
+---
+
+## Loading the Data
+
+`portsmith_legacy` needs matching structure for whatever gets
+published, but *matching* doesn't mean *identical*. `businesses` in
+`portsmith` carries a PostGIS `geometry` column and a generated
+`tsvector` — neither makes sense to replicate here: `portsmith_legacy`
+has no PostGIS extension installed, and generated columns aren't sent
+over logical replication anyway (PostgreSQL 16 excludes them from the
+wire format by default; a subscriber with the same generated column
+would just compute its own value locally, and one without it simply
+doesn't have it). So the subscriber's `businesses` is deliberately
+narrower — the domain and enum types still have to match, since those
+govern the columns that *are* published:
+
+```sql
+-- in portsmith_legacy
+CREATE DOMAIN positive_integer AS integer CHECK (VALUE > 0);
+CREATE TYPE job_status AS ENUM ('queued','on_hold','in_progress','completed','failed','cancelled');
+
+CREATE TABLE businesses (
+    id             integer PRIMARY KEY,
+    name           text NOT NULL,
+    address        text NOT NULL,
+    neighbourhood  text NOT NULL,
+    details        jsonb NOT NULL,
+    employee_count positive_integer
+);
+
+CREATE TABLE jobs (
+    id            bigint PRIMARY KEY,
+    job_type      text NOT NULL,
+    payload       jsonb NOT NULL,
+    status        job_status NOT NULL DEFAULT 'queued',
+    priority      smallint NOT NULL DEFAULT 5,
+    attempts      integer NOT NULL DEFAULT 0,
+    max_attempts  integer NOT NULL DEFAULT 3,
+    created_at    timestamptz NOT NULL DEFAULT clock_timestamp(),
+    claimed_at    timestamptz,
+    claimed_by    text,
+    heartbeat_at  timestamptz,
+    completed_at  timestamptz,
+    last_error    text
+);
+```
+
+`jobs` is published in full — no PostGIS-shaped complications there, so
+its subscriber copy is a plain structural match.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — `wal_level` and a Publication
+
+With `wal_level` already set to `logical`, creating a publication is
+the easy part:
+
+```sql
+-- in portsmith
+CREATE PUBLICATION portsmith_pub
+    FOR TABLE businesses (id, name, address, neighbourhood, details, employee_count), jobs;
+```
+
+```
+CREATE PUBLICATION
+```
+
+`businesses` uses a **column list** — PostgreSQL 15+ lets a publication
+name a subset of a table's columns, not just a subset of its rows.
+Here that's what makes the narrower subscriber schema above valid at
+all: `geom` and `search_vector` are simply never offered, so
+`portsmith_legacy` never needs to know they exist.
+
+```sql
+SELECT pubname, puballtables FROM pg_publication;
+SELECT schemaname, tablename, attnames FROM pg_publication_tables WHERE pubname = 'portsmith_pub';
+```
+
+```
+       pubname       | puballtables
+----------------------+---------------
+ portsmith_pub        | f
+
+ schemaname | tablename  |                          attnames
+------------+------------+--------------------------------------------------------------
+ public     | businesses | {id,name,address,neighbourhood,details,employee_count}
+ public     | jobs       | {id,job_type,payload,status,priority,attempts,max_attempts,created_at,claimed_at,claimed_by,heartbeat_at,completed_at,last_error}
+```
+
+---
+
+### Exercise 2 — A Subscription, and a Deadlock Worth Understanding
+
+**2.1 — Two permission gates, back to back**
+
+```sql
+-- in portsmith_legacy
+CREATE SUBSCRIPTION portsmith_sub
+    CONNECTION 'host=localhost dbname=portsmith user=chris password=fdw-demo-password'
+    PUBLICATION portsmith_pub;
+```
+
+```
+ERROR:  permission denied to create subscription
+DETAIL:  Only roles with privileges of the "pg_create_subscription" role may create subscriptions.
+```
+
+A PostgreSQL 16 hardening measure — creating a subscription can execute
+arbitrary code on the publisher's behalf (via the connection string), so
+it's gated behind its own predefined role, separate from ordinary table
+privileges:
+
+```sql
+-- as postgres
+GRANT pg_create_subscription TO chris;
+```
+
+Retrying reaches a second, unrelated gate:
+
+```
+ERROR:  could not connect to the publisher: connection to server at "localhost" (127.0.0.1), port 5432 failed: FATAL:  permission denied to start WAL sender
+DETAIL:  Only roles with the REPLICATION attribute may start a WAL sender process.
+```
+
+`pg_create_subscription` governs creating the *local* subscription
+object; actually connecting to the publisher and opening a replication
+connection is gated separately, by a role *attribute* (like `LOGIN` or
+`CREATEDB`), not a grantable role membership:
+
+```sql
+-- as postgres
+ALTER ROLE chris REPLICATION;
+```
+
+**2.2 — The deadlock**
+
+Retrying again:
+
+```sql
+CREATE SUBSCRIPTION portsmith_sub
+    CONNECTION 'host=localhost dbname=portsmith user=chris password=fdw-demo-password'
+    PUBLICATION portsmith_pub;
+```
+
+...hangs. No error, no completion — indefinitely. From another session:
+
+```sql
+SELECT l.pid, l.mode, l.granted, a.query
+FROM   pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+WHERE  l.locktype = 'transactionid';
+```
+
+```
+  pid   |     mode      | granted |                          query
+--------+---------------+---------+------------------------------------------------------------
+ 322315 | ExclusiveLock | t       | CREATE SUBSCRIPTION portsmith_sub CONNECTION ... ;
+ 322316 | ShareLock     | f       | CREATE_REPLICATION_SLOT "portsmith_sub" LOGICAL pgoutput (SNAPSHOT 'nothing')
+```
+
+`CREATE SUBSCRIPTION` (pid 322315), by default, tries to create its
+replication slot as part of its own work — and creating a *logical*
+slot needs a consistent snapshot, which means waiting for every other
+currently-running transaction in the cluster to finish. Because the
+publisher and subscriber are the **same PostgreSQL instance** here, the
+walsender process it spawns to build that snapshot (pid 322316) ends up
+waiting on `CREATE SUBSCRIPTION`'s *own*, still-open transaction — which
+can't finish until the slot creation it's waiting on returns. A true
+self-deadlock, specific to same-instance publisher/subscriber setups; a
+genuinely separate PostgreSQL server wouldn't have this problem, since
+its walsender would never need to wait on a transaction ID that belongs
+to a different cluster entirely.
+
+Cancel it and clean up:
+
+```sql
+SELECT pg_cancel_backend(322315);
+```
+
+**2.3 — The real fix: create the slot first, separately**
+
+```sql
+-- in portsmith (the publisher)
+SELECT pg_create_logical_replication_slot('portsmith_sub', 'pgoutput');
+```
+
+```
+ pg_create_logical_replication_slot
+-------------------------------------
+ (portsmith_sub,0/C697AEB8)
+```
+
+```sql
+-- in portsmith_legacy
+CREATE SUBSCRIPTION portsmith_sub
+    CONNECTION 'host=localhost dbname=portsmith user=chris password=fdw-demo-password'
+    PUBLICATION portsmith_pub
+    WITH (create_slot = false, slot_name = 'portsmith_sub');
+```
+
+```
+CREATE SUBSCRIPTION
+```
+
+With the slot already sitting there, `CREATE SUBSCRIPTION` has nothing
+left to wait on — it just starts the initial data copy immediately:
+
+```sql
+SELECT count(*) FROM businesses;  -- in portsmith_legacy
+SELECT count(*) FROM jobs;
+```
+
+```
+ count      count
+-------    -------
+    48        48
+```
+
+**2.4 — Real-time replication**
+
+```sql
+-- in portsmith
+INSERT INTO businesses (name, address, neighbourhood, details, employee_count)
+VALUES ('Harbor Light Cafe', '12 Quay Street', 'Old Town', '{"category":"restaurant"}', 6)
+RETURNING id;
+```
+
+```sql
+-- moments later, in portsmith_legacy
+SELECT id, name, employee_count FROM businesses WHERE name = 'Harbor Light Cafe';
+```
+
+```
+ id |       name        | employee_count
+----+--------------------+-----------------
+ 49 | Harbor Light Cafe  |               6
+```
+
+No polling, no manual refresh — the row is there because a walsender
+process pushed it the moment the `INSERT` committed on the publisher.
+
+---
+
+### Exercise 3 — Inspecting Slot and Replication State
+
+```sql
+-- in portsmith
+SELECT slot_name, plugin, slot_type, database, active, restart_lsn, confirmed_flush_lsn
+FROM pg_replication_slots;
+```
+
+```
+   slot_name   |  plugin  | slot_type | database  | active | restart_lsn | confirmed_flush_lsn
+---------------+----------+-----------+-----------+--------+-------------+----------------------
+ portsmith_sub | pgoutput | logical   | portsmith | t      | 0/C698E388  | 0/C698E3C0
+```
+
+`pg_stat_replication` is the live, moment-to-moment view — but querying
+it as `chris` at first shows an odd, mostly-empty row:
+
+```sql
+SELECT application_name, state, sent_lsn, replay_lsn, replay_lag FROM pg_stat_replication;
+```
+
+```
+ application_name | state | sent_lsn | replay_lsn | replay_lag
+------------------+-------+----------+------------+------------
+ portsmith_sub    |       |          |            |
+```
+
+The row exists — `chris` can see *that* a replication connection is
+active — but the detail columns (`state`, every LSN, lag) are hidden
+unless the querying role is a superuser or holds `pg_monitor`:
+
+```sql
+-- as postgres
+GRANT pg_monitor TO chris;
+```
+
+```sql
+SELECT application_name, state, sent_lsn, write_lsn, flush_lsn, replay_lsn, replay_lag
+FROM pg_stat_replication;
+```
+
+```
+ application_name |   state   |  sent_lsn  | write_lsn  | flush_lsn  | replay_lsn |   replay_lag
+------------------+-----------+------------+------------+------------+------------+------------------
+ portsmith_sub    | streaming | 0/C698EFC8 | 0/C698EFC8 | 0/C698EFC8 | 0/C698EFC8 | 00:00:00.00025
+```
+
+`state: streaming` and a quarter-millisecond `replay_lag` — on
+`localhost`, replication lag is essentially the cost of a context
+switch. The same query against a subscriber across a real network would
+show it rising under load, which is exactly what an operator watches
+this view for.
+
+---
+
+### Exercise 4 — Row-Filtered Publication: Active Businesses Only
+
+**4.1 — Give `businesses` something to filter on**
+
+```sql
+-- in portsmith
+ALTER TABLE businesses ADD COLUMN active boolean NOT NULL DEFAULT true;
+UPDATE businesses SET active = false WHERE id IN (6, 8, 14);  -- closed since the seed data was written
+```
+
+```sql
+-- in portsmith_legacy, so the published column list still has somewhere to land
+ALTER TABLE businesses ADD COLUMN active boolean NOT NULL DEFAULT true;
+```
+
+**4.2 — Add the filter**
+
+```sql
+-- in portsmith
+ALTER PUBLICATION portsmith_pub
+    SET TABLE businesses (id, name, address, neighbourhood, details, employee_count, active) WHERE (active = true),
+        jobs;
+```
+
+```
+ALTER PUBLICATION
+```
+
+**4.3 — A refresh alone doesn't retroactively resync**
+
+```sql
+-- in portsmith_legacy
+ALTER SUBSCRIPTION portsmith_sub REFRESH PUBLICATION WITH (copy_data = true);
+SELECT count(*) FROM businesses;
+```
+
+```
+ count
+-------
+    49
+```
+
+Still 49 — the three closed businesses are still sitting there, and
+still show `active = true` locally. `REFRESH PUBLICATION` only
+reconciles which *tables* a subscription tracks (picking up newly
+added or removed ones); it does nothing for a column list or row
+filter that changed on a table the subscription is already
+happily synchronized with. Nothing is wrong — this is documented
+behavior, just an easy assumption to get wrong the first time.
+
+**4.4 — Forcing a real resync**
+
+```sql
+ALTER SUBSCRIPTION portsmith_sub DISABLE;
+TRUNCATE businesses;
+TRUNCATE jobs;   -- every table touched by the resync, not just the one you changed
+ALTER SUBSCRIPTION portsmith_sub ENABLE;
+ALTER SUBSCRIPTION portsmith_sub REFRESH PUBLICATION WITH (copy_data = true);
+```
+
+```sql
+SELECT count(*) FROM businesses;
+SELECT id, name FROM businesses WHERE id IN (6, 8, 14);
+```
+
+```
+ count
+-------
+    46
+
+ id | name
+----+------
+(0 rows)
+```
+
+Forty-six — 49 minus the three now-`active = false` rows — and none of
+the closed businesses present at all. **Truncate every table the
+resync touches, not just the one whose filter changed.** Forgetting
+one leaves its tablesync worker retrying a `COPY` into a table that
+already has the same primary keys, forever:
+
+```
+ERROR:  duplicate key value violates unique constraint "jobs_pkey"
+CONTEXT:  COPY jobs, line 1
+LOG:  logical replication table synchronization worker for subscription "portsmith_sub", table "jobs" has started
+... (repeats every ~5 seconds)
+```
+
+— a real failure mode, not a hypothetical: exactly this happened while
+preparing this chapter, from truncating one table in a multi-table
+resync and not the other.
+
+**4.5 — Filtering on a non-key column has its own wall**
+
+With the resync clean, flip a business's `active` flag live:
+
+```sql
+UPDATE businesses SET active = false WHERE id = 49;
+```
+
+```
+ERROR:  cannot update table "businesses"
+DETAIL:  Column used in the publication WHERE expression is not part of the replica identity.
+```
+
+For an `UPDATE`, PostgreSQL has to know whether the *old* row matched
+the filter (to decide whether the subscriber needs a delete-equivalent)
+— and by default, only the primary key travels in the WAL as the "old"
+row image. `active` isn't part of that. The obvious-looking fix:
+
+```sql
+ALTER TABLE businesses REPLICA IDENTITY FULL;
+UPDATE businesses SET active = false WHERE id = 49;
+```
+
+```
+ERROR:  cannot update table "businesses"
+DETAIL:  Column list used by the publication does not cover the replica identity.
+```
+
+`REPLICA IDENTITY FULL` swings too far the other way: now the replica
+identity is *every* column, including `geom` and `search_vector` —
+neither of which the publication's column list includes. The real fix
+is a replica identity that's exactly as wide as it needs to be:
+
+```sql
+CREATE UNIQUE INDEX idx_businesses_replident ON businesses (id, active);
+ALTER TABLE businesses REPLICA IDENTITY USING INDEX idx_businesses_replident;
+```
+
+```sql
+UPDATE businesses SET active = false WHERE id = 49;
+```
+
+```
+UPDATE 1
+```
+
+```sql
+-- moments later, in portsmith_legacy
+SELECT id FROM businesses WHERE id = 49;
+```
+
+```
+ id
+----
+(0 rows)
+```
+
+Gone — correctly filtered out the moment `active` flipped, effectively
+replicated as a delete. Flipping a previously-closed business back to
+active does the reverse:
+
+```sql
+UPDATE businesses SET active = true WHERE id = 6;
+```
+
+```sql
+SELECT id, name, active FROM businesses WHERE id = 6;  -- in portsmith_legacy
+```
+
+```
+ id |          name         | active
+----+------------------------+--------
+  6 | Tidal Wave Surf Shop   | t
+```
+
+Reappears — an insert-equivalent, from the subscriber's point of view.
+Two real errors, two real fixes, and the underlying idea worth keeping:
+**a row filter on any column other than the primary key needs that
+column in the replica identity — sized to exactly what the publication
+actually exposes, no wider.**
+
+<img src="imgs/ch18_replica_identity_walls.png" alt="Sequence of two real PostgreSQL errors and their fixes while adding a row filter on a non-key column: an UPDATE fails with the filtered column not part of the replica identity; setting REPLICA IDENTITY FULL fails a second time because the publication's column list does not cover a full-row replica identity; the working fix is a unique index on exactly the id and active columns, set as the replica identity via REPLICA IDENTITY USING INDEX, after which the UPDATE succeeds and the row correctly disappears from or reappears on the subscriber depending on the new active value"/>
+
+---
+
+### Exercise 5 — Reading the Replication Protocol Directly, from Python
+
+`CREATE SUBSCRIPTION` is PostgreSQL talking to PostgreSQL — the wire
+format (`pgoutput`) is a compact binary protocol meant for another
+PostgreSQL server to decode, not for a human or a general-purpose
+client to read directly. Anything that wants to consume the *raw*
+change stream — a custom sync tool, or (Exercise 6) Debezium — talks
+the same underlying replication protocol, just with a different output
+plugin and its own logic for what to do with each change.
+
+**5.1 — A second, independent slot**
+
+```sql
+-- in portsmith
+SELECT pg_create_logical_replication_slot('demo_test_decoding', 'test_decoding');
+```
+
+`test_decoding` ships with core PostgreSQL and produces human-readable
+text instead of `pgoutput`'s binary format — the right choice for
+*reading* the stream directly rather than feeding it to another
+PostgreSQL instance. This slot is entirely independent of
+`portsmith_sub` — the same WAL, decoded twice, for two different
+consumers.
+
+**5.2 — psycopg has no high-level replication API**
+
+Unlike `psycopg2`, which ships a purpose-built
+`LogicalReplicationConnection`, `psycopg` (v3, used throughout this
+book) doesn't wrap the replication protocol at all. It's still fully
+reachable, though, through the same low-level `pq` connection object
+every higher-level psycopg call is eventually built on:
+
+```python
+#!/usr/bin/env python3.12
+# ch18_replication_stream.py — consume a logical replication slot directly
+import struct
+import time
+
+import psycopg
+
+SLOT_NAME = "demo_test_decoding"
+
+conn = psycopg.connect("dbname=portsmith replication=database", autocommit=True)
+pgconn = conn.pgconn
+pgconn.exec_(f"START_REPLICATION SLOT {SLOT_NAME} LOGICAL 0/0".encode())
+
+while True:
+    data = pgconn.get_copy_data(1)          # 1 = non-blocking
+    if data[0] == 0:
+        pgconn.consume_input()
+        time.sleep(0.1)
+        continue
+    payload = bytes(data[1])
+    msg_type = payload[0:1]
+
+    if msg_type == b"w":                     # XLogData: an actual decoded change
+        wal_start = struct.unpack("!Q", payload[1:9])[0]
+        body = payload[25:].decode("utf-8", errors="replace")
+        print(f"[{wal_start:X}] {body}")
+
+    elif msg_type == b"k":                   # Primary keepalive
+        wal_end, _send_time, reply_requested = struct.unpack("!QQb", payload[1:18])
+        if reply_requested:
+            # must reply, or the server eventually decides this client is dead
+            now = int(time.time() * 1_000_000) - 946_684_800_000_000
+            pgconn.put_copy_data(b"r" + struct.pack("!QQQQb", wal_end, wal_end, wal_end, now, 0))
+```
+
+`START_REPLICATION` puts the connection into **COPY BOTH** mode — the
+same bidirectional streaming protocol PostgreSQL's own physical
+replication uses, just carrying decoded logical changes instead of raw
+WAL bytes. Two message types arrive: `w` (an actual change, `XLogData`)
+and `k` (a keepalive the server sends periodically, which must be
+acknowledged with a standby status update — skip that, and the server
+eventually assumes the client has died and closes the connection). Full
+script: `data/ch18_replication_stream.py`.
+
+**5.3 — Running it**
+
+```bash
+python ch18_replication_stream.py --seconds 12
+```
+
+While it runs, from another session:
+
+```sql
+INSERT INTO jobs (job_type, payload) VALUES ('demo_test', '{"note":"replication stream test"}');
+UPDATE businesses SET employee_count = 10 WHERE id = 1;
+```
+
+Real output:
+
+```
+[C6B57B98] table public.jobs: INSERT: id[bigint]:49 job_type[text]:'demo_test' payload[jsonb]:'{"note": "replication stream test"}' status[job_status]:'queued' priority[smallint]:5 ...
+[C6B5A530] table public.businesses: UPDATE: id[integer]:1 name[text]:'The Gilded Clam' ... geom[geometry]:'0101000020E6100000FA7E6ABC7493FCBF9A99999999594940' employee_count[positive_integer]:'10' search_vector[tsvector]:'''clam'':3 ''gild'':2 ...' active[boolean]:true
+```
+
+Notice `geom` and `search_vector` are both present here — columns
+`portsmith_pub` never publishes at all. That's the real distinction to
+take away: **the WAL always contains the whole row; a publication's
+column list is a filter applied on top of it, not something baked into
+what gets written to WAL in the first place.** A slot with no column
+list restriction, like this one, sees everything; `portsmith_sub`, tied
+to `portsmith_pub`, only ever sees what that publication chose to
+expose.
+
+---
+
+### Exercise 6 — Debezium: the Same Protocol, at Production Scale
+
+Everything Exercise 5 hand-rolled — a replication slot, a decoding
+plugin, a loop reading changes and acknowledging keepalives — is
+exactly what **Debezium**'s PostgreSQL connector does, running as a
+**Kafka Connect** worker instead of a standalone script:
+
+1. **A logical replication slot**, created and owned by the connector
+   itself, using `pgoutput` (or the older `decoderbufs`/`wal2json`
+   plugins in older setups) — structurally identical to
+   `portsmith_sub`.
+2. **One Kafka topic per table** — `portsmith.public.businesses`,
+   `portsmith.public.jobs` — each message a JSON or Avro envelope
+   carrying the operation type (`c`reate, `u`pdate, `d`elete, or `r`ead
+   for the initial snapshot), the row's before-and-after image, and
+   source metadata (LSN, transaction ID, commit timestamp) — the same
+   fields Exercise 5's raw `XLogData` messages carried, structured for
+   machine consumption instead of printed as text.
+3. **Offset tracking**, conceptually identical to `confirmed_flush_lsn`
+   in Exercise 3's `pg_replication_slots` — Debezium periodically
+   commits how far it's gotten, so a restart resumes from the right
+   point in the WAL instead of replaying everything or losing changes.
+4. **Kafka Connect's distributed worker model** handles the part a
+   single Python script doesn't: if the machine running the connector
+   dies, another worker in the cluster picks up the same slot and
+   continues, using the last committed offset.
+
+<img src="imgs/ch18_debezium_architecture.png" alt="PostgreSQL with a logical replication slot, decoded by a Debezium connector running inside Kafka Connect, publishing one Kafka topic per table (portsmith.public.businesses, portsmith.public.jobs), consumed downstream by a search index updater, a cache invalidator, and other services — the production-scale version of Exercise 5's hand-rolled psycopg script reading the same kind of replication slot directly"/>
+
+This is deliberately a discussion, not a hands-on exercise — a real
+Debezium deployment needs Zookeeper (or KRaft), a Kafka broker, a Kafka
+Connect worker, and the Debezium connector JARs, a multi-container
+stack disproportionate to stand up for one exercise. What's worth
+taking away is that there's no new mechanism to learn: Debezium is
+Exercise 5's script, hardened and made distributed, reading the exact
+same kind of slot this chapter already created and drained by hand.
+Typical uses lean on that continuous stream directly: keeping a search
+index or cache in sync with PostgreSQL without a batch job's inherent
+lag, or feeding a `businesses`/`jobs` change feed into other services
+in an event-driven architecture — the **outbox pattern**, notably, uses
+exactly this to publish domain events reliably, by writing them as
+ordinary rows in a transaction and letting CDC carry them out instead
+of risking a dual-write to both a database and a message queue.
+
+---
+
+## Summary — What You Should Now Know
+
+| Concept | What it does |
+|---------|----------------|
+| `wal_level = logical` | Required for any logical decoding — needs a restart, like `shared_preload_libraries` |
+| `CREATE PUBLICATION ... FOR TABLE t (cols) WHERE (expr)` | Scopes what's streamed by table, column, and row |
+| Replication slot | A durable bookmark retaining WAL for one consumer — exists independently of any subscription |
+| `pg_create_subscription` / `REPLICATION` attribute | Two separate gates: creating the local subscription object vs. opening a replication connection |
+| Same-instance pub/sub deadlock | `CREATE SUBSCRIPTION`'s default `create_slot=true` can wait on its own open transaction when publisher and subscriber share an instance — pre-create the slot instead |
+| `pg_replication_slots` / `pg_stat_replication` | Slot state and live lag — the detail columns of the latter need `pg_monitor` |
+| `ALTER SUBSCRIPTION ... REFRESH PUBLICATION` | Reconciles *which tables* are tracked — does **not** retroactively resync a changed column list or row filter on an already-synced table |
+| `REPLICA IDENTITY USING INDEX` | The precise fix for filtering on a non-key column — wide enough to cover the filter, no wider than the publication's own column list |
+| Raw replication protocol (`pgconn.get_copy_data`/`put_copy_data`) | What `CREATE SUBSCRIPTION`, Exercise 5's script, and Debezium all ultimately speak underneath |
+| Debezium | The same slot/decode/apply loop, made distributed and production-grade, one Kafka topic per table |
+
+**The key design insight** from this chapter is that a replication
+slot is the one durable object underneath everything else —
+`CREATE SUBSCRIPTION`, a hand-rolled psycopg script, and Debezium are
+three different consumers of the exact same primitive, differing only
+in what decodes the WAL and what happens to the output. Understanding
+the slot is understanding the whole chapter; everything else is a
+client.
+
+---
+
+*Going further: Chapter 19's `pg_cron` is the natural next tool for
+operationalizing what this chapter demonstrated by hand — a scheduled
+job that checks `pg_replication_slots` for a slot whose
+`confirmed_flush_lsn` hasn't advanced in too long (a stuck or abandoned
+consumer, quietly retaining WAL) and pages someone before disk fills
+up, the same shape of unattended, recurring maintenance task Chapter
+17's own "going further" note imagined for aging partition exports.*
+# Chapter 19 — `pg_cron`: Scheduled Jobs Inside PostgreSQL
+
+> *A cron job that lives outside the database has to be told, from
+> scratch, how to reach it. A cron job that lives inside the database
+> is already there.*
+
+---
+
+## Background
+
+Every real system accumulates recurring maintenance: materialized
+views that need refreshing, stalled work that needs reclaiming, stale
+statistics that need updating. The traditional answer is an external
+scheduler — OS-level `cron`, a workflow tool, a sidecar container —
+that wakes up on its own timeline and connects in from outside.
+**`pg_cron`** takes a different position: it runs *inside* PostgreSQL,
+as a background process the postmaster manages like any other, reading
+its schedule from an ordinary table (`cron.job`) and writing its
+history to another (`cron.job_run_details`). Scheduling a job is a
+`SELECT`, not a deployment.
+
+That proximity is also exactly where this chapter's real gotchas come
+from: a job that "lives inside PostgreSQL" doesn't skip the parts of
+PostgreSQL that would normally apply to any other client connecting in
+— it still needs a role, that role still needs privileges, and if a
+password is required to connect as that role, `pg_cron`'s own
+connection needs one too, from somewhere.
+
+---
+
+## The Scenario
+
+| Object                    | Source                          | Purpose                                                    |
+|----------------------------|-----------------------------------|---------------------------------------------------------------|
+| `refresh_and_log(regclass)`  | Chapter 9                        | Scheduled hourly against `mv_sensor_daily`                     |
+| `jobs` / `dead_letter_jobs`   | Chapter 3                        | Scheduled dead-letter sweep target                             |
+| `sweep_stalled_jobs()`         | *(new)*                        | SQL port of `ch03_reclaim.py`'s stalled-job logic               |
+| `guarded_demo_task()`           | *(new)*                        | Teaching-only procedure demonstrating advisory-lock overlap guards |
+| `businesses_archive`             | Chapter 17, `portsmith_legacy` | Target of `cron.schedule_in_database()`                          |
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Install `pg_cron`, schedule a job, and know exactly which two real
+  walls a first attempt hits before a job actually runs.
+- Read `cron.job` and `cron.job_run_details` correctly — including a
+  sorting mistake that's easy to make and easy to miss.
+- Understand precisely what `pg_cron` already protects you from around
+  overlapping runs, and what it doesn't — and use an advisory lock for
+  the part it doesn't.
+- Turn a script you'd otherwise run by hand into unattended, scheduled
+  SQL.
+- Schedule a job against a database other than the one `pg_cron`
+  itself runs in.
+- Modify, unschedule, and monitor jobs for failure, treating
+  `cron.job_run_details` as a first-class thing to alert on.
+
+---
+
+## Installation
+
+```bash
+sudo apt install postgresql-16-cron
+```
+
+```
+# postgresql.conf — shared across this chapter and the next two
+shared_preload_libraries = 'pg_cron,pg_stat_statements,auto_explain'
+cron.database_name = 'portsmith'
+```
+
+```bash
+sudo systemctl restart postgresql
+```
+
+```sql
+-- as postgres
+CREATE EXTENSION pg_cron;
+```
+
+`cron.database_name` matters beyond just naming a database: it's where
+`pg_cron`'s own launcher process runs and where `cron.job` /
+`cron.job_run_details` live — Exercise 5's whole point is scheduling a
+job that runs somewhere *other* than this one database.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — Installing `pg_cron` and Scheduling an Hourly Refresh
+
+**1.1 — Schedule it**
+
+Chapter 9's `refresh_and_log()` procedure already does everything an
+hourly refresh needs — `pg_cron`'s job is just to call it on a
+schedule instead of by hand:
+
+```sql
+SELECT cron.schedule('refresh-mv-sensor-daily', '0 * * * *',
+    $$CALL refresh_and_log('mv_sensor_daily')$$);
+```
+
+```
+ERROR:  permission denied for schema cron
+```
+
+Creating the extension doesn't hand every role access to its schema —
+familiar territory by now (Chapter 17's `GRANT USAGE ON FOREIGN DATA
+WRAPPER`, Chapter 10's `api` schema):
+
+```sql
+-- as postgres
+GRANT USAGE ON SCHEMA cron TO chris;
+GRANT SELECT ON cron.job, cron.job_run_details TO chris;
+GRANT EXECUTE ON FUNCTION cron.schedule(text,text,text) TO chris;
+```
+
+A natural instinct is to grant every `cron.*` function chris might
+need, all at once, in one `-c` call — which surfaces a real trap:
+
+```
+ERROR:  function cron.schedule_in_database(text, text, text, text) does not exist
+```
+
+That one function's signature didn't match this `pg_cron` version —
+and because multiple `;`-separated statements sent as one `-c` string
+run as a single implicit transaction, **the entire batch rolled back**,
+including the `GRANT USAGE ON SCHEMA` that had appeared to succeed a
+moment before. The fix is both a narrower ask and a more robust one —
+grant every function in the schema by wildcard instead of enumerating
+signatures you'd have to get exactly right:
+
+```sql
+-- as postgres, in one clean batch
+GRANT USAGE ON SCHEMA cron TO chris;
+GRANT SELECT ON cron.job, cron.job_run_details TO chris;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA cron TO chris;
+```
+
+```sql
+SELECT cron.schedule('refresh-mv-sensor-daily', '* * * * *',  -- every minute, to verify quickly
+    $$CALL refresh_and_log('mv_sensor_daily')$$);
+```
+
+```
+ schedule
+----------
+        2
+```
+
+**1.2 — It "succeeds," but nothing actually runs**
+
+```sql
+SELECT jobid, status, return_message FROM cron.job_run_details WHERE jobid = 2;
+```
+
+```
+ jobid | status |  return_message
+-------+--------+-------------------
+     2 | failed | connection failed
+     2 | failed | connection failed
+```
+
+No further detail, and nothing in the PostgreSQL log even shows a
+rejected authentication attempt — the connection is failing before it
+gets that far. The reason: `pg_cron`'s launcher runs as the `postgres`
+**OS** user, and to actually execute a job it opens its own new
+connection to the target database, authenticating as whichever role
+owns the job (`chris`). That's a different OS user than the one
+`chris`'s own interactive `psql` sessions run as, and — same wall
+Chapter 17 hit with `postgres_fdw` — a non-superuser connecting this
+way needs a real password, which nothing here has supplied yet. The
+fix is the standard one for a background process needing a password it
+can't be prompted for: a `.pgpass` file, owned by the OS user running
+PostgreSQL:
+
+```bash
+sudo -u postgres bash -c 'echo "localhost:5432:portsmith:chris:fdw-demo-password" >> ~/.pgpass && chmod 600 ~/.pgpass'
+```
+
+```sql
+SELECT jobid, status, return_message, start_time, end_time FROM cron.job_run_details WHERE jobid = 2 ORDER BY runid DESC LIMIT 2;
+```
+
+```
+ jobid |  status   | return_message |          start_time           |           end_time
+-------+-----------+-----------------+-------------------------------+-------------------------------
+     2 | succeeded | CALL            | 2026-08-09 23:27:00.015674-04 | 2026-08-09 23:27:02.030591-04
+     2 | succeeded | CALL            | 2026-08-09 23:26:00.018446-04 | 2026-08-09 23:26:02.405988-04
+```
+
+Real, unattended, one-minute-apart refreshes, each taking about two
+seconds. With it proven working, dial back to the real cadence:
+
+```sql
+SELECT cron.alter_job(2, schedule := '0 * * * *');
+```
+
+<img src="imgs/ch19_pgcron_architecture.png" alt="cron.job holds the schedule; pg_cron's launcher process, running inside the postmaster, wakes up every minute, and for each due job opens a new connection authenticated as that job's role, requiring a .pgpass entry for the postgres OS user; it executes the job's command and logs the outcome to cron.job_run_details"/>
+
+---
+
+### Exercise 2 — Reading `cron.job` and `cron.job_run_details`
+
+```sql
+SELECT jobid, jobname, schedule, command, active FROM cron.job;
+```
+
+```
+ jobid |         jobname         |  schedule  |                 command
+-------+--------------------------+------------+-------------------------------------------
+     2 | refresh-mv-sensor-daily  | 0 * * * *  | CALL refresh_and_log('mv_sensor_daily')
+```
+
+`cron.job_run_details` is the run history — and it has a sorting trap
+worth knowing before it costs debugging time. The failed runs from
+Exercise 1.2 never got a `start_time` at all (the connection never
+opened far enough to set one):
+
+```sql
+SELECT jobid, status, start_time FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;
+```
+
+```
+ jobid | status |          start_time
+-------+--------+--------------------------------
+     2 | failed |
+     2 | failed |
+     2 | failed |
+     2 | succeeded | 2026-08-09 23:27:00.015674-04
+     2 | succeeded | 2026-08-09 23:26:00.018446-04
+```
+
+`ORDER BY ... DESC` sorts `NULL` as the *largest* possible value by
+default — so the oldest failures, the ones with no timestamp at all,
+appear to be "first" ahead of genuinely recent successes. Anyone
+scanning this for "what happened most recently" and trusting the sort
+order would read yesterday's failures as more current than this
+minute's successes. The fix is either an explicit `NULLS LAST`, or
+sorting by `runid` (monotonic, never null) instead:
+
+```sql
+SELECT jobid, status, start_time FROM cron.job_run_details ORDER BY start_time DESC NULLS LAST LIMIT 5;
+```
+
+```
+ jobid |  status   |          start_time
+-------+-----------+--------------------------------
+     2 | succeeded | 2026-08-09 23:27:00.015674-04
+     2 | succeeded | 2026-08-09 23:26:00.018446-04
+     2 | failed    |
+     2 | failed    |
+     2 | failed    |
+```
+
+---
+
+### Exercise 3 — Overlap Prevention: What `pg_cron` Already Does, and What It Doesn't
+
+**3.1 — A deliberately slow job**
+
+```sql
+CREATE OR REPLACE PROCEDURE guarded_demo_task(delay_seconds int DEFAULT 0)
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT pg_try_advisory_lock(hashtext('guarded_demo_task')) THEN
+        RAISE NOTICE 'already running, skipping this run';
+        RETURN;
+    END IF;
+    PERFORM pg_sleep(delay_seconds);
+    RAISE NOTICE 'did the work';
+    PERFORM pg_advisory_unlock(hashtext('guarded_demo_task'));
+END;
+$$;
+
+SELECT cron.schedule('guarded-demo', '* * * * *', $$CALL guarded_demo_task(75)$$);
+```
+
+A 75-second job on a 60-second schedule guarantees overlap — the
+question is what `pg_cron` actually does about it.
+
+**3.2 — `pg_cron` already refuses to double-run the same job**
+
+```
+LOG:  cron job 3 starting: CALL guarded_demo_task(75)      -- 23:28:00
+LOG:  cron job 3 COMMAND completed: CALL                    -- 23:29:15
+LOG:  cron job 3 starting: CALL guarded_demo_task(75)       -- 23:29:15, immediately after
+```
+
+There's no log line for a job 3 start at 23:29:00 at all — `pg_cron`
+noticed the previous run of this exact `jobid` was still going and
+simply didn't launch a second one for that tick. It doesn't queue the
+missed tick either: the next run starts the instant a slot frees, at
+23:29:15, not at the next minute boundary. Left running long enough,
+the schedule drifts further from the clock with every overlap, a real
+and worth-knowing side effect on its own.
+
+**3.3 — What that protection doesn't cover**
+
+`pg_cron`'s serialization is scoped to one `jobid`. It says nothing
+about the same underlying task being triggered a second way — a
+different job entry calling the same procedure, or a human running it
+by hand. While job 3 was mid-run:
+
+```sql
+CALL guarded_demo_task(0);   -- from an ordinary psql session, not cron at all
+```
+
+```
+NOTICE:  already running, skipping this run
+CALL
+```
+
+*This* is what the advisory lock actually earns its keep for — not the
+same-`jobid` case `pg_cron` already handles, but any other path that
+might reach the same resource concurrently. The lock is keyed on the
+resource (`guarded_demo_task`, or in a real refresh job's case,
+probably the matview's name), not on the job — which is exactly what
+lets it catch a case `pg_cron`'s own per-job serialization structurally
+can't.
+
+<img src="imgs/ch19_overlap_sequence.png" alt="Timeline: at minute 0 pg_cron starts guarded_demo_task, which acquires an advisory lock and sleeps 75 seconds; at minute 1 pg_cron's own scheduled tick for the same job is silently skipped since the previous run is still active; partway through, a manually issued CALL to the same procedure from an unrelated session immediately fails to acquire the lock and returns; at 75 seconds the first run finishes, releases the lock, and pg_cron immediately starts the next run rather than waiting for the next minute boundary"/>
+
+```sql
+SELECT cron.unschedule('guarded-demo');
+```
+
+---
+
+### Exercise 4 — A Scheduled Dead-Letter Sweep
+
+Chapter 3 built `ch03_reclaim.py` to requeue stalled jobs and dead-letter
+the ones that exhausted their retries — run by hand, or "on a schedule
+(see Chapter 19)," per its own docstring at the time. That schedule is
+this exercise: the same logic, as a SQL function `pg_cron` can call
+directly, no external process required.
+
+**4.1 — Port the script's logic to SQL**
+
+```sql
+CREATE OR REPLACE FUNCTION sweep_stalled_jobs(p_timeout interval DEFAULT interval '30 minutes')
+RETURNS TABLE(requeued int, dead_lettered int)
+LANGUAGE plpgsql AS $$
+DECLARE
+    r RECORD;
+    v_requeued int := 0;
+    v_dead_lettered int := 0;
+    v_error text;
+BEGIN
+    FOR r IN
+        SELECT id, job_type, attempts, max_attempts, claimed_by, heartbeat_at
+        FROM jobs
+        WHERE status = 'in_progress' AND heartbeat_at < now() - p_timeout
+        ORDER BY id
+    LOOP
+        v_error := format('stalled: no heartbeat since %s (last claimed by %s)', r.heartbeat_at, r.claimed_by);
+        IF r.attempts >= r.max_attempts THEN
+            WITH failed AS (
+                DELETE FROM jobs WHERE id = r.id
+                RETURNING id, job_type, payload, priority, attempts, max_attempts, created_at
+            )
+            INSERT INTO dead_letter_jobs (id, job_type, payload, priority, attempts, max_attempts, created_at, last_error)
+            SELECT id, job_type, payload, priority, attempts, max_attempts, created_at, v_error FROM failed;
+            v_dead_lettered := v_dead_lettered + 1;
+        ELSE
+            UPDATE jobs SET status = 'queued', claimed_at = NULL, claimed_by = NULL,
+                            heartbeat_at = NULL, last_error = v_error
+            WHERE id = r.id;
+            v_requeued := v_requeued + 1;
+        END IF;
+    END LOOP;
+    RETURN QUERY SELECT v_requeued, v_dead_lettered;
+END;
+$$;
+```
+
+**4.2 — Prove both branches work**
+
+```sql
+INSERT INTO jobs (job_type, payload, status, priority, attempts, max_attempts, claimed_at, claimed_by, heartbeat_at)
+VALUES ('demo_stall_requeue',    '{}', 'in_progress', 5, 1, 3, now() - interval '40 minutes', 'worker-demo', now() - interval '35 minutes'),
+       ('demo_stall_deadletter', '{}', 'in_progress', 5, 3, 3, now() - interval '40 minutes', 'worker-demo', now() - interval '35 minutes');
+
+SELECT * FROM sweep_stalled_jobs();
+```
+
+```
+ requeued | dead_lettered
+----------+----------------
+        1 |              1
+```
+
+```sql
+SELECT id, status FROM jobs WHERE job_type = 'demo_stall_requeue';
+SELECT id, last_error FROM dead_letter_jobs WHERE job_type = 'demo_stall_deadletter';
+```
+
+```
+ id |   status
+----+-----------
+ 51 | queued
+
+ id |                                       last_error
+----+-------------------------------------------------------------------------------------------
+ 52 | stalled: no heartbeat since 2026-08-09 21:47:19.767251-04 (last claimed by worker-demo)
+```
+
+Exactly the two outcomes `ch03_reclaim.py` produced by hand — attempts
+remaining gets requeued, retries exhausted gets dead-lettered, with a
+descriptive `last_error` either way.
+
+**4.3 — Schedule it**
+
+```sql
+SELECT cron.schedule('sweep-stalled-jobs', '*/5 * * * *', $$SELECT sweep_stalled_jobs()$$);
+```
+
+Verified live with a fresh stalled job and a one-minute test schedule
+before settling on every five minutes: `job_run_details` showed
+`status: succeeded`, `return_message: 1 row`, and the planted job's
+`status` really did flip back to `queued` — the scheduled path produces
+the same result as the manual call in 4.2, just unattended.
+
+---
+
+### Exercise 5 — `cron.schedule_in_database()`
+
+`cron.database_name = 'portsmith'` means `pg_cron`'s launcher itself
+lives there — every job scheduled with plain `cron.schedule()` runs
+against `portsmith` by definition. `cron.schedule_in_database()` is the
+escape hatch: a job that runs against a **different** database
+entirely, using the same underlying launcher.
+
+```sql
+SELECT cron.schedule_in_database('legacy-analyze', '0 4 * * *',
+    'ANALYZE businesses_archive;', 'portsmith_legacy');
+```
+
+Verified against `portsmith_legacy` — Chapter 17's second database —
+by checking the one thing `ANALYZE` actually changes:
+
+```sql
+-- in portsmith_legacy, before
+SELECT last_analyze FROM pg_stat_user_tables WHERE relname = 'businesses_archive';
+```
+
+```
+ last_analyze
+---------------
+ (null)
+```
+
+```sql
+-- in portsmith, briefly rescheduled to every 2 minutes to verify quickly
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'legacy-analyze'), schedule := '*/2 * * * *');
+```
+
+```sql
+-- in portsmith_legacy, ~2 minutes later
+SELECT last_analyze FROM pg_stat_user_tables WHERE relname = 'businesses_archive';
+```
+
+```
+          last_analyze
+-------------------------------
+ 2026-08-09 23:28:00.039363-04
+```
+
+A real, verified timestamp — `pg_cron`'s single launcher process,
+still physically running inside `portsmith`, reached across and
+executed SQL against a completely different database. Reset to a
+realistic once-daily cadence once proven:
+
+```sql
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'legacy-analyze'), schedule := '0 4 * * *');
+```
+
+---
+
+### Exercise 6 — Modifying, Unscheduling, and Monitoring for Failure
+
+**6.1 — `cron.alter_job()` and `cron.unschedule()`**
+
+Both already used for real, twice each, in Exercises 1, 3, and 5 —
+`alter_job` to change a schedule without dropping and recreating the
+job (its history in `job_run_details` stays intact, keyed by the same
+`jobid`), `unschedule` to remove one outright.
+
+**6.2 — A job that genuinely fails**
+
+```sql
+SELECT cron.schedule('broken-demo-job', '* * * * *', 'SELECT * FROM this_table_does_not_exist;');
+```
+
+```sql
+SELECT status, return_message FROM cron.job_run_details ORDER BY runid DESC LIMIT 1;
+```
+
+```
+ status |                       return_message
+--------+--------------------------------------------------------------
+ failed | ERROR:  relation "this_table_does_not_exist" does not exist
+        | LINE 1: SELECT * FROM this_table_does_not_exist;
+        |                       ^
+```
+
+The real error text, captured and stored — `pg_cron` doesn't swallow
+failures, it logs exactly what PostgreSQL would have said to an
+interactive session running the same statement.
+
+```sql
+SELECT cron.unschedule('broken-demo-job');
+```
+
+**6.3 — The monitoring query this chapter has been building toward**
+
+```sql
+SELECT jobid, status, return_message, start_time
+FROM   cron.job_run_details
+WHERE  status = 'failed'
+ORDER  BY start_time DESC NULLS LAST
+LIMIT  10;
+```
+
+The same `NULLS LAST` fix from Exercise 2, now doing real work: a
+recurring check for exactly this query, scheduled itself (or wired into
+existing alerting), is the difference between a scheduled job failing
+silently for weeks and someone finding out the same day.
+
+---
+
+## Summary — What You Should Now Know
+
+| Concept | What it does |
+|---------|----------------|
+| `cron.schedule(name, schedule, command)` | Registers a job — needs `USAGE` on schema `cron` plus `EXECUTE` on its functions |
+| `.pgpass` for the PostgreSQL OS user | Required for `pg_cron`'s background connection to authenticate as a non-superuser job owner |
+| `cron.job` / `cron.job_run_details` | Schedule and run history — sort `job_run_details` by `runid` or with `NULLS LAST`, never a bare `start_time DESC` |
+| Same-`jobid` overlap | Already prevented by `pg_cron` itself — a missed tick isn't queued, the next run starts immediately once a slot frees |
+| Cross-path overlap (different jobs, or a manual call) | **Not** covered by `pg_cron` — needs its own `pg_try_advisory_lock`, keyed on the resource, not the job |
+| `cron.schedule_in_database(name, schedule, command, database)` | Runs against a database other than `cron.database_name` |
+| `cron.alter_job()` / `cron.unschedule()` | Modify a job in place (history preserved) or remove it entirely |
+| `cron.job_run_details.status = 'failed'` | A real, monitorable signal — the same shape of query worth alerting on, not just reading by hand |
+
+**The key design insight** from this chapter is that `pg_cron` gives
+you exactly one guarantee for free — a job won't overlap with its own
+previous run — and that guarantee is narrower than it first sounds.
+Everything else a production scheduler needs (locking scoped to the
+actual shared resource, credentials for the connection it opens on
+your behalf, monitoring that actually gets read) is the same
+responsibility it would be with any external scheduler, just moved
+inside a table instead of a config file.
+
+---
+
+*Going further: Chapter 20's `pg_stat_statements` and `auto_explain` —
+already sharing this chapter's `shared_preload_libraries` line — turn
+the same kind of "what actually happened" question this chapter asked
+of `cron.job_run_details` onto query performance instead of scheduled
+jobs. And Exercise 4's `sweep_stalled_jobs()` is worth pairing with
+Chapter 18's own "going further" note: a second `pg_cron` job that
+watches `pg_replication_slots` for a slot whose `confirmed_flush_lsn`
+has stopped advancing is the exact same "scheduled health check" shape
+applied to replication instead of the job queue.*
+# Chapter 20 — `pg_stat_statements` and Query Performance
+
+> *"It's slow" is a feeling. "This queryid has a mean execution time of
+> 440ms across 964,800 rows touched, up from 47ms last week" is a fact
+> — and only one of those is actionable.*
+
+---
+
+## Background
+
+Every chapter so far has looked at PostgreSQL from the perspective of
+what it can store and how to query it correctly. This chapter asks a
+different question of the exact same database: not *is this query
+right*, but *is this query fast, and if not, why not, and how would
+you know before a user told you*. Three tools, working together:
+
+- **`pg_stat_statements`** — every statement PostgreSQL runs, normalized
+  (literal values replaced with `$1`, `$2`, ...) and aggregated: call
+  count, total time, mean time, rows, buffers. The answer to "what's
+  actually slow, in aggregate, right now."
+- **`EXPLAIN (ANALYZE, BUFFERS)`** — the answer to "why," for one
+  specific query: the plan PostgreSQL actually chose, with real timing
+  and real I/O counts, not just the planner's estimate.
+- **`auto_explain`** — the same `EXPLAIN` output, captured automatically
+  for any query slower than a threshold you set, without needing to
+  already suspect which query to go looking for.
+
+Chapter 19 treated `cron.job_run_details` as a first-class thing to
+monitor rather than just read once by hand. This chapter applies the
+same discipline to query performance: not a one-time diagnosis, but an
+ongoing signal worth checking after every deploy.
+
+---
+
+## The Scenario
+
+This chapter intentionally introduces the three classic shapes of slow
+query against tables already built by earlier chapters — nothing new
+seeded, everything real:
+
+| Problem | Where |
+|---------|--------|
+| An implicit cast defeating an index | `businesses.id` (Chapter 1) |
+| A missing index on a large table | `sensor_readings` (Chapter 8, 9.6M rows) |
+| A plan regression after a schema change | The same `sensor_readings` index, deliberately dropped and restored |
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Find the queries actually costing the most aggregate time in a real
+  system, not just the ones that feel slow.
+- Read a full `EXPLAIN (ANALYZE, BUFFERS)` plan node by node.
+- Recognize an implicit cast defeating an index from its plan shape
+  alone.
+- Diagnose a sequential scan on a large table — and know that "add an
+  index" isn't automatically the fix; the *right* index, matching how
+  the table is actually queried, is what matters.
+- Use `auto_explain` to capture slow-query plans without needing to
+  already know which query to chase.
+- Build a before/after snapshot comparison to catch a plan regression
+  the moment it happens, not weeks later.
+
+---
+
+## Installation
+
+`pg_stat_statements` and `auto_explain` were already added to
+`shared_preload_libraries` alongside `pg_cron` back in Chapter 19's
+setup, and `pg_stat_statements` was created as an extension at the same
+time:
+
+```sql
+-- as postgres, in portsmith — already done in Chapter 19's setup
+CREATE EXTENSION pg_stat_statements;
+```
+
+Two functions this chapter needs are both revoked from `PUBLIC` by
+default — worth granting up front rather than mid-exercise:
+
+```sql
+-- as postgres
+GRANT EXECUTE ON FUNCTION pg_stat_statements_reset(oid, oid, bigint) TO chris;
+GRANT EXECUTE ON FUNCTION pg_reload_conf() TO chris;
+```
+
+The first attempt at the reset grant is worth knowing about even though
+it's avoided here: `pg_stat_statements_reset()` — no arguments — doesn't
+exist in current versions; the real signature takes three optional
+filter arguments (`userid`, `dbid`, `queryid`, all defaulting to `0`,
+meaning "reset everything"). `\df pg_stat_statements_reset` is the fast
+way to check a signature before writing a `GRANT` for it, instead of
+guessing.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — Finding What's Actually Slow
+
+```sql
+SELECT pg_stat_statements_reset();
+```
+
+A representative mix of real queries against this book's data — some
+run often and cheap, one run rarely but expensive:
+
+```sql
+SELECT query, calls, round(total_exec_time::numeric, 2) AS total_ms,
+       round(mean_exec_time::numeric, 3) AS mean_ms, rows
+FROM   pg_stat_statements
+ORDER  BY total_exec_time DESC
+LIMIT  10;
+```
+
+```
+                                            query                                             | calls | total_ms | mean_ms | rows
+------------------------------------------------------------------------------------------------+-------+----------+---------+-------
+ SELECT count(*) FROM sensor_readings WHERE sensor_type = $1                                    |     2 |   879.08 | 439.541 |     2
+ SELECT * FROM businesses WHERE id = $1                                                          |    30 |   160.14 |   5.338 |    30
+ SELECT * FROM sensor_readings WHERE sensor_id = $1 AND recorded_at >= $2 AND recorded_at < $3   |    15 |    55.18 |   3.678 | 23520
+ SELECT * FROM businesses WHERE details @> $1                                                    |    10 |    46.31 |   4.631 |   150
+ SELECT id FROM jobs WHERE status = $1 ORDER BY priority, created_at LIMIT $2 FOR UPDATE SKIP LOCKED |  25 |  2.26 |   0.090 |    25
+```
+
+Two real lessons sitting side by side. First, literal values are
+normalized away (`$1`, `$2`) — every call to "look up one business by
+id" collapses into a single row here regardless of *which* id, which is
+exactly what makes aggregation meaningful instead of one row per unique
+query text. Second, and the actual point of ranking by `total_exec_time`
+rather than `mean_exec_time`: a query called only **twice** (an
+unindexed `count(*)` over 9.6 million rows) costs more in aggregate
+than a well-indexed lookup called **thirty times**. Frequency and
+per-call cost are independent axes, and a rare expensive query hiding
+behind a wall of cheap frequent ones is precisely what this view is
+for catching.
+
+---
+
+### Exercise 2 — Reading a Full Plan
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM sensor_readings WHERE sensor_id = 5;
+```
+
+```
+ Gather  (cost=1000.00..151794.26 rows=97046 width=42) (actual time=12.772..300.728 rows=96480 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=1812 read=88823
+   ->  Parallel Append  (cost=0.00..141089.66 rows=40436 width=42) (actual time=13.683..273.244 rows=32160 loops=3)
+         Buffers: shared hit=1812 read=88823
+         ->  Parallel Seq Scan on sensor_readings_2024_03 sensor_readings_2  (cost=0.00..13034.00 rows=3608 width=42) (actual time=14.335..84.003 rows=8928 loops=1)
+               Filter: (sensor_id = 5)
+               Rows Removed by Filter: 883872
+               Buffers: shared hit=129 read=8255
+         ... (one Parallel Seq Scan per partition)
+ Planning Time: 1.980 ms
+ Execution Time: 338.496 ms
+```
+
+Node by node, outside in:
+
+| Node | Meaning |
+|------|----------|
+| `Gather` | The parallel query's top: collects rows from worker processes back into one stream |
+| `Workers Planned` / `Launched` | How many parallel workers PostgreSQL asked for vs. actually got — a mismatch here would itself be worth investigating (`max_parallel_workers` exhausted) |
+| `Parallel Append` | Chapter 8's partitioning at work: each partition scanned independently, results appended |
+| `Parallel Seq Scan on sensor_readings_2024_03` | One partition, scanned start to finish — no index used |
+| `Filter: (sensor_id = 5)` | The condition applied *after* reading each row — the tell that no index narrowed things down first |
+| `Rows Removed by Filter: 883872` | Nearly 884,000 rows read and discarded, in this partition alone, to find the ~9,000 that matched |
+| `Buffers: shared hit=... read=...` | `hit` = found in PostgreSQL's own buffer cache; `read` = a real disk read — `read=88823` here means the bulk of this query's cost is genuine I/O, not CPU |
+| `Execution Time: 338.496 ms` | The number that actually matters to whoever's waiting on this query |
+
+`ANALYZE` runs the query for real and reports actual timing and row
+counts alongside the planner's original estimates; `BUFFERS` adds the
+I/O accounting. Without both, `EXPLAIN` alone only shows what
+PostgreSQL *expected*, not what happened.
+
+---
+
+### Exercise 3 — An Implicit Cast Defeating an Index
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM businesses WHERE id = 5;
+```
+
+```
+ Index Scan using idx_businesses_replident on businesses  (cost=0.14..8.16 rows=1 width=783) (actual time=0.191..0.192 rows=1 loops=1)
+   Index Cond: (id = 5)
+   Buffers: shared read=2
+```
+
+`Index Cond`, two buffer reads — exactly what a primary-key lookup
+should look like. Now the same lookup, with a value typed as `numeric`
+instead of `integer` — the kind of thing a client library can do
+silently (a JSON-decoded number, a Python `Decimal`, an ORM's default
+type mapping for a "generic number" field):
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM businesses WHERE id = 5::numeric;
+```
+
+```
+ Seq Scan on businesses  (cost=0.00..8.73 rows=1 width=783) (actual time=0.011..0.313 rows=1 loops=1)
+   Filter: ((id)::numeric = '5'::numeric)
+   Rows Removed by Filter: 47
+   Buffers: shared hit=1 read=7
+```
+
+`Filter`, not `Index Cond` — PostgreSQL has wrapped the *column* in a
+cast (`(id)::numeric`) to make the comparison type-consistent, and a
+plain btree index on `id` (built on `integer` values) can't be used to
+satisfy a condition on `id::numeric`. On a 49-row table the wall-clock
+difference is invisible — both finish in under half a millisecond,
+buried in connection overhead. The plan shape is identical, though, to
+Exercise 4's `sensor_id` lookup before it had the right index: exactly
+this bug against a multi-million-row table is how a sub-millisecond
+primary-key lookup silently becomes a 300ms sequential scan, and
+nothing about the query's *result* looks wrong — it just gets slower,
+quietly, as the table grows.
+
+The fix is whichever side of the comparison is easiest to control: cast
+the *parameter* instead of leaving the column to be cast (`id =
+$1::integer` at the application layer), or, if the value's type is
+genuinely outside your control, an expression index on
+`(id::numeric)` — though matching the parameter's type going in is
+almost always the better fix.
+
+---
+
+### Exercise 4 — Diagnosing (and Correctly Fixing) a Sequential Scan
+
+**4.1 — The baseline**
+
+`sensor_readings` has no index on `sensor_id` at all — every lookup by
+sensor scans every partition:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM sensor_readings WHERE sensor_id = 5;
+```
+
+```
+ Gather (actual time=12.772..300.728 rows=96480 loops=1)
+   ->  Parallel Append ...
+         (12 Parallel Seq Scans, one per partition)
+ Execution Time: 338.496 ms
+```
+
+**4.2 — The obvious fix helps less than expected**
+
+```sql
+CREATE INDEX idx_sensor_readings_sensor_id ON sensor_readings (sensor_id);
+```
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM sensor_readings WHERE sensor_id = 5;
+```
+
+```
+ Append (actual time=1.629..401.335 rows=96480 loops=1)
+   Buffers: shared hit=225 read=81071 written=35
+   ->  Bitmap Heap Scan on sensor_readings_2024_02 ...
+         Buffers: shared hit=131 read=6907
+         ->  Bitmap Index Scan on sensor_readings_2024_02_sensor_id_idx ...
+ Execution Time: 376.942 ms
+```
+
+**Slower**, not faster — a real, worth-understanding result, not a
+mistake to paper over. Sensor 5 has 96,480 readings out of 9.6 million,
+roughly one row in 120, spread essentially evenly across the whole
+table's history — every month, every day, interleaved with every other
+sensor's readings. A **Bitmap Heap Scan** still has to visit almost
+every 8KB heap page, because at that scatter, virtually every page
+contains at least one matching row. The index made the *search* for
+matching rows cheap (`Bitmap Index Scan`) but did nothing about the
+*fetch* cost, which dominates — and switching from a Parallel Seq Scan
+to a plain Bitmap Heap Scan even gave up the free parallelism the
+original plan had. An index is not automatically a win; it's a trade
+worth actually measuring.
+
+**4.3 — The query that was never realistic in the first place**
+
+Nobody actually asks for "all of sensor 5's history, unbounded." A
+real query narrows by time too — and Chapter 8's partitioning already
+helps here, with no new index at all:
+
+```sql
+DROP INDEX idx_sensor_readings_sensor_id;
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM sensor_readings
+WHERE sensor_id = 5 AND recorded_at >= '2024-06-01' AND recorded_at < '2024-06-08';
+```
+
+```
+ Gather (actual time=0.301..35.504 rows=2016 loops=1)
+   ->  Parallel Seq Scan on sensor_readings_2024_06 sensor_readings
+         Filter: (... AND sensor_id = 5)
+         Rows Removed by Filter: 287328
+ Execution Time: 35.671 ms
+```
+
+Partition pruning alone — only `sensor_readings_2024_06` touched, not
+all twelve — already beats Exercise 4.2's "fix." The right index closes
+the rest of the gap:
+
+```sql
+CREATE INDEX idx_sensor_readings_sensor_time ON sensor_readings (sensor_id, recorded_at);
+```
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM sensor_readings
+WHERE sensor_id = 5 AND recorded_at >= '2024-06-01' AND recorded_at < '2024-06-08';
+```
+
+```
+ Bitmap Heap Scan on sensor_readings_2024_06 sensor_readings  (actual time=0.587..7.534 rows=2016 loops=1)
+   Recheck Cond: (sensor_id = 5 AND recorded_at >= ... AND recorded_at < ...)
+   Heap Blocks: exact=1697
+   Buffers: shared read=1708
+   ->  Bitmap Index Scan on sensor_readings_2024_06_sensor_id_recorded_at_idx
+         Buffers: shared read=11
+ Execution Time: 7.878 ms
+```
+
+**7.9ms** — roughly 4.5x faster than pruning alone, roughly 43x faster
+than the original unbounded query, and the honest conclusion of the
+whole exercise: the single-column index in 4.2 wasn't wrong because
+indexes are bad, it was wrong because it didn't match how the table is
+actually queried. A compound index over both the filter column and the
+range column, paired with a query shape that was already realistic,
+is what actually won.
+
+<img src="imgs/ch20_index_scatter_contrast.png" alt="Two scenarios contrasted: a single-column index on sensor_id where matching rows are scattered roughly one in every hundred-twenty across the whole 9.6-million-row table, forcing a bitmap heap scan to visit nearly every page and giving up the seq scan's parallelism for a net loss; versus a compound index on (sensor_id, recorded_at) combined with a realistic time-bounded query, where partition pruning already narrows to one month and the index then narrows further within it, visiting a small fraction of the pages for a genuine multiple-times speedup"/>
+
+---
+
+### Exercise 5 — `auto_explain`: Catching Slow Queries Without Knowing to Look
+
+`auto_explain` was proven working back in Chapter 19's environment
+setup, logging *every* query at `log_min_duration = 0`. That's useful
+for a five-minute test and useless in production — it would flood the
+log. A realistic threshold, and turning it on requires nothing at the
+session level (it's already preloaded cluster-wide):
+
+```sql
+-- as postgres
+ALTER SYSTEM SET auto_explain.log_min_duration = 200;   -- milliseconds
+```
+
+Reloading config needs its own grant, same shape as
+`pg_stat_statements_reset()` above:
+
+```sql
+GRANT EXECUTE ON FUNCTION pg_reload_conf() TO chris;
+```
+
+```sql
+SELECT pg_reload_conf();
+```
+
+```sql
+SELECT * FROM businesses WHERE id = 3;                                   -- fast — should stay silent
+SELECT count(*) FROM sensor_readings WHERE sensor_type = 'air_quality';  -- slow — should log
+```
+
+The fast lookup produces nothing in the log. The slow one:
+
+```
+LOG:  duration: 374.630 ms  plan:
+	Query Text: SELECT count(*) FROM sensor_readings WHERE sensor_type = 'air_quality';
+	Finalize Aggregate  (actual time=367.286..374.621 rows=1 loops=1)
+	  Buffers: shared hit=15377 read=75258
+	  ->  Gather  (actual time=367.178..374.609 rows=3 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        ->  Partial Aggregate  (actual time=354.058..354.061 rows=1 loops=3)
+	              ->  Parallel Append  (actual time=16.793..340.363 rows=321600 loops=3)
+```
+
+Captured automatically, no application code changed, no prior
+suspicion needed about which query would be the slow one — exactly
+`sensor_type` doing what Exercise 1's top-10 already flagged as the
+single most expensive query in the whole workload, this time caught by
+threshold instead of by manually going looking.
+
+---
+
+### Exercise 6 — Catching a Plan Regression Before It's a Production Incident
+
+The point of watching query performance continuously rather than once:
+catching a regression the moment a deploy introduces it, not weeks
+later when someone complains. A minimal snapshot table and a real
+before/after comparison:
+
+**6.1 — Snapshot before a "deploy"**
+
+```sql
+CREATE TABLE query_stats_snapshot (
+    snapshot_label TEXT,
+    snapshot_at    TIMESTAMPTZ DEFAULT clock_timestamp(),
+    queryid        BIGINT,
+    query          TEXT,
+    calls          BIGINT,
+    mean_exec_time DOUBLE PRECISION
+);
+
+SELECT pg_stat_statements_reset();
+-- ... run representative traffic ...
+
+INSERT INTO query_stats_snapshot (snapshot_label, queryid, query, calls, mean_exec_time)
+SELECT 'before_deploy', queryid, query, calls, mean_exec_time
+FROM   pg_stat_statements
+WHERE  query LIKE 'SELECT * FROM sensor_readings WHERE sensor_id%';
+```
+
+**6.2 — Simulate the incident: a deploy accidentally drops the index**
+
+```sql
+SELECT pg_stat_statements_reset();
+DROP INDEX idx_sensor_readings_sensor_time;   -- Exercise 4's fix, reverted "by accident"
+-- ... same representative traffic again ...
+
+INSERT INTO query_stats_snapshot (snapshot_label, queryid, query, calls, mean_exec_time)
+SELECT 'after_deploy', queryid, query, calls, mean_exec_time
+FROM   pg_stat_statements
+WHERE  query LIKE 'SELECT * FROM sensor_readings WHERE sensor_id%';
+```
+
+**6.3 — Compare**
+
+```sql
+SELECT b.mean_exec_time AS before_ms, a.mean_exec_time AS after_ms,
+       round((a.mean_exec_time / b.mean_exec_time)::numeric, 1) AS slowdown_factor
+FROM   query_stats_snapshot b
+JOIN   query_stats_snapshot a ON a.queryid = b.queryid AND a.snapshot_label = 'after_deploy'
+WHERE  b.snapshot_label = 'before_deploy';
+```
+
+```
+ before_ms | after_ms | slowdown_factor
+-----------+-----------+------------------
+     3.678 |    34.195 |              9.3
+```
+
+A real, measured **9.3x** regression, caught by comparing two
+snapshots — the same `queryid` (PostgreSQL's normalization from
+Exercise 1 making this possible at all: the query text is identical
+before and after, so the join above is exact, not a fuzzy text match).
+This is deliberately the shape of check worth scheduling — Chapter 19's
+`pg_cron` running this comparison nightly, alerting past some threshold
+slowdown factor, is the natural next step, closing the loop between
+these two chapters. Restore the real fix once satisfied:
+
+```sql
+CREATE INDEX idx_sensor_readings_sensor_time ON sensor_readings (sensor_id, recorded_at);
+```
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it answers |
+|------|-------------------|
+| `pg_stat_statements` | *What's* slow, in aggregate — ranked by total time, not just per-call time |
+| `EXPLAIN (ANALYZE, BUFFERS)` | *Why* one specific query is slow — real timing, real I/O, node by node |
+| `Filter` vs `Index Cond` in a plan | The tell for an implicit cast (or any condition) that isn't reaching an index |
+| `auto_explain` | Slow-query capture without needing to already suspect which query |
+| Buffer counts (`hit` vs `read`) | Whether a query's cost is CPU or genuine disk I/O |
+| A single-column index | Not automatically a win — matching the *scatter* of matching rows to physical pages matters as much as the row count |
+| Partition pruning + a compound index | Often the actual fix, when a naive single-column index barely moves the needle |
+| `queryid`-matched snapshot comparison | Catches a plan regression by measurement, the same day a deploy causes it |
+
+**The key design insight** from this chapter is that every tool in it
+answers a narrower question than it first appears to: `pg_stat_statements`
+tells you *what*, not *why*; `EXPLAIN` tells you *why*, for one query,
+after the fact; `auto_explain` removes the need to already know
+*which* query. None of them, alone, is "the performance tool" — the
+actual skill this chapter built is knowing which one answers the
+question you're currently asking, and reaching for a real measurement
+instead of a guess at every step, including the step where the "fix"
+turns out not to help.
+
+---
+
+*Going further: this closes out the book's run through PostgreSQL's
+extension and operational surface — Chapter 21, once PostgreSQL 19's
+property graph support (`SQL/PGQ`) is out of beta, returns to Chapter
+12's recursive CTEs with a genuinely different query model for the
+same graph problems. In the meantime, the three tools this chapter
+built — `pg_stat_statements`, `EXPLAIN (ANALYZE, BUFFERS)`, and
+`auto_explain` — are worth running against every earlier chapter's own
+exercises; several of this book's own "real, verified" numbers were
+found exactly this way.*
+# Chapter 21 — Graph Queries: PostgreSQL 19's Property Graphs
+
+> *Chapter 12 taught you how graph traversal works by making you write
+> the recursion yourself. This chapter asks a narrower question: now
+> that PostgreSQL 19 has a real, built-in graph query language, when
+> does reaching for it actually pay off — and, just as importantly for
+> software still in beta, what does it not do yet?*
+
+---
+
+## Background
+
+PostgreSQL 19 adds `SQL/PGQ` — the ISO SQL:2023 standard for querying
+relational tables as if they were a labeled property graph, without
+copying anything into a separate graph database. Two new pieces of
+syntax carry the whole feature:
+
+- **`CREATE PROPERTY GRAPH`** — a schema object that declares which
+  existing tables are *vertices* and which are *edges*, entirely on top
+  of ordinary tables you already have. No new storage, no ETL — the
+  same rows Chapter 12 queried with `WITH RECURSIVE` are reused
+  directly.
+- **`GRAPH_TABLE`** — a query construct, used inside `FROM`, that
+  matches *patterns* against a property graph — `(a)-[r]->(b)` reads
+  much closer to "a graph shape" than a self-join or a recursive CTE
+  does.
+
+The honest framing for this chapter, and the reason it stayed a
+placeholder for months: PostgreSQL 19 was still in beta when this was
+written, and nothing about SQL/PGQ had been run for real yet. Writing
+it required standing up an actual PostgreSQL 19 instance and finding
+out, empirically, what the beta actually supports — which turned out to
+be a genuinely different (and smaller) feature than the placeholder
+outline assumed. That gap is most of this chapter's real content.
+
+---
+
+## The Scenario
+
+This chapter reuses Chapter 12's data unchanged: the 30-row Portsmith
+government org chart (`city_org`) and the real road network derived
+from Chapter 2's PostGIS geometry (`intersections`, `road_segments`).
+Nothing new is seeded — the same graphs, queried a second way.
+
+Because PostgreSQL 19 was beta at the time of writing, it runs in an
+**isolated Docker container**, not on the same PostgreSQL 16 cluster
+every earlier chapter has built up real, cumulative state on. See the
+Environment Setup section below for exactly how that's wired up,
+including three real gotchas hit getting a beta Debian package building
+at all.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Stand up a second, disposable PostgreSQL instance for trying beta
+  features without touching a cluster you depend on.
+- Declare a `CREATE PROPERTY GRAPH` over existing tables, including the
+  self-referencing edge case (`city_org.manager_id` pointing back into
+  `city_org` itself).
+- Write `GRAPH_TABLE` pattern-matching queries, including undirected
+  edge patterns.
+- Know precisely which of SQL/PGQ's standard-defined features are
+  actually implemented in PostgreSQL 19 beta2, versus which ones parse
+  as errors today — verified directly, not assumed from the standard.
+  Verified is not implied — the beta's own errors are the appendix.
+- Decide, for a given traversal, whether `GRAPH_TABLE` is a genuine
+  readability win today or whether Chapter 12's recursive CTE is still
+  the only tool that actually works.
+
+---
+
+## Environment Setup — A Second Cluster for PostgreSQL 19
+
+Rather than upgrading the machine's real PostgreSQL 16 install — which
+carries real, cumulative state from twenty prior chapters — PostgreSQL
+19 runs in a throwaway Docker container on port 5433, built from
+`docker/ch21/Dockerfile` in this repo. Three real problems came up
+getting that container running at all, each worth knowing if you build
+something similar:
+
+**1. PGDG's beta packages live in a `main <version>` *component*, not a
+separate suite.** The first attempt pointed apt at a `bookworm-pgdg-testing`
+suite that doesn't exist. PGDG actually publishes pre-release major
+versions as an additional `main 19` component *inside* the normal
+`bookworm-pgdg` suite — and that component alone isn't enough, since
+`postgresql-19`/`postgresql-client-19` still depend on an up-to-date
+`postgresql-common`/`libpq5` that only the plain `main` component
+carries:
+
+```
+deb [signed-by=...] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main
+deb [signed-by=...] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main 19
+```
+
+**2. Debian's `postgresql-19` package auto-creates a cluster on
+install — and splits config from data.** Unlike the official
+`postgres` Docker image (built from a plain source tarball), Debian's
+packaging runs `pg_createcluster` as part of `apt-get install`,
+producing a cluster whose data lives at `/var/lib/postgresql/19/main`
+but whose `postgresql.conf`/`pg_hba.conf` live separately, under
+`/etc/postgresql/19/main/`. Nothing in this book's earlier chapters hit
+this, because they all install extensions into an *already-running*
+cluster someone else set up — this is the first chapter to build a
+cluster from scratch in a container image. A hand-rolled `initdb`
+(needed to get `postgresql.conf` genuinely inside `PGDATA`, matching
+what a plain `postgres -D $PGDATA` expects) collides with that
+auto-created cluster, since its `PG_VERSION` file already exists.
+Fixed by dropping the auto-created cluster at build time before
+`initdb` ever runs:
+
+```dockerfile
+RUN apt-get install -y postgresql-19 postgresql-client-19 \
+    && pg_dropcluster --stop 19 main
+```
+
+**3. Local-socket peer authentication doesn't match container UID
+patterns.** The container runs as OS user `postgres` but the app role
+is `chris` — `initdb`'s default local-socket auth (`peer`, matching OS
+username to role name) rejects that combination outright. Fine for a
+disposable scratch container: `initdb --auth-local=trust`.
+
+Bring it up:
+
+```bash
+cd docker/ch21
+docker compose up --build
+```
+
+```
+$ psql -h localhost -p 5433 -U chris -d portsmith19 -c "SELECT version();"
+WARNING:  authenticated with an MD5-encrypted password
+DETAIL:  MD5 password support is deprecated and will be removed in a future release of PostgreSQL.
+                                                     version
+------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 19beta2 (Debian 19~beta2-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+```
+
+That `MD5 password support is deprecated` warning is itself a small,
+real signal of what's coming in a future major version, seen live
+rather than read about in a release note.
+
+**Getting Chapter 12's data across.** `intersections.geom` is a real
+PostGIS `GEOMETRY(POINT, 4326)` column, and PostGIS packages for a
+still-beta PostgreSQL 19 aren't reliably available yet — so rather than
+pull PostGIS into this scratch container just to store three points'
+worth of geometry, the graph exercises below only need plain
+coordinates, not spatial operators. Exported as `lon`/`lat` instead:
+
+```bash
+psql portsmith -c "\copy (SELECT id, name, ST_X(geom) AS lon, ST_Y(geom) AS lat FROM intersections ORDER BY id) TO 'intersections.csv' CSV HEADER"
+psql portsmith -c "\copy (SELECT id, road_name, from_intersection, to_intersection, length_m FROM road_segments ORDER BY id) TO 'road_segments.csv' CSV HEADER"
+psql portsmith -c "\copy (SELECT id, name, title, manager_id FROM city_org ORDER BY id) TO 'city_org.csv' CSV HEADER"
+
+psql -h localhost -p 5433 -U chris -d portsmith19 -c "\copy intersections FROM 'intersections.csv' CSV HEADER"
+psql -h localhost -p 5433 -U chris -d portsmith19 -c "\copy road_segments FROM 'road_segments.csv' CSV HEADER"
+psql -h localhost -p 5433 -U chris -d portsmith19 -c "\copy city_org FROM 'city_org.csv' CSV HEADER"
+```
+
+All three row counts matched the source exactly: 30 `city_org` rows, 15
+`intersections`, 19 `road_segments`.
+
+---
+
+## Exercises
+
+### Exercise 1 — Confirming SQL/PGQ Is Really There
+
+Before writing anything, confirm the feature actually exists in this
+beta rather than trusting a release announcement. The clearest proof
+isn't `\h` (client-side help text is bundled with whichever `psql`
+binary you're running — the *server's* matching `psql`, not an older
+local one, is what actually knows this syntax) but the system catalog
+itself:
+
+```sql
+SELECT relname FROM pg_class WHERE relname LIKE '%propgraph%' OR relname = 'property_graphs';
+```
+
+```
+                    relname
+------------------------------------------------
+ pg_propgraph_element
+ pg_propgraph_element_label
+ pg_propgraph_label
+ pg_propgraph_label_property
+ pg_propgraph_property
+ property_graphs
+ ...
+```
+
+Real, dedicated catalog tables — `CREATE PROPERTY GRAPH` isn't sugar
+over some existing mechanism, it's genuinely new catalog infrastructure
+in this release.
+
+---
+
+### Exercise 2 — Defining a Property Graph Over `city_org`
+
+`city_org` is a self-referencing table: every row is a potential
+vertex, and the `manager_id` foreign key back into the same table is
+the edge. Declaring it:
+
+```sql
+CREATE PROPERTY GRAPH city_org_graph
+    VERTEX TABLES ( city_org KEY (id) LABEL employee PROPERTIES ALL COLUMNS )
+    EDGE TABLES (
+        city_org AS reports_to
+            KEY (id)
+            SOURCE KEY (id) REFERENCES city_org (id)
+            DESTINATION KEY (manager_id) REFERENCES city_org (id)
+            LABEL reports_to
+            NO PROPERTIES
+    );
+```
+
+The real gotcha, found by iterating against the actual error messages:
+the `SOURCE`/`DESTINATION` clauses look, from the documentation's
+bracket notation, like `KEY (...) REFERENCES` and a trailing
+`table (...)` are two independently optional pieces. In practice, on
+this beta, only the combined form parses —
+`KEY (local_column) REFERENCES vertex_table (vertex_key_column)` — read
+exactly like an ordinary foreign key. Both of these failed:
+
+```
+SOURCE KEY (id) REFERENCES city_org
+DESTINATION KEY (manager_id) REFERENCES city_org
+-- ERROR:  syntax error at or near "DESTINATION"
+
+SOURCE city_org (id)
+-- ERROR:  syntax error at or near "("
+```
+
+Confirm it registered:
+
+```sql
+\dG+
+```
+
+```
+                                List of property graphs
+ Schema |      Name      |      Type      | Owner | Persistence |  Size   | Description
+--------+----------------+----------------+-------+-------------+---------+-------------
+ public | city_org_graph | property graph | chris | permanent   | 0 bytes |
+```
+
+(`0 bytes` because there's no new storage — the property graph is a
+view over `city_org`, exactly as advertised.)
+
+---
+
+### Exercise 3 — Fixed-Depth Pattern Matching, Side by Side With Chapter 12
+
+The most direct rewrite of Chapter 12's "walk from a leaf to the root"
+recursive CTE, at a *known* depth. Leo Park is a Streets Crew member,
+three levels below the Mayor:
+
+```sql
+SELECT * FROM GRAPH_TABLE (city_org_graph
+    MATCH (a IS employee WHERE a.name = 'Leo Park')
+          -[IS reports_to]-> (b IS employee)
+          -[IS reports_to]-> (c IS employee)
+          -[IS reports_to]-> (d IS employee)
+    COLUMNS (a.name AS lvl0, b.name AS lvl1, c.name AS lvl2, d.name AS lvl3)
+);
+```
+
+```
+   lvl0   |   lvl1    |    lvl2     |     lvl3
+----------+-----------+-------------+---------------
+ Leo Park | Dana Ruiz | Marcus Webb | Coretta Vance
+```
+
+Chapter 12's version of this same question — "walk from any node to the
+root" — needed `WITH RECURSIVE` because it works at *any* depth without
+knowing it in advance. This version only works because 3 was chosen
+ahead of time; a different employee at a different org level needs a
+differently-shaped query. That tradeoff is exactly what the rest of
+this chapter is about.
+
+Where `GRAPH_TABLE` earns its keep even at fixed depth is queries whose
+*shape*, not just their depth, is naturally graph-like. Compare "every
+employee whose skip-level manager reports directly to the Mayor" — a
+2-hop pattern that reads close to the English sentence describing it:
+
+```sql
+SELECT * FROM GRAPH_TABLE (city_org_graph
+    MATCH (a IS employee) -[IS reports_to]-> (b IS employee) -[IS reports_to]-> (c IS employee)
+    COLUMNS (a.name AS employee, a.title, b.name AS skip_level_manager, c.name AS director)
+) WHERE director = 'Coretta Vance'
+ORDER BY employee;
+```
+
+```
+    employee    |              title              | skip_level_manager |   director
+----------------+---------------------------------+--------------------+---------------
+ Colin Marsh    | Budget Analyst                  | Julian Ostrowski   | Coretta Vance
+ Dana Ruiz      | Streets & Sanitation Supervisor | Marcus Webb        | Coretta Vance
+ Felix Wren     | Parks Maintenance Supervisor    | Aisha Bonner       | Coretta Vance
+ Grace Halloway | Senior Permit Reviewer          | Helena Cross       | Coretta Vance
+ Hugo Petrakis  | Database Administrator          | Wendell Achebe     | Coretta Vance
+ Marcus Reilly  | Patrol Captain                  | Diane Okonjo       | Coretta Vance
+ Paula Mensah   | Records Sergeant                | Diane Okonjo       | Coretta Vance
+ Ray Castellano | Building Inspector              | Helena Cross       | Coretta Vance
+```
+
+A self-join written by hand to answer this — `city_org a JOIN city_org b
+ON a.manager_id = b.id JOIN city_org c ON b.manager_id = c.id` — returns
+the identical rows. Whether the pattern-matching form is actually
+*more* readable than that join is genuinely a judgment call; it's at
+least no worse, and it stops looking like an accident of how the join
+happened to be written.
+
+---
+
+### Exercise 4 — The Wall: Variable-Length Paths Aren't Supported Yet
+
+This is the exercise the original chapter outline assumed would work,
+and the actual finding worth this whole chapter existing: **SQL/PGQ's
+quantified path patterns — the `{m,n}` repetition syntax that makes
+"walk zero-or-more/one-or-more hops" possible — are not implemented in
+PostgreSQL 19 beta2.** Two different attempts, two different real
+errors:
+
+```sql
+MATCH (a IS employee WHERE a.name = 'Leo Park') (-[IS reports_to]->(IS employee)){1,10} (root IS employee)
+-- ERROR:  unsupported element pattern kind: "nested path pattern"
+
+MATCH (a IS employee WHERE a.name = 'Leo Park') -[IS reports_to]->{1,10} (root IS employee)
+-- ERROR:  element pattern quantifier is not supported
+```
+
+Both forms the SQL:2023 standard defines for repeating a path — a
+quantified nested group, and a quantifier directly on an edge pattern —
+are parsed far enough to be recognized and then explicitly rejected as
+unsupported. This isn't a syntax mistake on this book's part; it's a
+real, verified gap in what's shipped so far in this beta.
+
+The practical consequence: **Chapter 12's recursive CTEs are still the
+only tool in PostgreSQL 19 beta2 that can walk a graph to an unknown
+depth.** "Walk any node to the root," "find the shortest path with no
+upper bound on hops," and "detect a cycle by construction" — all three
+of Chapter 12's headline capabilities — have no `GRAPH_TABLE`
+equivalent yet, no matter how the pattern is phrased. Whether that
+changes before PostgreSQL 19's actual GA release is worth checking
+directly against a later beta or release candidate, the same way this
+finding itself was reached: by running the query, not by reading the
+standard.
+
+---
+
+### Exercise 5 — The Road Network: Undirected Edges and a Bounded-Hop Workaround
+
+A second property graph, over the real road network:
+
+```sql
+CREATE PROPERTY GRAPH road_graph
+    VERTEX TABLES ( intersections KEY (id) LABEL intersection PROPERTIES ALL COLUMNS )
+    EDGE TABLES (
+        road_segments AS segment
+            KEY (id)
+            SOURCE KEY (from_intersection) REFERENCES intersections (id)
+            DESTINATION KEY (to_intersection) REFERENCES intersections (id)
+            LABEL road
+            PROPERTIES ALL COLUMNS
+    );
+```
+
+Roads are two-way, but `road_segments` only stores one direction per
+row (`from_intersection` → `to_intersection`) — the same directionality
+question Chapter 12 handled with a `UNION` of both directions.
+`GRAPH_TABLE` has a cleaner answer built in: an edge pattern with no
+arrowhead, `-[ ]-`, matches the edge in either direction:
+
+```sql
+SELECT * FROM GRAPH_TABLE (road_graph
+    MATCH (a IS intersection WHERE a.name = 'Harbour Walk & Anchor Lane') -[r IS road]- (b IS intersection)
+    COLUMNS (a.name AS from_x, b.name AS to_x, r.road_name, r.length_m)
+);
+```
+
+```
+           from_x            |             to_x             |  road_name   | length_m
+-----------------------------+------------------------------+--------------+----------
+ Harbour Walk & Anchor Lane  | Portside Drive & Anchor Lane |  Anchor Lane |    445.0
+ Harbour Walk & Anchor Lane  | Harbour Walk & Ring Road     | Harbour Walk |   1554.2
+```
+
+Real, correct, no `UNION` needed — a genuine, verified win over the
+Chapter 12 approach for this specific piece.
+
+Chapter 12 Exercise 5 found a real fewest-hops-vs-shortest-distance
+divergence using unbounded BFS. That's off the table here (Exercise
+4), but a *bounded* version — "how far can I get in exactly 2 hops" —
+still works, by chaining two fixed edge patterns and summing their
+properties:
+
+```sql
+SELECT * FROM GRAPH_TABLE (road_graph
+    MATCH (a IS intersection WHERE a.name = 'Harbour Walk & Anchor Lane')
+          -[r1 IS road]- (b IS intersection)
+          -[r2 IS road]- (c IS intersection)
+    COLUMNS (a.name AS start_x, c.name AS end_x, r1.length_m + r2.length_m AS total_m)
+)
+WHERE end_x <> start_x
+ORDER BY total_m;
+```
+
+```
+          start_x            |           end_x            | total_m
+------------------------------+----------------------------+---------
+ Harbour Walk & Anchor Lane   | Portside Drive & Ring Road |  1998.1
+ Harbour Walk & Anchor Lane   | Portside Drive & Ring Road |  1999.1
+ Harbour Walk & Anchor Lane   | Dock Road & Ring Road      |  7665.6
+```
+
+A real, small, genuinely interesting result: two *different* 2-hop
+routes reach the same intersection, 1 meter apart — exactly the kind of
+near-tie a shortest-path query needs to break correctly, which
+`ORDER BY total_m LIMIT 1` does here without incident. But notice what
+this query *is*: one fixed depth, hand-written. Going to 3 hops means
+writing a third copy of the pattern; there's no way to ask for "up to N
+hops" in one query the way Chapter 12's recursive CTE does natively.
+This is Exercise 4's wall again, in a second dataset.
+
+---
+
+## Decision Guide: Recursive CTE vs. `GRAPH_TABLE`, as of PostgreSQL 19 Beta2
+
+| Need | Use |
+|---|---|
+| Traversal to an unknown or unbounded depth (walk to root, true shortest path, cycle detection) | Chapter 12's `WITH RECURSIVE` — still the only thing that works |
+| A fixed-depth, pattern-shaped query (skip-level lookups, "friend of a friend," a specific N-hop join) | `GRAPH_TABLE` — genuinely more declarative than the equivalent self-join, and undirected (`-[ ]-`) edges are a real, clean win over hand-written `UNION` |
+| Everything needs to stay inside one cluster, no new storage | Either — both query existing tables directly |
+| A workload that's *fundamentally* graph-shaped at production scale (millions of nodes, deep unbounded traversal as the primary access pattern) | Neither, necessarily — this is the point in the decision tree where a dedicated graph database (Neo4j and similar) starts to be worth the operational cost of running a second system, though nothing in this chapter's small, in-memory-sized dataset actually demonstrates that threshold being crossed |
+
+The honest summary: PostgreSQL 19 beta2 ships real, working
+infrastructure for declaring and pattern-matching property graphs, and
+for the specific class of fixed-depth queries it supports, it's a
+genuine readability improvement over hand-written joins. It does not
+yet replace recursive CTEs for anything Chapter 12 actually needed them
+for. That could easily change before general availability — quantified
+path patterns are explicitly part of the SQL:2023 standard this feature
+implements, and "not yet supported" read from a beta's own error
+message is a very different claim than "not supported," worth
+re-verifying against whatever release you're actually running.
+
+---
+
+<img src="imgs/ch21_query_model_wall.png" alt="Diagram contrasting two query models over the same city_org and road_segments tables. Left path: Chapter 12's WITH RECURSIVE CTE, unbounded depth, working today for walk-to-root, shortest-path, and cycle detection. Right path: PostgreSQL 19 beta2's CREATE PROPERTY GRAPH and GRAPH_TABLE, which succeeds for fixed-depth pattern matches and undirected edges, but hits a wall at quantified variable-length path patterns, marked with the two real captured errors: unsupported element pattern kind nested path pattern, and element pattern quantifier is not supported."/>
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it's actually for |
+|---|---|
+| `CREATE PROPERTY GRAPH` | Declares existing tables as a labeled graph — no new storage, a view over what you already have |
+| `GRAPH_TABLE` with fixed-depth patterns | A genuinely more declarative way to write a known-depth traversal or self-join |
+| `-[ ]-` (undirected edge pattern) | A real, clean replacement for a hand-written `UNION` of both directions |
+| Quantified path patterns (`{m,n}`) | Standard-defined, but **not implemented in PostgreSQL 19 beta2** — verified via two distinct real errors, not assumed |
+| Chapter 12's `WITH RECURSIVE` | Still the only working tool in this release for any traversal of unknown or unbounded depth |
+| A second, disposable Docker cluster | The right way to try a beta major version without touching a cluster carrying real cumulative state |
+
+**The key design insight** from this chapter is less about SQL/PGQ
+itself than about how to evaluate a beta feature honestly: read what
+the standard promises, then verify against the actual release what's
+really there, and report the difference plainly rather than writing the
+chapter the outline assumed would be true. Every other chapter in this
+book got to lean on a stable, GA PostgreSQL; this one is a reminder
+that "run the real thing" sometimes means the real thing tells you
+"not yet."
+
+---
+
+*Going further: Chapters 22 and 23 return to graph-shaped data from a
+completely different angle — RDF triples and SPARQL via `pg-ripple`,
+rather than SQL/PGQ's property-graph model over relational tables. It's
+worth holding this chapter's central finding in mind going in: a young
+extension or a beta feature is worth exactly what you can verify about
+it live, not what its README or its standard promises.*
+# Chapter 22 — RDF Triple Stores: `pg-ripple`
+
+> *Everything so far in this book has been rows, or documents shaped
+> like rows. This chapter asks what happens when the unit of storage
+> is a single fact — subject, predicate, object — and the query
+> language is built around walking a graph of those facts rather than
+> joining tables of them.*
+
+---
+
+## Background
+
+RDF (the Resource Description Framework) models data as **triples**:
+`subject predicate object`, e.g. `:business_1 :locatedIn
+:harbour_district`. A whole database becomes one large set of these
+facts, queried with **SPARQL** rather than SQL. `pg-ripple`
+(`github.com/trickle-labs/pg-ripple`) brings this model into
+PostgreSQL as a real extension — not an ORM convention on top of
+ordinary tables, but genuine triple storage, a SPARQL 1.1 query engine,
+SHACL validation, and a Datalog-based reasoning engine, all installed
+with `CREATE EXTENSION`.
+
+This is the third time this book has modeled the same kind of question
+— "how are things connected" — with a different tool:
+
+- **Chapter 1 (JSONB)** models irregular *attributes* of a single
+  document. It doesn't model relationships between documents at all.
+- **Chapter 12 (recursive CTEs) and Chapter 21 (SQL/PGQ)** model
+  relationships as edges between *rows in tables you already have*,
+  queried either by hand-written recursion or, as of PostgreSQL 19
+  beta2, fixed-depth graph pattern matching.
+- **This chapter** models relationships as first-class facts, with no
+  underlying table shape at all — a business's category, its
+  neighborhood, and a neighborhood's population are all just more
+  triples, indistinguishable in storage from the edges connecting them.
+
+The honest throughline from Chapter 21 continues here: `pg-ripple` is
+real, working software, verified live against an actual build — and,
+same as Chapter 21, hands-on testing surfaced genuine gaps between what
+the README advertises and what this specific version actually does
+correctly. Two of this chapter's exercises exist *because* of gaps
+found this way, not despite them.
+
+---
+
+## The Scenario
+
+A slice of the Portsmith domain, recast as triples: the 48 rows of
+`businesses` (Chapter 1) and the 6 rows of `neighborhoods` (Chapter 2),
+plus a genuinely new fact with no earlier equivalent — real
+**neighborhood adjacency**, derived from Chapter 2's actual polygon
+geometry via `ST_Touches`, not invented. This mirrors Chapter 12's own
+practice of deriving graph edges from real geometry rather than making
+them up, and sets up a direct rerun of Chapter 21's central finding: an
+"is X reachable from Y" question, asked of two different graph engines.
+
+Like Chapter 21, this runs in its own isolated PostgreSQL container —
+version 18, matching what `pg-ripple`'s own README documents support
+for, not 19 (see the Environment Setup below for why that distinction
+mattered in practice).
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Build a real Rust/`pgrx` PostgreSQL extension from source and know
+  the specific version-pinning trap that broke the first attempt.
+- Export relational rows as Turtle triples and load them with
+  `pg_ripple.load_turtle()`.
+- Write real SPARQL `SELECT` queries, including aggregation.
+- Use SPARQL property paths for unbounded-depth traversal — and know
+  exactly why this succeeds here when the equivalent quantified path
+  failed in Chapter 21's PostgreSQL 19 beta2.
+- Define a SHACL shape and get a real, precise violation report — and
+  know which part of SHACL support (scoring) works today versus which
+  part (insert-time rejection) needs a second extension not installed
+  here.
+- Write a custom Datalog inference rule — and know, from a reproduced,
+  isolated test, exactly how this build's rule engine fails to chain
+  a two-atom rule body correctly.
+
+---
+
+## Environment Setup — Compiling a Rust Extension
+
+`pg-ripple` isn't an apt package like anything earlier in this book —
+it's a Rust project built against real PostgreSQL server headers via
+`pgrx`, PostgreSQL's Rust extension framework. `docker/ch22/` builds
+it from scratch, on **PostgreSQL 18** (GA, unlike Chapter 21's
+PostgreSQL 19 beta2 — `pg-ripple`'s own README documents support for
+18, and there was no reason to add PostgreSQL 19's own beta
+uncertainty on top of a Rust build that had plenty of its own).
+
+Bring it up:
+
+```bash
+cd docker/ch22
+docker compose up --build
+```
+
+Two real build failures happened getting there, both worth knowing if
+you build a `pgrx` extension yourself:
+
+**1. `cargo install cargo-pgrx --version` wants a full version, not a
+bare `major.minor`.** `--version "0.18"` fails outright
+(`unexpected end of input while parsing minor version number`); it
+needs either a specific version or an explicit range qualifier.
+
+**2. `cargo-pgrx`'s own version must exactly match the `pgrx` library
+version pinned in the extension's `Cargo.toml` — a loose range match
+isn't good enough.** The natural fix for problem 1 looked like
+`--version "^0.18"`, which resolved to the newest `0.18.x` release
+(`0.18.1`) — but pg-ripple's `Cargo.toml` pins `pgrx = 0.18.0` exactly,
+and `cargo-pgrx` itself refuses to proceed when its own version
+doesn't match, with a real, specific error naming the exact version it
+wants:
+
+```
+Error:
+   0: The installed cargo-pgrx 0.18.1 is not compatible with the dependencies in ./Cargo.toml:
+      pgrx = 0.18.0, pgrx-macros = 0.18.0, pgrx-sql-entity-graph = 0.18.0, pgrx-tests = 0.18.0
+      cargo-pgrx and pgrx library versions must be identical.
+      help: cargo install cargo-pgrx --version 0.18.0 --locked
+```
+
+The fix, exactly as the error suggests: pin the exact version,
+`cargo install --locked cargo-pgrx --version "0.18.0"`.
+
+Building the cluster itself reused Chapter 21's `pg_dropcluster --stop
+18 main` fix for Debian's config/data-splitting auto-created cluster,
+and the same `initdb --auth-local=trust` fix for the OS-user/role-name
+mismatch — both explained in Chapter 21's Environment Setup, not
+repeated here.
+
+**One more real gotcha, found only after the extension was already
+running:** the first `CREATE EXTENSION pg_ripple` and first `sparql()`
+call both worked, but printed a real warning:
+
+```
+WARNING:  pg_ripple: loaded without shared_preload_libraries; HTAP merge
+worker, CONSTRUCT writeback, and dictionary cache are disabled. Add
+pg_ripple to shared_preload_libraries in postgresql.conf.
+```
+
+Exactly the same class of gotcha Chapters 19 and 20 hit with
+`pg_cron`/`pg_stat_statements`/`auto_explain` — some of `pg-ripple`'s
+functionality needs to be loaded at server-start time, not merely
+`CREATE EXTENSION`-ed into a running one. Fixed in `entrypoint.sh` by
+writing `shared_preload_libraries = 'pg_ripple'` into
+`postgresql.conf` *before* the first `pg_ctl start`, not after:
+
+```
+$ psql -h localhost -p 5434 -U chris -d portsmith22 -c "\dx pg_ripple"
+  pg_ripple | 0.128.0 | public | High-performance RDF triple store with SPARQL 1.1, SHACL, Datalog, HTAP, federation, and Datalog-native PageRank
+```
+
+---
+
+## Exercises
+
+### Exercise 1 — Exporting Real Rows as Triples
+
+`data/ch22_export_turtle.py` connects to the *live* PostgreSQL 16
+`portsmith` database — not this chapter's scratch container — and
+writes real rows as Turtle:
+
+```bash
+python3 data/ch22_export_turtle.py "dbname=portsmith" data/ch22_portsmith.ttl
+```
+
+```
+Wrote 6 neighborhoods, 10 adjacency edges, 48 businesses to data/ch22_portsmith.ttl
+```
+
+The 10 adjacency edges are genuinely derived, not invented — the exact
+same `ST_Touches` technique Chapter 12 used for its road-intersection
+graph, applied here to Chapter 2's neighborhood polygons:
+
+```sql
+SELECT a.name, b.name
+FROM neighborhoods a
+JOIN neighborhoods b ON a.id < b.id AND ST_Touches(a.geom, b.geom);
+```
+
+A sample of the output Turtle:
+
+```turtle
+@prefix : <http://portsmith.example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:harbour_district a :Neighborhood ; rdfs:label "Harbour District" ; :population 4200 ; :partOf :portsmith .
+:harbour_district :adjacentTo :industrial_port .
+:business_1 a :Business ; rdfs:label "The Gilded Clam" ; :locatedIn :harbour_district ; :hasCategory "restaurant" .
+```
+
+Loading it into the `pg-ripple` container — note the loader connects
+to the *container* (port 5434), reading the file this script just
+wrote:
+
+```python
+with psycopg.connect("host=localhost port=5434 ... dbname=portsmith22") as conn:
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_ripple.load_turtle(%s, false);", (ttl,))
+        print("Triples loaded:", cur.fetchone()[0])
+    conn.commit()
+```
+
+```
+Triples loaded: 261
+```
+
+Passing the Turtle content as a bind parameter, rather than trying to
+shell-escape it into a `psql -c` call, sidesteps a real amount of pain
+— Turtle syntax is full of the exact characters (colons, angle
+brackets, quotes) that are worst to quote correctly in a shell.
+
+---
+
+### Exercise 2 — Real SPARQL, Including Aggregation
+
+```sql
+SELECT * FROM pg_ripple.sparql('
+PREFIX : <http://portsmith.example.org/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?nlabel (COUNT(?b) AS ?n) WHERE {
+  ?b a :Business ; :locatedIn ?nb .
+  ?nb rdfs:label ?nlabel .
+} GROUP BY ?nlabel ORDER BY ?nlabel
+');
+```
+
+```
+                    result
+------------------------------------------------
+ {"n": 9, "nlabel": "\"Harbour District\""}
+ {"n": 9, "nlabel": "\"Old Town\""}
+ {"n": 9, "nlabel": "\"Northgate\""}
+ {"n": 9, "nlabel": "\"Riverside\""}
+ {"n": 5, "nlabel": "\"University Quarter\""}
+ {"n": 7, "nlabel": "\"Industrial Port\""}
+```
+
+Real, correct, and a genuine test of the query engine, not just triple
+storage — `GROUP BY`/`COUNT` over a join of three triple patterns, and
+the six counts sum to exactly 48, the real business count. One
+formatting quirk worth knowing before it surprises you: `sparql()`
+returns `TABLE(result jsonb)`, and string-literal bindings keep their
+RDF lexical quoting inside the JSON value (`"\"Harbour District\""`,
+not `"Harbour District"`) — strip the outer quote pair in application
+code rather than assuming a plain string.
+
+---
+
+### Exercise 3 — Property Paths: The Feature Chapter 21 Didn't Have
+
+Chapter 21 ended on a wall: PostgreSQL 19 beta2's `GRAPH_TABLE`
+rejected every form of variable-length path with `element pattern
+quantifier is not supported`. SPARQL's equivalent — the `+`
+(one-or-more) property path operator — is exactly the kind of
+unbounded traversal that broke there. Try it here, on the real
+adjacency data:
+
+```sql
+SELECT * FROM pg_ripple.sparql('
+PREFIX : <http://portsmith.example.org/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT DISTINCT ?label WHERE {
+  :harbour_district :adjacentTo+ ?n .
+  ?n rdfs:label ?label .
+} ORDER BY ?label
+');
+```
+
+```
+               result
+-------------------------------------
+ {"label": "\"Old Town\""}
+ {"label": "\"Northgate\""}
+ {"label": "\"Riverside\""}
+ {"label": "\"University Quarter\""}
+ {"label": "\"Industrial Port\""}
+```
+
+Real, unbounded, works — all five other neighborhoods, reached through
+however many `adjacentTo` hops it takes. This is a genuine, verified
+capability gap in this book's favor for once: the exact shape of query
+that PostgreSQL 19 beta2 explicitly rejects, `pg-ripple`'s SPARQL
+engine handles correctly.
+
+Adjacency was only stored in one direction per pair (matching
+`ST_Touches`'s symmetric result once, not twice), so a *directed* `+`
+path from a node that's only ever the object of an edge would miss
+real neighbors — the same directionality question Chapter 21 solved
+with an undirected `-[ ]-` pattern. SPARQL's answer is the inverse-path
+operator, `^`, combined with alternation:
+
+```sql
+SELECT * FROM pg_ripple.sparql('
+PREFIX : <http://portsmith.example.org/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?label WHERE {
+  :northgate (:adjacentTo|^:adjacentTo)+ ?n .
+  ?n rdfs:label ?label .
+} ORDER BY ?label
+');
+```
+
+```
+               result
+-------------------------------------
+ {"label": "\"Harbour District\""}
+ {"label": "\"Old Town\""}
+ {"label": "\"Northgate\""}
+ {"label": "\"Riverside\""}
+ {"label": "\"University Quarter\""}
+ {"label": "\"Industrial Port\""}
+```
+
+Six rows, not five — **Northgate appears in its own reachability set.**
+Not a bug: the directed version of this same query
+(`ASK { :northgate :adjacentTo+ ?n . FILTER(?n = :northgate) }`)
+returns `false`, but the undirected version
+(`ASK { :northgate (:adjacentTo|^:adjacentTo)+ :northgate }`) returns
+`true` — because the *undirected* adjacency graph genuinely contains a
+cycle: Northgate → Riverside → Harbour District → Old Town → Northgate.
+`+` finds it correctly. This is Chapter 12 Exercise 4's cycle-detection
+lesson again, from a completely different query language: an unbounded
+traversal operator will walk straight into a real cycle and return the
+start node as its own descendant unless you explicitly guard against
+it (`FILTER(?n != :northgate)`, the SPARQL analog of Chapter 12's
+`CYCLE ... SET ... USING`).
+
+---
+
+### Exercise 4 — SHACL: Real Scoring, Gated Enforcement
+
+A SHACL shape requiring every `:Business` to have both a category and
+a location:
+
+```turtle
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix : <http://portsmith.example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:BusinessShape a sh:NodeShape ;
+    sh:targetClass :Business ;
+    sh:property [ sh:path :hasCategory ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path :locatedIn ; sh:minCount 1 ] .
+```
+
+```sql
+SELECT pg_ripple.load_shacl(:'shacl_text');
+-- Shapes loaded: 1
+
+SELECT pg_ripple.shacl_score('default');
+-- shacl_score: 1     (fully conformant against the real, clean data)
+```
+
+Deliberately loading a malformed business — missing `:hasCategory` —
+and re-scoring:
+
+```turtle
+:business_bad_1 a :Business ; rdfs:label "No Category Cafe" ; :locatedIn :harbour_district .
+```
+
+```sql
+SELECT pg_ripple.shacl_score('default');
+-- shacl_score: 0.5
+
+SELECT pg_ripple.shacl_report_scored('default');
+```
+
+```
+(http://portsmith.example.org/business_bad_1, http://portsmith.example.org/BusinessShape,
+ Violation, 1, "expected at least 1 value(s) for <http://portsmith.example.org/hasCategory>, found 0")
+```
+
+Real, precise, and immediately actionable — names the exact offending
+entity, shape, and missing property. But this is *scoring already-
+stored data*, not *rejecting it at the door*. The README's "violations
+caught on insert" claim is a different feature, gated behind
+`enable_shacl_monitors()` — which, tried here, returns a clear real
+answer rather than silently doing nothing:
+
+```
+WARNING:  pg_trickle is not installed; SHACL violation monitors are
+unavailable. Install pg_trickle and run SELECT pg_ripple.enable_shacl_monitors()
+to enable.
+ enable_shacl_monitors
+-----------------------
+ f
+```
+
+A second extension, not built for this chapter. Real gap, honestly
+reported rather than assumed away: as installed here, `pg-ripple`
+validates on demand; it does not reject bad data on write.
+
+Cleanup, using SPARQL 1.1 Update rather than reloading anything:
+
+```sql
+SELECT pg_ripple.sparql_update('
+PREFIX : <http://portsmith.example.org/>
+DELETE DATA { :business_bad_1 a :Business ; rdfs:label "No Category Cafe" ; :locatedIn :harbour_district . }
+');
+```
+
+---
+
+### Exercise 5 — Custom Datalog Rules: A Real, Reproduced Engine Bug
+
+The guide's original plan for this exercise: a transitive rule —
+"if X `locatedIn` Y and Y `partOf` Z, then X `partOf` Z" — inferring
+that every business is part of Portsmith through its neighborhood.
+Getting there required first finding the real rule syntax by iterating
+against actual parser errors, the same technique Chapter 21 used for
+`CREATE PROPERTY GRAPH`:
+
+```sql
+SELECT pg_ripple.validate_rule('partOf(?x, ?z) :- locatedIn(?x, ?y), partOf(?y, ?z) .');
+-- ERROR-shaped result: expected 3 terms in triple pattern, got 2: partOf(?x, ?z)
+```
+
+Prolog-style `predicate(args)` functors aren't the syntax — rule heads
+and body atoms have to be full RDF triple patterns, `subject predicate
+object`, comma-separated in the body, one trailing period, and (found
+by trial) full IRIs rather than an inline `PREFIX` line:
+
+```sql
+SELECT pg_ripple.validate_rule(
+  '?x <http://portsmith.example.org/partOf> ?z :- ?x <http://portsmith.example.org/locatedIn> ?y , ?y <http://portsmith.example.org/partOf> ?z .'
+);
+-- {"valid": true, "warnings": [{"code": "UNUSED_BODY_VARIABLE", "message": "body variable ?y does not appear in the head"}]}
+```
+
+That warning turned out to matter. Loading the rule and running it
+against the real 48-business dataset reported success —
+`pg_ripple.infer('transitive_partof')` returned `1` — but querying the
+actual result showed every business newly linked to its *neighborhood*
+by `:partOf`, not to Portsmith. Wrong, and worth not trusting on faith
+— confirmed with an isolated, minimal test to rule out anything about
+the real dataset's shape being the cause:
+
+```sql
+-- fresh, tiny dataset: :a :locatedIn :b .  :b :partOf :c .
+-- same rule, same predicates, isolated namespace
+SELECT pg_ripple.infer('test_transitive');  -- inferred: 1
+SELECT * FROM pg_ripple.sparql('PREFIX : <.../test/> SELECT ?p ?o WHERE { :a ?p ?o }');
+```
+
+```
+ {"o": "<.../test/b>", "p": "<.../test/partOf>"}
+ {"o": "<.../test/b>", "p": "<.../test/locatedIn>"}
+```
+
+`:a :partOf :b` — not the correct `:a :partOf :c`. The rule's second
+body atom (`?y partOf ?z`) isn't actually constraining `?z`; the
+engine is binding the head's `?z` to `?y` instead of chaining through
+to the real join result. Reordering the body atoms (`partOf` first,
+`locatedIn` second) produces the identical wrong answer, ruling out a
+simple "only evaluates the first atom" explanation — whatever the
+underlying cause, it's consistent and reproducible, not a fluke of
+atom order. `pg_ripple.justify()`, the function meant to return a
+proof tree for exactly this kind of question, returned an empty result
+for both the correct and the actually-inferred triple — so the
+"explainability" feature isn't independently confirming or denying
+anything here either.
+
+**The honest conclusion, matching Chapter 21's**: multi-atom custom
+Datalog rule chaining does not work correctly in this build of
+`pg-ripple`. `load_rules()`/`validate_rule()`/`infer()` all function —
+they parse, load, and report a plausible-looking success count — but
+the actual inference this exercise needed is wrong, verified by
+checking the derived triple directly rather than trusting the success
+message. (The wrong triples were cleaned up with `DELETE WHERE` —
+which carries its own real gotcha, worth knowing before you reach for
+it: a `DELETE WHERE` template with *multiple* triple patterns deletes
+*every* pattern in the template for each matched solution, not just
+the one you meant. `DELETE WHERE { ?s :partOf ?o . ?s a :Business . }`
+correctly removed the wrong `:partOf` facts, but also silently deleted
+all 48 real `rdf:type :Business` declarations along with them — caught
+by re-checking the business count afterward, not assumed correct.)
+
+---
+
+## Decision Guide: RDF/SPARQL vs. Chapter 21's SQL/PGQ vs. Chapter 12's Recursive CTEs
+
+| Need | Use |
+|---|---|
+| Unbounded-depth traversal today | `pg-ripple`'s SPARQL property paths (`+`, `*`, undirected `\|^`) — verified working; **or** Chapter 12's recursive CTEs. Not PostgreSQL 19 beta2's `GRAPH_TABLE` (Chapter 21) — quantified paths aren't implemented there yet. |
+| Data that's naturally row-shaped, with a few graph-like relationships | Chapter 21's `GRAPH_TABLE` over existing tables, or a plain foreign key + recursive CTE — no reason to introduce a whole second data model for this |
+| Data that's naturally fact-shaped — sparse, irregular attributes, relationships as first-class as the data itself | RDF/`pg-ripple` — closer to the actual shape of the problem than forcing it into either a fixed relational schema or JSONB |
+| Schema/data validation with a real conformance report | `pg-ripple`'s SHACL scoring — real, working, precise. Insert-time enforcement needs `pg_trickle`, not verified here. |
+| Rule-based inference over your own custom relationships | Not `pg-ripple`'s custom Datalog rules, as of this version — multi-atom chaining is broken, verified by direct testing, not by assumption |
+
+---
+
+<img src="imgs/ch22_verified_capabilities.png" alt="Diagram listing pg-ripple capabilities actually tested against the real container, split into two groups. Verified working, green stroke: load_turtle, basic SPARQL SELECT with aggregation, SPARQL property paths including the undirected inverse combinator, SPARQL 1.1 Update, and SHACL scoring and violation reporting. Verified broken or gated, red stroke: SHACL insert time enforcement which requires the separate pg_trickle extension that is not installed, and custom Datalog rule chaining across multiple body atoms which was reproduced with an isolated minimal test and returns a wrong triple regardless of body atom order."/>
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it's actually for |
+|---|---|
+| `pg_ripple.load_turtle()` | Bulk-loads Turtle triples — pass as a bind parameter, not shell-escaped text |
+| `pg_ripple.sparql()` | Real SPARQL 1.1 `SELECT`, including aggregation — returns `TABLE(result jsonb)` with RDF lexical quoting preserved in string values |
+| SPARQL property paths (`+`, `\|^`) | **Working, unbounded-depth traversal** — the exact capability PostgreSQL 19 beta2's `GRAPH_TABLE` doesn't have yet (Chapter 21) |
+| `pg_ripple.shacl_score()` / `shacl_report_scored()` | Real, precise, on-demand conformance scoring |
+| `enable_shacl_monitors()` | Gated behind a second extension (`pg_trickle`) not installed here — insert-time SHACL rejection isn't demonstrated working |
+| `pg_ripple.load_rules()` / `infer()` | Parse and execute without error, but **multi-atom rule body chaining produces a wrong result**, reproduced on an isolated minimal dataset independent of atom order |
+| `cargo-pgrx` version pinning | Must exactly match the `pgrx` version an extension's `Cargo.toml` pins — a semver range isn't sufficient |
+
+**The key design insight** from this chapter is the same discipline
+Chapter 21 needed, applied to a completely different piece of new
+software: a young extension's README describes what it's *building
+toward*, and the only way to know what actually works *today* is to
+run it and check the output, not the success message. This chapter
+found real wins (property paths genuinely outclass Chapter 21's current
+`GRAPH_TABLE`) sitting right next to real gaps (custom rule chaining,
+gated SHACL enforcement) — both equally worth knowing before reaching
+for this in anything beyond a lab exercise.
+
+---
+
+*Going further: Chapter 23 builds directly on this chapter's working
+parts — SPARQL, property paths, and SHACL scoring — layering a real
+ontology (a class hierarchy, not just flat triples) on top, and pairing
+it with Chapter 6's `pgvector` embeddings for hybrid retrieval. It
+deliberately does not lean on this chapter's broken custom-rule
+chaining; RDFS/OWL reasoning in Chapter 23 uses `pg-ripple`'s built-in
+rule sets rather than hand-written Datalog, which is worth verifying
+independently rather than assuming it avoids the same bug.*
+# Chapter 23 — Ontologies and Knowledge Graphs for AI Workflows
+
+> *Chapter 22 gave you a way to store facts and query them. This
+> chapter asks what it takes to make those facts machine-checkable —
+> and why that specific property, more than raw graph storage, is
+> what modern AI systems actually want from a "knowledge graph."*
+
+---
+
+## Background
+
+### What an ontology actually is
+
+Every earlier chapter in this book that touched structure —
+`CREATE TABLE`, a JSONB shape, a domain constraint, a foreign key —
+was really describing *storage*: where a value lives and what type it
+is. An **ontology** describes something narrower and more specific:
+the *meaning* of a domain, made explicit enough that a machine can
+check it and derive new facts from it. Formally, an ontology is a
+**shared, explicit specification of a conceptualization** — a fixed
+vocabulary of classes (`Restaurant`, `Neighborhood`), the relationships
+between them (`locatedIn`, `partOf`), and rules about how they behave
+(`Restaurant` is a kind of `Business`; anything `locatedIn` a
+`Neighborhood` is thereby `partOf` the `City`). The word comes from
+philosophy — the study of what exists — repurposed by computer science
+for a narrower question: what *categories* of thing does this system
+need to agree exist, and how do they relate?
+
+This isn't a new idea invented for RDF. Library scientists have used
+formal classification systems (Dewey Decimal, Library of Congress
+Subject Headings) for over a century to make "what is this book
+about" checkable and consistent across a collection, not just prose in
+a librarian's head. Biology and medicine lean on ontologies constantly
+— the Gene Ontology, SNOMED CT — specifically because "is X a kind of
+Y" needs to mean the same thing to every system and every researcher
+touching the data, not just to whoever wrote the current database
+schema. `schema.org`, the vocabulary search engines use to understand
+web page markup, is an ontology in exactly this sense: a shared
+agreement, external to any one company's database, about what a
+"Recipe" or an "Event" *is*.
+
+A useful way to place the term among near-neighbors this book has
+already used:
+
+| Term | What it fixes | Example from this book |
+|---|---|---|
+| Schema | Storage shape — columns, types, constraints | Chapter 1's `businesses` table, Chapter 15's domains |
+| Taxonomy | A single hierarchy of categories, no other relationships | Chapter 12's `categories` tree, as plain parent/child rows |
+| Knowledge graph | Facts as a graph, however structured | Chapter 21's property graph; Chapter 22's raw triples |
+| **Ontology** | **Formal *semantics* for a vocabulary — classes, hierarchies, and rules a machine can check and reason over** | **This chapter: Chapter 12's category tree, reissued as `rdfs:subClassOf` classes with checkable entailment** |
+
+The distinction that matters most for this chapter: Chapter 22's
+triples had *predicates* (`:hasCategory "seafood"`) but no *semantics*
+attached to them — nothing in the store knew that `"seafood"` was a
+kind of `"restaurant"`, or that a `Business` and its `Category` were
+different *kinds* of thing at all. An ontology is what turns "seafood"
+from an opaque string into `:Category_seafood`, a class with a real,
+checkable position in a hierarchy — the same category data Chapter 12
+already had, given a semantics a machine can act on rather than a
+human reading the parent-child column pairs.
+
+### Why this matters specifically for AI workflows
+
+Three ways this shows up in real AI system design, not just as
+database theory:
+
+**1. Grounding.** An embedding model (Chapter 6) retrieves documents
+that are *semantically similar* to a query — a genuinely powerful,
+genuinely fuzzy notion of relevance. It has no concept of *correctness*:
+a document can be the closest vector match to a question and still be
+about the wrong neighborhood, the wrong department, or a policy that
+no longer applies. An ontology backs that retrieval with facts a system
+can actually check — not "this text sounds related," but "this
+specific business, in this specific neighborhood, is actually a
+member of the category this policy affects." Retrieval-augmented
+generation systems that combine both are usually called **GraphRAG**
+in current practice: embeddings for recall, a graph for precision.
+
+**2. Context for agents.** An LLM agent given free-text "context" has
+to re-parse and re-infer structure from prose every time. Given a
+queryable ontology instead — a small, explicit model of what entities
+and relationships actually exist in a domain — an agent can ask a
+precise question ("which businesses does this ordinance affect?") and
+get a precise, checkable answer, rather than asking a language model to
+eyeball a paragraph and guess.
+
+**3. Explainability.** A cosine-similarity score is a number with no
+narrative — it can't tell you *why* two things are considered related,
+only *how close*. A fact derived by rule-based reasoning over an
+ontology comes with a real derivation: this business is a `Restaurant`
+because it's a `seafood` restaurant, and `seafood rdfs:subClassOf
+restaurant` is an asserted fact you can point to. Chapter 22's
+`justify()` function gestures at exactly this — proof trees for
+inferred facts — even though this chapter's own testing found it
+doesn't reliably return one yet. The *goal* it's reaching for —
+inference a system can explain, not just assert — is the real reason
+symbolic methods keep showing up alongside purely statistical ones in
+current AI system design, often described as **neuro-symbolic**:
+neural methods for fuzzy recall, symbolic methods for checkable
+structure.
+
+None of this makes vector search obsolete, and this chapter's own
+central exercise (below) doesn't either — it uses *both*, deliberately,
+because they answer different questions.
+
+---
+
+## The Scenario
+
+Two upgrades to material this book already has, both layered onto the
+**same** `pg-ripple` container from Chapter 22 (`docker/ch22/`, no new
+environment needed):
+
+1. Chapter 12's `categories` table — 48 rows, a real 3-level tree
+   (`All Categories` → 5 top categories → 42 specific
+   subcategories/cuisines) — reissued as an `rdfs:subClassOf` class
+   hierarchy, with every Chapter 1 business reclassified as an instance
+   of its *specific* category class rather than Chapter 22's flat
+   `:hasCategory` string.
+2. Chapter 6's `pgvector` embeddings (still on the live PostgreSQL 16
+   `portsmith` database — nothing about Chapter 6 changes) paired with
+   this graph for hybrid retrieval, and Chapter 5's 12 real
+   ground-truth duplicate resident pairs
+   (`residents.true_duplicate_of`) reused as a head-to-head entity-
+   resolution benchmark against `pg-ripple`'s own record-linkage
+   functions.
+
+Same discipline as Chapters 21 and 22: every claim below was checked
+against a real, running instance. This chapter's single most important
+finding is a warning, not a feature — found exactly this way.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Design a small class hierarchy by hand and load it as
+  `rdfs:subClassOf` facts alongside existing instance data.
+- Query class hierarchies with SPARQL property paths
+  (`rdfs:subClassOf*`) and know why this is the reliable way to ask
+  "is X a kind of Y," rather than PostgreSQL's built-in RDFS rule
+  engine.
+- Know, from direct testing, exactly what `pg_ripple.infer('rdfs')`
+  does to existing data in this version — and why that means treating
+  any `infer()` call as a real write against production data, never a
+  side-effect-free query.
+- Build a real hybrid retrieval pipeline combining `pgvector` semantic
+  search with graph-verified structured facts.
+- Evaluate a record-linkage feature against real ground truth instead
+  of trusting a README's description of it.
+
+---
+
+## Exercises
+
+### Exercise 1 — Building the Ontology by Hand
+
+Before generating anything from the database, the actual design
+decision worth making deliberately: which of Chapter 12's 48
+categories become *classes*, and what's the hierarchy? A short,
+hand-written sample, to see the shape before scripting the full 48:
+
+```turtle
+@prefix : <http://portsmith.example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:Category_all_categories a rdfs:Class ; rdfs:label "All Categories" .
+:Category_restaurant a rdfs:Class ; rdfs:label "restaurant" ;
+    rdfs:subClassOf :Category_all_categories .
+:Category_seafood a rdfs:Class ; rdfs:label "seafood" ;
+    rdfs:subClassOf :Category_restaurant .
+```
+
+The full 48-class hierarchy, generated from the real `categories`
+table (`data/ch23_export_ontology.py`), plus a reclassification of
+every business as an instance of its *specific* category rather than
+Chapter 22's flat string — using `cuisine` for restaurants and
+`subcategory` for retail, joined carefully against the correct parent
+category (`"pub"` genuinely exists twice in Chapter 12's data, once
+under `restaurant` and once under `entertainment` — the script scopes
+the lookup by each business's own top-level category to resolve this
+correctly, not just by name):
+
+```bash
+python3 data/ch23_export_ontology.py "dbname=portsmith" data/ch23_ontology.ttl
+```
+
+```
+Wrote 48 category classes, 48 business classifications (0 unmatched) to data/ch23_ontology.ttl
+```
+
+```turtle
+:business_1 a :Category_seafood .
+:business_2 a :Category_pub .
+:business_3 a :Category_specialty_food .
+```
+
+Loaded into the same `pg-ripple` container Chapter 22 already has
+running:
+
+```sql
+SELECT pg_ripple.load_turtle(:'ontology_ttl', false);
+-- 191
+```
+
+Sanity check — does the class hierarchy itself resolve correctly, with
+no reasoning involved yet, just a direct property-path query?
+
+```sql
+SELECT * FROM pg_ripple.sparql('
+PREFIX : <http://portsmith.example.org/>
+SELECT ?super WHERE { :Category_seafood <http://www.w3.org/2000/01/rdf-schema#subClassOf>* ?super }
+');
+```
+
+```
+:Category_seafood, :Category_restaurant, :Category_all_categories
+```
+
+Correct, and correctly reflexive — `*` (zero-or-more) includes
+`Category_seafood` itself as well as both real ancestors. The class
+hierarchy, queried directly, works exactly as an ontology should.
+
+---
+
+### Exercise 2 — `infer('rdfs')`: A Real, Serious Warning
+
+The natural next question: if `Category_seafood rdfs:subClassOf
+Category_restaurant` is asserted, does the RDFS-standard entailment
+rule — "if X is a `Category_seafood` and `Category_seafood` is a
+subclass of `Category_restaurant`, then X is also a
+`Category_restaurant`" — actually fire? PostgreSQL 19's beta gap
+(Chapter 21) and the custom-rule chaining bug (Chapter 22) both taught
+the same lesson: test it, don't assume it. This time, testing it
+mattered more than either of those cases.
+
+`pg-ripple` ships built-in rule sets by name — discovered, as usual,
+from a real error message rather than documentation:
+
+```sql
+SELECT pg_ripple.load_rules_builtin('bogus');
+-- ERROR: unknown built-in rule set 'bogus'; valid values: rdfs, owl-rl,
+-- owl-el, owl-ql, skos, skos-transitive, skosxl, dcterms,
+-- dcterms-integrity, schema, schema-integrity, foaf, foaf-integrity
+```
+
+```sql
+SELECT pg_ripple.load_rules_builtin('rdfs');  -- 13 (real RDFS entailment rules, loaded)
+```
+
+A clean, isolated test before touching the real dataset — the same
+discipline Chapter 22's Datalog investigation used:
+
+```sql
+INSERT DATA {
+  :Seafood a rdfs:Class ; rdfs:subClassOf :Restaurant .
+  :Restaurant a rdfs:Class ; rdfs:subClassOf :Business .
+  :thing1 a :Seafood .
+}
+```
+
+```sql
+-- BEFORE infer():
+SELECT ?t WHERE { :thing1 a ?t }   →  :Seafood
+
+SELECT pg_ripple.infer('rdfs');    →  8
+
+-- AFTER infer():
+SELECT ?t WHERE { :thing1 a ?t }   →  rdfs:Class,  :Seafood
+```
+
+Already wrong in two ways: the expected new facts (`:thing1 a
+:Restaurant`, `:thing1 a :Business` — the actual entailment this rule
+set exists to compute) never appear, and a spurious, incorrect fact
+does — `:thing1 a rdfs:Class`, conflating the *instance* with the
+*metaclass* of the class it belongs to.
+
+Running the identical `infer('rdfs')` against the real 48-business
+ontology made the real severity clear. `pg_ripple.infer()` does not
+appear to be scoped to a query or a subset of data — it operates
+across the whole default graph — and the result was not "no new facts
+added," it was **active loss of the real, correctly-asserted data**:
+
+```sql
+SELECT ?t WHERE { :business_1 a ?t }
+```
+
+```
+:business_1, rdfs:Class
+```
+
+Every one of the 48 real `:business_N a :Category_X` classification
+triples was replaced by a nonsensical self-reference
+(`:business_1 a :business_1`) plus the same spurious `rdfs:Class`
+typing seen in the isolated test — reproducible, not a fluke of the
+larger dataset. Restoring the correct data took two steps: reloading
+the real `:Business` and `:Category_X` triples (`load_turtle()` is
+additive, so this was safe), then explicitly `DELETE DATA`-ing the
+exact corrupted triples (`:business_N a :business_N` and `:business_N
+a rdfs:Class` for all 48) — `DELETE DATA` rather than `DELETE WHERE`,
+deliberately, after Chapter 22's `DELETE WHERE`-collateral-deletion
+lesson.
+
+**The real, load-bearing conclusion**: in this version, running
+`pg_ripple.infer()` with a built-in rule set is not a safe,
+side-effect-free way to ask "what does this entail" — it's a real
+write against the whole graph, and this specific rule set actively
+corrupted correct data rather than merely failing to add new facts.
+Treat it exactly like any other destructive operation: never run it
+directly against data you haven't backed up, on this build.
+
+The workaround, and the thing actually worth doing when you need
+"is this instance a member of that class, including subclasses":
+**query the class hierarchy with a property path and join it against
+plain `rdf:type` yourself, entirely without calling `infer()`** — which
+is exactly what Exercise 1's direct `rdfs:subClassOf*` query already
+proved works correctly. Chapter 3's next exercise builds on precisely
+that pattern.
+
+---
+
+### Exercise 3 — Hybrid Retrieval: Semantic Recall, Structural Precision
+
+The concrete version of this chapter's "Background" claim: combine
+Chapter 6's `pgvector` semantic search (still on the original
+PostgreSQL 16 database) with this chapter's ontology (on the
+PostgreSQL 18 / `pg-ripple` container) to answer a question neither
+tool fully answers alone — "which real businesses does this policy
+actually affect?" `data/ch23_hybrid_retrieval.py` does both queries,
+joined in Python (two independent PostgreSQL instances; no cross-
+database SQL, deliberately the same style as Chapter 6's own RAG
+scripts):
+
+```bash
+python3 data/ch23_hybrid_retrieval.py "food truck vendor permits near restaurants"
+```
+
+```
+Top semantic match (0.597): 'Council Minutes — Harbour District Food Truck Permits' [City Council]
+
+Businesses actually affected (restaurant category, Harbour District or adjacent): 16
+ - Anchor & Oar Tavern
+ - Bella Napoli
+ - Dragon Palace
+ - ... (16 total)
+```
+
+The semantic half found the *relevant document* — a real, clearly
+dominant match (0.597, well ahead of the second-best result at 0.341).
+The structural half — deliberately built from the two primitives
+Exercise 1 and Chapter 22 Exercise 3 both already verified work
+(`rdfs:subClassOf*` and the undirected `adjacentTo` property path),
+**not** `infer()` — turns "this document is relevant" into a precise,
+checkable, named list: every real restaurant-category business in
+Harbour District or an adjacent neighborhood, exactly the population a
+food-truck-permit policy would actually affect. Neither half replaces
+the other: the embedding model has no idea what "Harbour District" or
+"restaurant category" formally mean; the graph has no idea which
+document, out of thousands, is topically relevant. This is what
+"grounding" concretely looks like — not a metaphor, a working pipeline
+that composes exactly two things this book has already independently
+verified are correct.
+
+---
+
+### Exercise 4 — Entity Resolution: A Real, Direct Comparison
+
+Chapter 5 seeded 12 genuine duplicate resident pairs with real ground
+truth (`residents.true_duplicate_of` — e.g. `Eleanor Whitmore` /
+`Elenor Whitmore`, `Priyanka Deshmukh` / `Priyanka Deshmuk`). `pg-
+ripple`'s README advertises "neuro-symbolic record linkage" and
+"Privacy-Preserving Record Linkage via CLK Bloom-filter encoding" —
+real, callable functions (`bloom_encode()`, `dice_similarity()`), worth
+testing against the exact same ground truth Chapter 5 already used,
+rather than a fresh, possibly-flattering example.
+
+`data/ch23_entity_resolution.py` runs both approaches, head to head,
+on all 12 real pairs:
+
+```bash
+python3 data/ch23_entity_resolution.py
+```
+
+```
+name a                   name b                    pg_trgm  ripple dice
+Eleanor Whitmore         Elenor Whitmore             0.737        0.000
+Jonathan Castellano      Jonathon Castellano         0.739        0.035
+Priyanka Deshmukh        Priyanka Deshmuk            0.842        0.000
+Bartholomew Okonkwo      Bartholemew Okonkwo         0.739        0.033
+Marguerite Delacroix     Marguerite Delacroiux       0.792        0.068
+Siobhan McAllister       Siobhan MacAllister         0.773        0.034
+Theodore Vance           Theodor Vance               0.812        0.034
+Anastasia Volkov         Anastassia Volkov           0.842        0.035
+Desmond Okafor           Desmund Okafor              0.667        0.000
+Genevieve Laurent        Genevieve Lorent            0.667        0.000
+Mikhail Petrenko         Mikail Petrenko             0.737        0.034
+Fitzgerald Osei          Fitzgerld Osei              0.722        0.102
+```
+
+A complete, one-sided result: Chapter 5's `pg_trgm` correctly scores
+every real duplicate pair high (0.667–0.842, comfortably above any
+reasonable matching threshold); `pg-ripple`'s CLK Bloom-filter
+`dice_similarity`, called via its documented function signature with
+default parameters (`bloom_encode(value, key)`, `hash_count=30`,
+`length=1024`), scores every single one of the same 12 real pairs
+near-zero (0.000–0.102) — indistinguishable from genuinely unrelated
+names. `dice_similarity` isn't broken as a function — identical
+strings correctly score a perfect `1.0` — but the *default*
+parameterization is far more brittle than pg_trgm's trigram approach
+for exactly the class of error (single-character insertions/deletions,
+not just substitutions) real name-typo duplicates actually have.
+`pg_ripple.resolve_entities()`, a higher-level orchestration function
+over the same primitives, ran without error against this same data but
+returned an empty result (`{"canonicalized": 0}`) with a best-guess
+options payload — its expected configuration schema wasn't
+discoverable without deeper source access than this chapter's scope,
+so it's reported as untested rather than assumed working or broken.
+
+**The honest conclusion**: for this specific, realistic task — fuzzy
+name deduplication — Chapter 5's mature, purpose-built `pg_trgm`
+approach is the one that actually works, verified against real ground
+truth. `pg-ripple`'s privacy-preserving linkage is a genuinely
+different, valuable technique (Bloom-filter encoding lets you compare
+records *without* ever decrypting the underlying names — a real
+capability `pg_trgm` doesn't have), but "genuinely different
+capability" and "works out of the box for this data" are two separate
+claims, and only checking against real ground truth tells you which
+one you actually have.
+
+---
+
+## Decision Guide: Four Ways to Model "How Things Relate"
+
+The book's own data-modeling spectrum, in one table:
+
+| Approach | Chapter | Best for | Real limitation found in this book |
+|---|---|---|---|
+| JSONB | 1 | Irregular attributes on a single document | No relationships between documents at all |
+| `pgvector` embeddings | 6 | Fuzzy semantic recall | No explicit facts — a similarity score, not a checkable claim |
+| Recursive CTEs | 12 | Unbounded-depth traversal over existing tables | Verbose for pattern-shaped (not depth-shaped) questions |
+| SQL/PGQ property graphs | 21 | Fixed-depth pattern matching over existing tables | No variable-length paths yet (PostgreSQL 19 beta2) |
+| RDF + SPARQL | 22 | Fact-shaped data, unbounded traversal, schema-free | Custom Datalog rule chaining is broken in this build |
+| **Ontologies (RDFS/OWL over RDF)** | **23** | **Checkable class semantics, machine-explainable structure** | **Built-in RDFS instance-type inference corrupts data in this build — but direct property-path queries over the same hierarchy work correctly** |
+
+No single row is "the" answer — this book's own running example needed
+all four models for genuinely different questions, sometimes on the
+very same underlying data (Chapter 1's businesses are JSONB documents,
+Chapter 6's embeddings, Chapter 21's graph vertices, and Chapter 22's
+triples, all at once, none of them wrong).
+
+---
+
+<img src="imgs/ch23_ontology_findings.png" alt="Diagram summarizing Chapter 23's verified findings in two groups. Verified working, green stroke: direct rdfs:subClassOf* property path queries over the real 48-class category hierarchy, and hybrid retrieval combining pgvector semantic search with graph-verified structured facts using only those direct property path primitives. Verified broken, red stroke, with a warning label: pg_ripple.infer of the built-in rdfs rule set, which does not propagate instance types correctly and instead overwrites real business classification triples with a spurious self-reference and an incorrect rdfs Class typing, confirmed on both an isolated three-triple test and the full forty-eight business dataset. Also verified broken: CLK Bloom-filter dice_similarity with default parameters, which scored all twelve real ground truth duplicate resident pairs from Chapter 5 near zero, while Chapter 5's own pg_trgm approach correctly scored all twelve pairs high on the identical data."/>
+
+---
+
+## Summary — What You Should Now Know
+
+| Tool | What it's actually for |
+|---|---|
+| `rdfs:subClassOf` (asserted) | Real, correct, queryable class hierarchy — verified transitive and reflexive under `subClassOf*` |
+| `rdfs:subClassOf*` / `+` property paths | The **reliable** way to ask "is X a kind of Y" — direct query, no reasoning engine required |
+| `pg_ripple.load_rules_builtin()` | Loads real, named rule sets (`rdfs`, `owl-rl`, `skos`, ...) — loading succeeds and reports a plausible count |
+| `pg_ripple.infer('rdfs')` | **A real write against the whole default graph, verified to corrupt existing instance-classification data rather than just failing to add new facts — treat as destructive, back up before running** |
+| Hybrid retrieval (embeddings + graph) | A real, working pattern: semantic search finds *what's relevant*; a graph query, built from independently-verified primitives, turns that into a precise, checkable answer |
+| `pg_ripple.dice_similarity()` / `bloom_encode()` | A real, different capability (privacy-preserving comparison) — verified, with default parameters, to miss all 12 of Chapter 5's real ground-truth duplicate pairs that `pg_trgm` catches correctly |
+
+**The key design insight**, closing out this book's run through
+PostgreSQL's extension surface: an ontology's value was never really
+about the storage format — RDF triples, a property graph, or plain
+rows all can hold "X is a kind of Y." Its value is in the *semantics*
+being explicit enough to check, and this chapter's own testing is the
+clearest demonstration of exactly why that checking matters: the
+class hierarchy itself, queried directly, was correct and useful
+throughout; it was specifically the automated reasoning layer built on
+top of it that silently produced wrong, damaging results until someone
+actually ran it against real data and looked at what came back. That
+is, in miniature, this entire book's argument — run the real thing,
+check the real output, and don't take a feature's existence as
+evidence of its correctness.
+
+---
+
+*Going further: this closes the book's numbered chapters. Chapter 21
+extended PostgreSQL's own core with a genuinely new query model still
+finding its footing; Chapters 22 and 23 extended it further still, into
+territory (RDF, SPARQL, formal ontologies) with an even younger
+implementation and correspondingly sharper edges. The throughline
+across all three, and really across this entire book: PostgreSQL's
+extension mechanism keeps making ambitious things installable in an
+afternoon — but installable was never the same claim as correct, and
+this book's own most useful moments came from checking the difference
+directly rather than assuming either one.*

@@ -1,0 +1,14 @@
+graph LR
+    G1{"UPDATE businesses<br/>SET active = false"}
+    G1 -->|default replica identity: PK only| E1["cannot update table<br/>column not part of replica identity"]
+    G1 -->|"REPLICA IDENTITY FULL"| G2
+
+    G2{"UPDATE businesses<br/>SET active = false"}
+    G2 -->|full row now includes geom, search_vector| E2["cannot update table<br/>column list does not cover replica identity"]
+    G2 -->|"unique index on (id, active)"| G3
+
+    G3{"REPLICA IDENTITY<br/>USING INDEX idx_businesses_replident"}
+    G3 --> OK["UPDATE succeeds<br/>row filtered in/out of subscriber correctly"]
+
+    classDef err fill:#fee,stroke:#fee,stroke-width:3px,color:#000;
+    class E1,E2 err;

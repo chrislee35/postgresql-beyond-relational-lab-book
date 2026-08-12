@@ -332,55 +332,168 @@ This lab book explores PostgreSQL's extended capabilities through hands-on exerc
 
 ### Chapter 21 — Graph Queries: PostgreSQL 19's Property Graphs
 
-> **Status: placeholder.** PostgreSQL 19 is still in beta at the time this
-> entry was written. Everything below — exact syntax, catalog views,
-> installation steps — is provisional and needs to be verified against the
-> real feature once we sit down to write this chapter, the same way every
-> other chapter in this book was built by running the real thing, not by
-> writing from memory of the docs.
-
 **Concept:** Query graph-structured data using PostgreSQL 19's native
 property graph support (the SQL/PGQ standard — `CREATE PROPERTY GRAPH` and
 `GRAPH_TABLE` pattern-matching queries), and contrast it directly with the
-hand-rolled `WITH RECURSIVE` approach Chapter 12 already built. Where
-Chapter 12 taught *how graph traversal works* by making you write the
-recursion yourself, this chapter asks *when does the declarative version
-pay for itself* — readability, optimizer awareness of graph structure, and
-where a recursive CTE is still the right tool.
+hand-rolled `WITH RECURSIVE` approach Chapter 12 already built. Written and
+verified live against a real PostgreSQL 19 beta2 instance — and the real
+finding is a genuine gap: quantified/variable-length path patterns
+(`{m,n}`, nested groups) are not implemented yet in this beta, confirmed
+via two distinct captured errors. `GRAPH_TABLE` is a real, working, more
+declarative tool for *fixed-depth* pattern matches and undirected edges;
+Chapter 12's recursive CTEs remain the only working tool in this release
+for anything of unknown or unbounded depth — walk-to-root, true shortest
+path, and cycle detection all still require Chapter 12's approach.
 
-**Synthetic data:** Reuses `city_org` and `road_segments` from Chapter 12
-unchanged, defined as a property graph over the existing tables rather than
-re-seeded from scratch — the same department hierarchy and road network,
-queried a second way.
+**Synthetic data:** Reuses `city_org` and `road_segments`/`intersections`
+from Chapter 12 unchanged, migrated (via `\copy`, `intersections.geom`
+flattened to plain `lon`/`lat` columns to avoid needing PostGIS in a
+still-beta cluster) into an isolated PostgreSQL 19 beta2 Docker container
+rather than the shared PostgreSQL 16 host every earlier chapter runs
+against — see `docker/ch21/` and the chapter's own Environment Setup
+section for the real packaging gotchas hit standing it up.
 
-**Exercises (provisional pending research):**
-1. Install PostgreSQL 19 (beta) — likely alongside, not instead of, the
-   PostgreSQL 16 cluster used by every earlier chapter — and confirm
-   SQL/PGQ support is present.
-2. Define a property graph over `city_org` (nodes: employees; edges:
-   reports-to) with `CREATE PROPERTY GRAPH`.
-3. Rewrite Chapter 12's "walk from any node to the root" query as a
-   `GRAPH_TABLE` pattern match; compare it side by side with the
-   `WITH RECURSIVE` version.
-4. Define a second property graph over `road_segments` and rewrite
-   Chapter 12's breadth-first shortest-path query using native graph
-   pattern matching; compare plans and performance against the recursive
-   CTE.
-5. Explore variable-length path patterns and built-in cycle handling;
-   compare to Chapter 12's manual `CYCLE ... SET ... USING` clause.
-6. Decision guide: recursive CTE vs. native graph query vs. reaching for a
-   dedicated graph database (Neo4j and similar) — what each is actually
-   for.
+**Exercises:**
+1. Stand up PostgreSQL 19 beta2 in an isolated Docker container (not the
+   shared PG16 host) and confirm SQL/PGQ's catalog objects
+   (`pg_propgraph_*`, `property_graphs`) are genuinely present.
+2. Define `city_org_graph`, a self-referencing property graph over
+   `city_org` (`manager_id` as the `reports_to` edge), with
+   `CREATE PROPERTY GRAPH`.
+3. Rewrite a *known-depth* slice of Chapter 12's "walk from any node to
+   the root" query as a fixed-length `GRAPH_TABLE` pattern match, side by
+   side with the `WITH RECURSIVE` version; also demonstrate a 2-hop
+   "skip-level manager" pattern as a case where `GRAPH_TABLE` reads more
+   declaratively than the equivalent self-join.
+4. Attempt Chapter 12's actual variable-length traversal via quantified
+   path patterns; document the two real "not supported" errors this beta
+   returns and what that means for what SQL/PGQ can't yet replace.
+5. Define `road_graph` over `intersections`/`road_segments`; use
+   `GRAPH_TABLE`'s undirected edge pattern (`-[ ]-`) as a real, clean
+   replacement for Chapter 12's `UNION`-of-both-directions approach, and a
+   bounded (fixed 2-hop) shortest-path-shaped query as the closest
+   available substitute for true BFS today.
+6. Decision guide: recursive CTE (unbounded depth, still the only option)
+   vs. `GRAPH_TABLE` (fixed-depth pattern shapes, today) vs. a dedicated
+   graph database (Neo4j and similar) — what each is actually for, as of
+   this specific beta.
+
+---
+
+### Chapter 22 — RDF Triple Stores: `pg-ripple`
+
+**Concept:** Model data as RDF triples (subject–predicate–object facts)
+instead of rows or documents, and query them with SPARQL — a genuinely
+different data model from anything else in this book. Contrast directly
+with Chapter 1's JSONB (schema-flexible, but still document-shaped) and
+Chapters 12/21's graph traversal over relational tables. Written and
+verified live against a real `pg-ripple` 0.128.0 build on PostgreSQL 18 —
+and, continuing Chapter 21's pattern, hands-on testing found both a real
+win (SPARQL property paths do the unbounded-depth traversal that
+PostgreSQL 19 beta2's `GRAPH_TABLE` explicitly can't yet) and real gaps
+(SHACL insert-time enforcement needs a second, uninstalled extension;
+custom Datalog rule chaining across multiple body atoms produces a
+reproducibly wrong result).
+
+**Synthetic data:** Recast a slice of the existing Portsmith domain as
+triples rather than new invented data — the 48 `businesses` (Chapter 1)
+and 6 `neighborhoods` (Chapter 2), plus genuinely derived neighborhood
+adjacency (`ST_Touches` against Chapter 2's real polygons, the same
+technique Chapter 12 used for its road graph) — exported from the live
+PostgreSQL 16 database by `data/ch22_export_turtle.py` and loaded into an
+isolated PostgreSQL 18 container via `pg_ripple.load_turtle()`.
+
+**Exercises:**
+1. Build `pg-ripple` from source in an isolated PostgreSQL 18 Docker
+   container (`docker/ch22/`) — real Rust/`pgrx` build, including the
+   `cargo-pgrx`-must-exactly-match-`pgrx`-version trap that broke the
+   first build attempt, and the same `shared_preload_libraries` gotcha
+   Chapters 19/20 hit, this time for `pg-ripple`'s HTAP merge worker.
+2. Export Portsmith businesses/neighborhoods/adjacency as Turtle and load
+   with `load_turtle()`.
+3. Run real SPARQL `SELECT` queries via `sparql()`, including `GROUP
+   BY`/`COUNT` aggregation.
+4. Property paths (`+`, and the undirected `(:p|^:p)+` combinator): a
+   direct rerun of Chapter 21's variable-length-traversal wall, this time
+   succeeding — plus a real, verified cycle found via the undirected
+   combinator, echoing Chapter 12's cycle-detection lesson in SPARQL.
+5. SHACL validation: a real, precise `shacl_score()`/`shacl_report_scored()`
+   violation report against a deliberately malformed business — and the
+   real finding that insert-time rejection (`enable_shacl_monitors()`)
+   requires a separate extension (`pg_trickle`) not installed here.
+6. Custom Datalog rules via `load_rules()`/`infer()`: real rule-syntax
+   gotchas found by iterating on parser errors, and a reproduced,
+   isolated-test-confirmed bug where multi-atom rule body chaining
+   silently produces the wrong inferred triple, independent of body atom
+   order.
+
+---
+
+### Chapter 23 — Ontologies and Knowledge Graphs for AI Workflows
+
+**Concept:** Step back from `pg-ripple`'s mechanics (Chapter 22) to the
+design layer: what an ontology actually is (a schema for *meaning* —
+classes, hierarchies, relationships a machine can check), general prior
+art (library classification, biomedical ontologies, `schema.org`), and
+why AI workflows specifically — RAG grounding, agent context,
+explainability, neuro-symbolic hybrids — lean on this. Written and
+verified live against the same `pg-ripple` container Chapter 22 built.
+The chapter's central, real finding is severe: `pg_ripple.infer('rdfs')`
+does not merely fail to propagate instance types up a class hierarchy —
+it was verified, on both an isolated test and the full real dataset, to
+**overwrite existing correct classification data** with spurious,
+nonsensical facts. The direct-query workaround (`rdfs:subClassOf*`
+property paths, no `infer()` involved) works correctly and is what the
+chapter's own hybrid-retrieval exercise actually uses.
+
+**Synthetic data:** Chapter 12's real 48-row, 3-level `categories` tree,
+reissued as an `rdfs:subClassOf` class hierarchy (`data/
+ch23_export_ontology.py`), with every Chapter 1 business reclassified as
+an instance of its specific category class rather than Chapter 22's flat
+string. Chapter 6's `city_documents` embeddings (unchanged, still on
+PostgreSQL 16) and Chapter 5's 12 real ground-truth duplicate resident
+pairs (`residents.true_duplicate_of`) are reused, not re-seeded.
+
+**Exercises:**
+1. Design the ontology by hand in Turtle (a short sample), then generate
+   the real 48-class hierarchy and business reclassification from the
+   live database — including correctly resolving Chapter 12's real
+   `"pub"` name collision (it exists under both `restaurant` and
+   `entertainment`) by scoping the lookup per business.
+2. Load it into the Chapter 22 container; verify the class hierarchy
+   itself is correct and reflexive via a direct `rdfs:subClassOf*`
+   property-path query.
+3. Test `pg_ripple.infer('rdfs')` (discovering the real built-in rule-set
+   names — `rdfs`, `owl-rl`, `owl-el`, `owl-ql`, `skos`, and others — from
+   a real error message) on an isolated 3-triple example first, then on
+   the full dataset; document the real, reproducible data corruption this
+   version's RDFS reasoner causes, and the safe direct-query workaround.
+4. Hybrid retrieval: a real Python script (`data/
+   ch23_hybrid_retrieval.py`) combining Chapter 6's `pgvector` semantic
+   search (finds the relevant policy document) with graph queries built
+   from the verified-safe primitives (finds the precise, named list of
+   real businesses that document actually affects) — two independent
+   PostgreSQL instances, joined in application code.
+5. Entity resolution: a real head-to-head (`data/
+   ch23_entity_resolution.py`) between Chapter 5's `pg_trgm` and
+   `pg-ripple`'s CLK Bloom-filter `dice_similarity`/`bloom_encode()`
+   against all 12 of Chapter 5's real ground-truth duplicate pairs — a
+   complete, one-sided real result, not a cherry-picked example.
+6. Decision guide: a four-row table (JSONB / pgvector / recursive CTEs /
+   RDF+ontologies), each with the real limitation this book actually
+   found for it, tying together Chapters 1, 6, 12, 21, 22, and 23 as one
+   running data-modeling spectrum.
 
 ---
 
 ## Appendices
 
-- **A — Environment Setup:** Docker Compose file spinning up PostgreSQL 16 with all required extensions pre-installed.
+- **A — Environment Setup:** Three separate PostgreSQL environments, not one — Chapters 1-20 run against a single PostgreSQL 16 cluster with all required extensions pre-installed (`DOCKER-REQUIREMENTS.md` documents the full extension/config list); Chapter 21 needs an isolated PostgreSQL 19 beta2 container (`docker/ch21/`); Chapters 22-23 need an isolated PostgreSQL 18 container with `pg-ripple` built from source via Rust/`pgrx` (`docker/ch22/`). This appendix should document all three explicitly, including why the later two are kept separate from the main cluster (beta software and a from-source build, isolated from state the main cluster accumulates), rather than presenting a single Compose file as if one environment covered the whole book.
 - **B — Synthetic Data Generation Scripts:** Documented `psql` and Python scripts for seeding each chapter's dataset.
 - **C — Extension Installation Reference:** `CREATE EXTENSION` commands and version notes for each extension used.
 - **D — Index Decision Guide:** A decision tree for choosing between B-tree, GIN, GiST, BRIN, and HNSW indexes.
 - **E — Further Reading:** Official docs, papers, and blog posts for each topic.
+- **F — Syntax Quick Reference:** A per-chapter cheatsheet of the core commands/operators/functions this book actually used — JSONB operators (Ch1), PostGIS functions (Ch2), `FOR UPDATE SKIP LOCKED` (Ch3), `tsvector`/`tsquery` (Ch4), `pg_trgm` operators (Ch5), `pgvector` distance operators (Ch6), `ip4r` operators (Ch7), partitioning DDL (Ch8), `REFRESH MATERIALIZED VIEW` forms (Ch9), PostgREST/RLS grant patterns (Ch10), window function frame syntax (Ch11), `WITH RECURSIVE`/`CYCLE` (Ch12), `LISTEN`/`NOTIFY` (Ch13), advisory lock functions (Ch14), domain/enum/composite DDL (Ch15), generated column syntax (Ch16), FDW DDL (Ch17), logical replication DDL (Ch18), `cron.schedule` forms (Ch19), `EXPLAIN`/`pg_stat_statements` queries (Ch20), `CREATE PROPERTY GRAPH`/`GRAPH_TABLE` (Ch21), and SPARQL/SHACL/`pg_ripple` function signatures (Ch22-23) — one page per chapter, meant to be flipped to rather than read start to end, and a natural place to call out which syntax this book verified working versus verified broken (Ch21's unsupported quantifiers, Ch22's rule-chaining bug, Ch23's `infer()` data-corruption warning) so a reader skimming for syntax doesn't copy something this book already found doesn't work.
 
 ---
 

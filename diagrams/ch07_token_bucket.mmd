@@ -1,4 +1,4 @@
-graph TD
+graph LR
     Req["incoming request<br/>from check_ip"]
     HostCheck{"host bucket<br/>(/32, capacity 5,<br/>refill 1/sec)<br/>token available?"}
     NetCheck{"netblock bucket<br/>(/24, capacity 20,<br/>refill 5/sec)<br/>token available?"}

@@ -1,0 +1,5 @@
+graph LR
+    Ext["extension<br/>postgres_fdw / file_fdw"] --> Srv["server<br/>one remote endpoint"]
+    Srv --> Map["user mapping<br/>local role to remote identity"]
+    Map --> Tbl["foreign table<br/>local name for a remote shape"]
+    Tbl --> Data[("remote data")]

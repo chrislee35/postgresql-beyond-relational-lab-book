@@ -1,0 +1,14 @@
+services:
+  pg19:
+    build: .
+    environment:
+      POSTGRES_USER: chris
+      POSTGRES_PASSWORD: ch21-scratch
+      POSTGRES_DB: portsmith19
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg19-data:/var/lib/postgresql/19/main
+
+volumes:
+  pg19-data:

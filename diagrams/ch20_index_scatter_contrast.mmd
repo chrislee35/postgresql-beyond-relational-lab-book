@@ -1,0 +1,15 @@
+graph TB
+    subgraph Compound["compound index + realistic query"]
+        direction TB
+        C1["query bounded by time,<br/>partition pruning narrows to 1 month"] --> C2["compound index narrows<br/>further within that month"]
+        C2 --> C3["~4.5x faster than pruning alone,<br/>~43x faster than the original"]
+    end
+
+    subgraph Naive["single-column index on sensor_id"]
+        direction TB
+        N1["matches scattered ~1 in 120 rows,<br/>evenly across whole table"] --> N2["Bitmap Heap Scan visits<br/>nearly every page anyway"]
+        N2 --> N3["parallelism lost too —<br/>net loss vs. plain seq scan"]
+    end
+
+    style Naive fill:none,stroke:none
+    style Compound fill:none,stroke:none

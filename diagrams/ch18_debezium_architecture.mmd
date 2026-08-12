@@ -1,0 +1,7 @@
+graph LR
+    PG[("PostgreSQL<br/>replication slot")] --> DBZ["Debezium connector<br/>(Kafka Connect worker)"]
+    DBZ --> T1["topic:<br/>portsmith.public.<br/>businesses"]
+    DBZ --> T2["topic:<br/>portsmith.public.jobs"]
+    T1 --> C1["search index updater"]
+    T1 --> C2["cache invalidator"]
+    T2 --> C3["other services"]

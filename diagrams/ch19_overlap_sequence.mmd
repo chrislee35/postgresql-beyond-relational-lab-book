@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Cron as pg_cron launcher
+    participant Lock as advisory lock<br/>(guarded_demo_task)
+    participant Manual as manual session
+
+    Cron->>Lock: minute 0: acquire (run A)
+    activate Lock
+    Note over Cron,Lock: run A sleeps 75s
+    Cron--xLock: minute 1: tick skipped<br/>(same jobid still running)
+    Manual->>Lock: CALL guarded_demo_task(0)
+    Lock--xManual: already running, skipping
+    Note over Cron,Lock: run A finishes at 75s
+    deactivate Lock
+    Cron->>Lock: immediately: acquire (run B)
+    activate Lock
+    Note over Cron,Lock: schedule has drifted from the clock
+    deactivate Lock

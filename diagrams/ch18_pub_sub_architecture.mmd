@@ -1,0 +1,18 @@
+graph TB
+    WAL[("portsmith<br/>write-ahead log")]
+
+    subgraph Standard["CREATE SUBSCRIPTION"]
+        direction TB
+        S1["slot: portsmith_sub<br/>plugin: pgoutput"] --> S2["portsmith_legacy<br/>businesses, jobs"]
+    end
+
+    subgraph Raw["direct protocol read"]
+        direction TB
+        R1["slot: demo_test_decoding<br/>plugin: test_decoding"] --> R2["Python script<br/>psycopg low-level pgconn"]
+    end
+
+    WAL --> S1
+    WAL --> R1
+
+    style Standard fill:none,stroke:none
+    style Raw fill:none,stroke:none

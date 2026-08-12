@@ -1,0 +1,28 @@
+graph TB
+    subgraph PGQ["PostgreSQL 19 beta2: SQL/PGQ"]
+        direction TB
+        P1["CREATE PROPERTY GRAPH<br/>over city_org / road_segments"]
+        P2["GRAPH_TABLE:<br/>fixed-depth pattern match"]
+        P3["GRAPH_TABLE:<br/>undirected edge -[ ]-"]
+        P4["Quantified path {1,10}<br/>or nested group"]
+        P1 --> P2
+        P1 --> P3
+        P2 --> P4
+        P3 --> P4
+        PBLOCK["BLOCKED:<br/>element pattern quantifier<br/>is not supported"]
+        P4 -.-> PBLOCK
+    end
+
+    subgraph CTE["Chapter 12: WITH RECURSIVE"]
+        direction TB
+        C1["Base case + recursive term<br/>over the same tables"]
+        C2["Walk to root,<br/>any depth"]
+        C3["Shortest path,<br/>true BFS"]
+        C4["CYCLE ... SET ... USING"]
+        C1 --> C2
+        C1 --> C3
+        C1 --> C4
+    end
+
+    classDef blocked stroke:#c00,stroke-width:3px,color:#000
+    class PBLOCK blocked

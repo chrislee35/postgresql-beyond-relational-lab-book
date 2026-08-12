@@ -1,0 +1,5 @@
+graph LR
+    Job[("cron.job")] --> Launcher["pg_cron launcher<br/>(inside postmaster)"]
+    Launcher --> Conn["new connection,<br/>authenticated as the<br/>job's role (needs .pgpass)"]
+    Conn --> Exec["command executes"]
+    Exec --> Log[("cron.job_run_details")]

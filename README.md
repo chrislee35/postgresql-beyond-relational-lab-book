@@ -53,10 +53,10 @@ conventions used throughout the book.
 | 14 | [Advisory Locks: Distributed Coordination](ch14_advisory_locks.md) | Leader election, session vs. transaction locks |
 | 15 | [Custom Types, Domains, and Enums](ch15_custom_types.md) | Schema-level business rules |
 | 16 | [Generated Columns](ch16_generated_columns.md) | Derived values without triggers |
-| 17 | Foreign Data Wrappers: PostgreSQL as a Data Hub | `postgres_fdw`, `file_fdw` |
-| 18 | Logical Replication and Change Data Capture | Publications, subscriptions, Debezium |
-| 19 | `pg_cron`: Scheduled Jobs Inside PostgreSQL | Idempotency, overlap prevention |
-| 20 | `pg_stat_statements` and Query Performance | `EXPLAIN ANALYZE`, slow query diagnosis |
+| 17 | [Foreign Data Wrappers: PostgreSQL as a Data Hub](ch17_foreign_data_wrappers.md) | `postgres_fdw`, `file_fdw` |
+| 18 | [Logical Replication and Change Data Capture](ch18_logical_replication.md) | Publications, subscriptions, Debezium |
+| 19 | [`pg_cron`: Scheduled Jobs Inside PostgreSQL](ch19_pg_cron.md) | Idempotency, overlap prevention |
+| 20 | [`pg_stat_statements` and Query Performance](ch20_query_performance.md) | `EXPLAIN ANALYZE`, slow query diagnosis |
 
 Chapters 2–20 are in progress. See [00_guide.md](00_guide.md) for the full
 exercise outline of each upcoming chapter.

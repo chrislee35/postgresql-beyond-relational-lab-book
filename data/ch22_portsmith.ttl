@@ -1,0 +1,75 @@
+@prefix : <http://portsmith.example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:portsmith a :City ; rdfs:label "Portsmith" .
+
+# Neighborhoods -- real rows from Chapter 2's neighborhoods table
+:harbour_district a :Neighborhood ; rdfs:label "Harbour District" ; :population 4200 ; :partOf :portsmith .
+:old_town a :Neighborhood ; rdfs:label "Old Town" ; :population 6800 ; :partOf :portsmith .
+:northgate a :Neighborhood ; rdfs:label "Northgate" ; :population 18500 ; :partOf :portsmith .
+:riverside a :Neighborhood ; rdfs:label "Riverside" ; :population 9300 ; :partOf :portsmith .
+:university_quarter a :Neighborhood ; rdfs:label "University Quarter" ; :population 11200 ; :partOf :portsmith .
+:industrial_port a :Neighborhood ; rdfs:label "Industrial Port" ; :population 2100 ; :partOf :portsmith .
+
+# Adjacency -- real ST_Touches results against Chapter 2's polygons, one direction per touching pair
+:harbour_district :adjacentTo :industrial_port .
+:harbour_district :adjacentTo :old_town .
+:harbour_district :adjacentTo :riverside .
+:harbour_district :adjacentTo :university_quarter .
+:northgate :adjacentTo :riverside .
+:northgate :adjacentTo :university_quarter .
+:old_town :adjacentTo :northgate .
+:old_town :adjacentTo :riverside .
+:old_town :adjacentTo :university_quarter .
+:riverside :adjacentTo :industrial_port .
+
+# Businesses -- real rows from Chapter 1's businesses table
+:business_1 a :Business ; rdfs:label "The Gilded Clam" ; :locatedIn :harbour_district ; :hasCategory "restaurant" .
+:business_2 a :Business ; rdfs:label "Anchor & Oar Tavern" ; :locatedIn :harbour_district ; :hasCategory "restaurant" .
+:business_3 a :Business ; rdfs:label "Portsmith Fish Market" ; :locatedIn :harbour_district ; :hasCategory "retail" ; :hasSubcategory "specialty_food" .
+:business_4 a :Business ; rdfs:label "Harbour Inn" ; :locatedIn :harbour_district ; :hasCategory "accommodation" ; :hasSubcategory "inn" .
+:business_5 a :Business ; rdfs:label "Lighthouse Bookshop" ; :locatedIn :harbour_district ; :hasCategory "retail" ; :hasSubcategory "bookshop" .
+:business_6 a :Business ; rdfs:label "Tidal Wave Surf Shop" ; :locatedIn :harbour_district ; :hasCategory "retail" ; :hasSubcategory "sporting_goods" .
+:business_7 a :Business ; rdfs:label "Mariners Rest B&B" ; :locatedIn :harbour_district ; :hasCategory "accommodation" ; :hasSubcategory "bed_and_breakfast" .
+:business_8 a :Business ; rdfs:label "Saltbox Gallery" ; :locatedIn :harbour_district ; :hasCategory "retail" ; :hasSubcategory "gallery" .
+:business_9 a :Business ; rdfs:label "Harbour View Theater" ; :locatedIn :harbour_district ; :hasCategory "entertainment" ; :hasSubcategory "theater" .
+:business_10 a :Business ; rdfs:label "Bella Napoli" ; :locatedIn :old_town ; :hasCategory "restaurant" .
+:business_11 a :Business ; rdfs:label "Le Petit Bistro" ; :locatedIn :old_town ; :hasCategory "restaurant" .
+:business_12 a :Business ; rdfs:label "Old Town Hardware" ; :locatedIn :old_town ; :hasCategory "retail" ; :hasSubcategory "hardware" .
+:business_13 a :Business ; rdfs:label "Finch & Sons Barbers" ; :locatedIn :old_town ; :hasCategory "service" ; :hasSubcategory "barber" .
+:business_14 a :Business ; rdfs:label "The Clocktower Pub" ; :locatedIn :old_town ; :hasCategory "entertainment" ; :hasSubcategory "pub" .
+:business_15 a :Business ; rdfs:label "Portsmith Legal Group" ; :locatedIn :old_town ; :hasCategory "service" ; :hasSubcategory "legal" .
+:business_16 a :Business ; rdfs:label "Portsmith Arms Hotel" ; :locatedIn :old_town ; :hasCategory "accommodation" ; :hasSubcategory "hotel" .
+:business_17 a :Business ; rdfs:label "Portsmith Accountancy Ltd." ; :locatedIn :old_town ; :hasCategory "service" ; :hasSubcategory "accountant" .
+:business_18 a :Business ; rdfs:label "Portsmith Tailors" ; :locatedIn :old_town ; :hasCategory "service" ; :hasSubcategory "tailor" .
+:business_19 a :Business ; rdfs:label "Dragon Palace" ; :locatedIn :northgate ; :hasCategory "restaurant" .
+:business_20 a :Business ; rdfs:label "Northgate Grocers" ; :locatedIn :northgate ; :hasCategory "retail" ; :hasSubcategory "grocery" .
+:business_21 a :Business ; rdfs:label "AutoFix Portsmith" ; :locatedIn :northgate ; :hasCategory "service" ; :hasSubcategory "auto_repair" .
+:business_22 a :Business ; rdfs:label "The Grand Hotel Portsmith" ; :locatedIn :northgate ; :hasCategory "accommodation" ; :hasSubcategory "hotel" .
+:business_23 a :Business ; rdfs:label "Lotus Spa & Wellness" ; :locatedIn :northgate ; :hasCategory "service" ; :hasSubcategory "spa" .
+:business_24 a :Business ; rdfs:label "Spice Garden" ; :locatedIn :northgate ; :hasCategory "restaurant" .
+:business_25 a :Business ; rdfs:label "Sol y Mar" ; :locatedIn :northgate ; :hasCategory "restaurant" .
+:business_26 a :Business ; rdfs:label "Mango Bay Caribbean" ; :locatedIn :northgate ; :hasCategory "restaurant" .
+:business_27 a :Business ; rdfs:label "Bay Street Electronics" ; :locatedIn :northgate ; :hasCategory "retail" ; :hasSubcategory "electronics" .
+:business_28 a :Business ; rdfs:label "River Bend Bakery" ; :locatedIn :riverside ; :hasCategory "restaurant" .
+:business_29 a :Business ; rdfs:label "The Riverside Vegan" ; :locatedIn :riverside ; :hasCategory "restaurant" .
+:business_30 a :Business ; rdfs:label "Thai Orchid" ; :locatedIn :riverside ; :hasCategory "restaurant" .
+:business_31 a :Business ; rdfs:label "Quay Street Deli" ; :locatedIn :riverside ; :hasCategory "restaurant" .
+:business_32 a :Business ; rdfs:label "Portsmith Pharmacy" ; :locatedIn :riverside ; :hasCategory "retail" ; :hasSubcategory "pharmacy" .
+:business_33 a :Business ; rdfs:label "Dr. Chen Dentistry" ; :locatedIn :riverside ; :hasCategory "service" ; :hasSubcategory "dentist" .
+:business_34 a :Business ; rdfs:label "Riverside Cinema" ; :locatedIn :riverside ; :hasCategory "entertainment" ; :hasSubcategory "cinema" .
+:business_35 a :Business ; rdfs:label "Portsmith Veterinary Clinic" ; :locatedIn :riverside ; :hasCategory "service" ; :hasSubcategory "veterinarian" .
+:business_36 a :Business ; rdfs:label "The Art Depot" ; :locatedIn :riverside ; :hasCategory "retail" ; :hasSubcategory "art_supplies" .
+:business_37 a :Business ; rdfs:label "The Hungry Scholar" ; :locatedIn :university_quarter ; :hasCategory "restaurant" .
+:business_38 a :Business ; rdfs:label "Quarter Note Jazz Club" ; :locatedIn :university_quarter ; :hasCategory "entertainment" ; :hasSubcategory "live_music" .
+:business_39 a :Business ; rdfs:label "University Bookshop" ; :locatedIn :university_quarter ; :hasCategory "retail" ; :hasSubcategory "bookshop" .
+:business_40 a :Business ; rdfs:label "Campus Bike & Sports" ; :locatedIn :university_quarter ; :hasCategory "retail" ; :hasSubcategory "sporting_goods" .
+:business_41 a :Business ; rdfs:label "Green Leaf Cafe" ; :locatedIn :university_quarter ; :hasCategory "restaurant" .
+:business_42 a :Business ; rdfs:label "Port Canteen" ; :locatedIn :industrial_port ; :hasCategory "restaurant" .
+:business_43 a :Business ; rdfs:label "Marine Supply Co." ; :locatedIn :industrial_port ; :hasCategory "retail" ; :hasSubcategory "marine_hardware" .
+:business_44 a :Business ; rdfs:label "Port View Hostel" ; :locatedIn :industrial_port ; :hasCategory "accommodation" ; :hasSubcategory "hostel" .
+:business_45 a :Business ; rdfs:label "Ironside Auto" ; :locatedIn :industrial_port ; :hasCategory "service" ; :hasSubcategory "auto_repair" .
+:business_46 a :Business ; rdfs:label "The Rusty Anchor" ; :locatedIn :industrial_port ; :hasCategory "entertainment" ; :hasSubcategory "bar" .
+:business_47 a :Business ; rdfs:label "Portsmith Plumbing & Heating" ; :locatedIn :industrial_port ; :hasCategory "service" ; :hasSubcategory "plumber" .
+:business_48 a :Business ; rdfs:label "Old Brewery Tap" ; :locatedIn :industrial_port ; :hasCategory "entertainment" ; :hasSubcategory "bar" .

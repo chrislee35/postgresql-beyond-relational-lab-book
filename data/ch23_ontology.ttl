@@ -1,0 +1,102 @@
+@prefix : <http://portsmith.example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Category class hierarchy -- real rows from Chapter 12's categories table
+:Category_all_categories a rdfs:Class ; rdfs:label "All Categories" .
+:Category_restaurant a rdfs:Class ; rdfs:label "restaurant" ; rdfs:subClassOf :Category_all_categories .
+:Category_seafood a rdfs:Class ; rdfs:label "seafood" ; rdfs:subClassOf :Category_restaurant .
+:Category_pub a rdfs:Class ; rdfs:label "pub" ; rdfs:subClassOf :Category_restaurant .
+:Category_italian a rdfs:Class ; rdfs:label "italian" ; rdfs:subClassOf :Category_restaurant .
+:Category_french a rdfs:Class ; rdfs:label "french" ; rdfs:subClassOf :Category_restaurant .
+:Category_chinese a rdfs:Class ; rdfs:label "chinese" ; rdfs:subClassOf :Category_restaurant .
+:Category_indian a rdfs:Class ; rdfs:label "indian" ; rdfs:subClassOf :Category_restaurant .
+:Category_mexican a rdfs:Class ; rdfs:label "mexican" ; rdfs:subClassOf :Category_restaurant .
+:Category_caribbean a rdfs:Class ; rdfs:label "caribbean" ; rdfs:subClassOf :Category_restaurant .
+:Category_thai a rdfs:Class ; rdfs:label "thai" ; rdfs:subClassOf :Category_restaurant .
+:Category_vegan a rdfs:Class ; rdfs:label "vegan" ; rdfs:subClassOf :Category_restaurant .
+:Category_deli a rdfs:Class ; rdfs:label "deli" ; rdfs:subClassOf :Category_restaurant .
+:Category_bakery a rdfs:Class ; rdfs:label "bakery" ; rdfs:subClassOf :Category_restaurant .
+:Category_american a rdfs:Class ; rdfs:label "american" ; rdfs:subClassOf :Category_restaurant .
+:Category_british a rdfs:Class ; rdfs:label "british" ; rdfs:subClassOf :Category_restaurant .
+:Category_retail a rdfs:Class ; rdfs:label "retail" ; rdfs:subClassOf :Category_all_categories .
+:Category_specialty_food a rdfs:Class ; rdfs:label "specialty_food" ; rdfs:subClassOf :Category_retail .
+:Category_bookshop a rdfs:Class ; rdfs:label "bookshop" ; rdfs:subClassOf :Category_retail .
+:Category_sporting_goods a rdfs:Class ; rdfs:label "sporting_goods" ; rdfs:subClassOf :Category_retail .
+:Category_gallery a rdfs:Class ; rdfs:label "gallery" ; rdfs:subClassOf :Category_retail .
+:Category_hardware a rdfs:Class ; rdfs:label "hardware" ; rdfs:subClassOf :Category_retail .
+:Category_grocery a rdfs:Class ; rdfs:label "grocery" ; rdfs:subClassOf :Category_retail .
+:Category_electronics a rdfs:Class ; rdfs:label "electronics" ; rdfs:subClassOf :Category_retail .
+:Category_pharmacy a rdfs:Class ; rdfs:label "pharmacy" ; rdfs:subClassOf :Category_retail .
+:Category_marine_hardware a rdfs:Class ; rdfs:label "marine_hardware" ; rdfs:subClassOf :Category_retail .
+:Category_art_supplies a rdfs:Class ; rdfs:label "art_supplies" ; rdfs:subClassOf :Category_retail .
+:Category_service a rdfs:Class ; rdfs:label "service" ; rdfs:subClassOf :Category_all_categories .
+:Category_barber a rdfs:Class ; rdfs:label "barber" ; rdfs:subClassOf :Category_service .
+:Category_legal a rdfs:Class ; rdfs:label "legal" ; rdfs:subClassOf :Category_service .
+:Category_accountant a rdfs:Class ; rdfs:label "accountant" ; rdfs:subClassOf :Category_service .
+:Category_tailor a rdfs:Class ; rdfs:label "tailor" ; rdfs:subClassOf :Category_service .
+:Category_auto_repair a rdfs:Class ; rdfs:label "auto_repair" ; rdfs:subClassOf :Category_service .
+:Category_spa a rdfs:Class ; rdfs:label "spa" ; rdfs:subClassOf :Category_service .
+:Category_dentist a rdfs:Class ; rdfs:label "dentist" ; rdfs:subClassOf :Category_service .
+:Category_veterinarian a rdfs:Class ; rdfs:label "veterinarian" ; rdfs:subClassOf :Category_service .
+:Category_plumber a rdfs:Class ; rdfs:label "plumber" ; rdfs:subClassOf :Category_service .
+:Category_accommodation a rdfs:Class ; rdfs:label "accommodation" ; rdfs:subClassOf :Category_all_categories .
+:Category_inn a rdfs:Class ; rdfs:label "inn" ; rdfs:subClassOf :Category_accommodation .
+:Category_bed_and_breakfast a rdfs:Class ; rdfs:label "bed_and_breakfast" ; rdfs:subClassOf :Category_accommodation .
+:Category_hotel a rdfs:Class ; rdfs:label "hotel" ; rdfs:subClassOf :Category_accommodation .
+:Category_hostel a rdfs:Class ; rdfs:label "hostel" ; rdfs:subClassOf :Category_accommodation .
+:Category_entertainment a rdfs:Class ; rdfs:label "entertainment" ; rdfs:subClassOf :Category_all_categories .
+:Category_theater a rdfs:Class ; rdfs:label "theater" ; rdfs:subClassOf :Category_entertainment .
+:Category_pub a rdfs:Class ; rdfs:label "pub" ; rdfs:subClassOf :Category_entertainment .
+:Category_live_music a rdfs:Class ; rdfs:label "live_music" ; rdfs:subClassOf :Category_entertainment .
+:Category_cinema a rdfs:Class ; rdfs:label "cinema" ; rdfs:subClassOf :Category_entertainment .
+:Category_bar a rdfs:Class ; rdfs:label "bar" ; rdfs:subClassOf :Category_entertainment .
+
+# Business classification -- most specific real category each business has
+:business_1 a :Category_seafood .
+:business_2 a :Category_pub .
+:business_3 a :Category_specialty_food .
+:business_4 a :Category_inn .
+:business_5 a :Category_bookshop .
+:business_6 a :Category_sporting_goods .
+:business_7 a :Category_bed_and_breakfast .
+:business_8 a :Category_gallery .
+:business_9 a :Category_theater .
+:business_10 a :Category_italian .
+:business_11 a :Category_french .
+:business_12 a :Category_hardware .
+:business_13 a :Category_barber .
+:business_14 a :Category_pub .
+:business_15 a :Category_legal .
+:business_16 a :Category_hotel .
+:business_17 a :Category_accountant .
+:business_18 a :Category_tailor .
+:business_19 a :Category_chinese .
+:business_20 a :Category_grocery .
+:business_21 a :Category_auto_repair .
+:business_22 a :Category_hotel .
+:business_23 a :Category_spa .
+:business_24 a :Category_indian .
+:business_25 a :Category_mexican .
+:business_26 a :Category_caribbean .
+:business_27 a :Category_electronics .
+:business_28 a :Category_bakery .
+:business_29 a :Category_vegan .
+:business_30 a :Category_thai .
+:business_31 a :Category_deli .
+:business_32 a :Category_pharmacy .
+:business_33 a :Category_dentist .
+:business_34 a :Category_cinema .
+:business_35 a :Category_veterinarian .
+:business_36 a :Category_art_supplies .
+:business_37 a :Category_american .
+:business_38 a :Category_live_music .
+:business_39 a :Category_bookshop .
+:business_40 a :Category_sporting_goods .
+:business_41 a :Category_vegan .
+:business_42 a :Category_british .
+:business_43 a :Category_marine_hardware .
+:business_44 a :Category_hostel .
+:business_45 a :Category_auto_repair .
+:business_46 a :Category_bar .
+:business_47 a :Category_plumber .
+:business_48 a :Category_bar .

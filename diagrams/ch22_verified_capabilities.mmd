@@ -1,0 +1,24 @@
+graph TB
+    subgraph WORKING["Verified working"]
+        direction TB
+        W1["load_turtle()<br/>261 real triples loaded"]
+        W2["sparql() SELECT<br/>with GROUP BY / COUNT"]
+        W3["Property paths: +<br/>unbounded traversal"]
+        W4["Undirected combinator<br/>( :p | ^:p )+"]
+        W5["sparql_update()<br/>INSERT/DELETE DATA"]
+        W6["shacl_score() /<br/>shacl_report_scored()"]
+        W1 --> W2 --> W3 --> W4 --> W5 --> W6
+    end
+
+    subgraph BROKEN["Verified broken or gated"]
+        direction TB
+        B1["enable_shacl_monitors()<br/>needs pg_trickle, not installed"]
+        B2["Custom Datalog rules:<br/>multi-atom body chaining"]
+        B3["justify()<br/>returns empty for tested triples"]
+        B1 --> B2 --> B3
+    end
+
+    classDef ok stroke:#0a0,stroke-width:3px,color:#000
+    classDef bad stroke:#c00,stroke-width:3px,color:#000
+    class W1,W2,W3,W4,W5,W6 ok
+    class B1,B2,B3 bad

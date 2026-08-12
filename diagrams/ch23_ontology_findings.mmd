@@ -1,0 +1,21 @@
+graph TB
+    subgraph WORKING["Verified working"]
+        direction TB
+        W1["rdfs:subClassOf*<br/>direct property-path query"]
+        W2["48-class category hierarchy<br/>correct, transitive, reflexive"]
+        W3["Hybrid retrieval:<br/>pgvector + graph, composed by hand"]
+        W1 --> W2 --> W3
+    end
+
+    subgraph BROKEN["Verified broken"]
+        direction TB
+        B1["infer('rdfs'): instance types<br/>not propagated up the hierarchy"]
+        B2["infer('rdfs') OVERWRITES real data:<br/>business_N a business_N (self-type)"]
+        B3["dice_similarity() + bloom_encode(),<br/>default params: 12/12 real duplicates missed"]
+        B1 --> B2 --> B3
+    end
+
+    classDef ok stroke:#0a0,stroke-width:3px,color:#000
+    classDef bad stroke:#c00,stroke-width:3px,color:#000
+    class W1,W2,W3 ok
+    class B1,B2,B3 bad

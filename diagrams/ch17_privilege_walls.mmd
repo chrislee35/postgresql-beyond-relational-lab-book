@@ -1,0 +1,23 @@
+graph LR
+    G1{"createdb portsmith_legacy"}
+    G1 -->|denied| E1["permission denied<br/>to create database"]
+    G1 -->|CREATEDB granted| G2
+
+    G2{"CREATE EXTENSION postgres_fdw"}
+    G2 -->|denied| E2["must be superuser to<br/>create this extension"]
+    G2 -->|run as postgres| G3
+
+    G3{"CREATE SERVER<br/>FOREIGN DATA WRAPPER postgres_fdw"}
+    G3 -->|denied| E3["permission denied for<br/>foreign-data wrapper"]
+    G3 -->|USAGE granted| G4
+
+    G4{"query the foreign table"}
+    G4 -->|no password in mapping| E4["password or GSSAPI<br/>credentials required"]
+    G4 -->|password added| G5
+
+    G5{"CREATE FOREIGN TABLE<br/>... filename '...'"}
+    G5 -->|denied| E5["only pg_read_server_files<br/>may set this option"]
+    G5 -->|role granted| OK["queries succeed"]
+
+    classDef err fill:#fee,stroke:#fee,color:#000;
+    class E1,E2,E3,E4,E5 err;

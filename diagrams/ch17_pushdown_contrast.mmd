@@ -1,0 +1,15 @@
+graph TB
+    subgraph File["file_fdw"]
+        direction TB
+        FQ["WHERE neighbourhood = 'Northgate'"] --> FR["Filter: applied locally,<br/>after reading the file"]
+        FR --> FO["every row read,<br/>regardless of match"]
+    end
+
+    subgraph PG["postgres_fdw"]
+        direction TB
+        PGQ["WHERE neighbourhood = 'Harbour District'"] --> PGR["Remote SQL: sent to<br/>portsmith_legacy, filtered there"]
+        PGR --> PGO["only matching rows<br/>cross the network"]
+    end
+
+    style PG fill:none,stroke:none
+    style File fill:none,stroke:none
