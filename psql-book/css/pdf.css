@@ -1,3 +1,8 @@
+/* Page margins */
+@page {
+  margin: 0.5in;
+}
+
 /* Base styling */
 body {
   font-family: Ubuntu, Roboto, sans-serif;
@@ -5,6 +10,7 @@ body {
   font-size: 1rem;
   color: #000000;
   margin: 0.1rem;
+  padding: 0.1rem;
 }
 
 /* Headings */
@@ -34,9 +40,21 @@ h1:first-of-type {
 
 /* Optional: code blocks */
 pre, code {
-  background: #f8f8f8;
   font-family: 'RobotoMono Nerd Font', monospace;
   font-size: 0.75rem;
-  padding: 0.1em 0.1em;
   border-radius: 4px;
+}
+
+/* Pandoc's own injected syntax-highlighting CSS sets a print-only hanging
+   indent (text-indent: -5em; padding-left: 5em) on every line, meant to
+   line-wrap long lines with a hanging indent. WeasyPrint honors @media
+   print (unlike the HTML/EPUB builds, which are screen media), so every
+   code line was getting pushed in by 5em. Neutralize it here rather than
+   disabling syntax highlighting outright. */
+@media print {
+  pre > code.sourceCode > span {
+    font-family: 'RobotoMono Nerd Font', monospace;
+    text-indent: 0em;
+    padding-left: 1em;
+  }
 }

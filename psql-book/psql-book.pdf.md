@@ -1,7 +1,8 @@
 # The Portsmith Papers
-## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
 <img src="imgs/cover.png" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
+
+## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
 ---
 
@@ -10,7 +11,7 @@
 
 ---
 
-### About This Book
+# About This Book
 
 Most PostgreSQL tutorials end where the interesting work begins.
 
@@ -26,7 +27,7 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 **What you will need:**
 
-- A working PostgreSQL 16 installation (setup covered in Appendix A)
+- A working PostgreSQL 16 installation, plus two disposable Docker containers (PostgreSQL 19 and 18) for the final chapters — setup for all three covered in Appendix A
 - Python 3.12+
 - A Debian-based Linux environment
 - Familiarity with basic SQL (`SELECT`, `INSERT`, `JOIN`, `GROUP BY`)
@@ -34,13 +35,11 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 ---
 
-### Author
-
 **Chris Lee**  
 
----
+*Edition 1.0 — September 12, 2026*
 
-*Edition 1.0 — Portsmith, 2026*
+
 # Chapter 1 — JSONB: Semi-Structured Data Without a Schema Tax
 
 > *"A schema is a prediction about the future. JSONB lets you hedge."*
@@ -933,7 +932,10 @@ of the harbour, and which neighbourhood does each one belong to.
 `jsonb_path_query_array` and `jsonb_path_query_first` variants are useful for
 pagination and single-value extraction. For write-heavy workloads, profile
 whether `JSONB` or a computed stored column (Chapter 16) gives better
-`INSERT`/`UPDATE` throughput on your hardware.*
+`INSERT`/`UPDATE` throughput on your hardware.*  
+
+
+
 # Chapter 2 — PostGIS: Geospatial Queries on Real Geometry
 
 > *"A city is not a list of rows. It is a shape on the ground."*
@@ -1836,6 +1838,8 @@ shortest-path algorithms over road network graphs. For importing real boundary
 data, `shp2pgsql` converts ESRI Shapefiles directly into PostGIS-compatible
 `INSERT` statements, and `ogr2ogr` handles GeoJSON, KML, GeoPackage, and dozens
 of other formats.*
+
+
 # Chapter 3 — Job Queues: `FOR UPDATE SKIP LOCKED`
 
 > *"A queue is just a table that everyone is racing to read."*
@@ -2707,6 +2711,8 @@ guaranteed ordering at very high throughput, or consumer groups — that's
 the point at which a dedicated broker starts to earn its operational cost.
 For most applications below that scale, the table you just built is
 enough.*
+
+
 # Chapter 4 — Full-Text Search: `tsvector`, Stopwords, and Ranking
 
 > *"Grep finds characters. Full-text search finds meaning — or at least gets
@@ -3659,6 +3665,8 @@ body matches) and consider whether a dedicated search engine becomes
 worthwhile once ranking quality and query latency requirements outgrow what
 a GIN index over a single table can deliver — the honest answer, for most
 applications, is later than you'd expect.*
+
+
 # Chapter 5 — Fuzzy Matching: `pg_trgm`
 
 > *"Every registry that outlives a year of real data entry ends up with the
@@ -4409,6 +4417,8 @@ look at dedicated record-linkage tools (e.g. the `dedupe` Python library),
 which combine trigram-style string similarity with other fields — address,
 phone number, date of birth — and a trained classifier, instead of a single
 threshold on a single column.*
+
+
 # Chapter 6 — Vector Search: `pgvector` for Embeddings
 
 > *"Full-text search finds documents that use your words. Vector search
@@ -5577,6 +5587,8 @@ explicit **citations** in the generated answer so a user can verify a
 claim against the source chunk rather than trusting the model's summary
 outright. None of that changes the shape of what you built here — it's
 still retrieval, then generation, with more care taken at each step.*
+
+
 # Chapter 7 — IP and Network Filtering: `ip4r`
 
 > *"An IP address is a number. A CIDR block is a range. PostgreSQL's
@@ -6517,6 +6529,8 @@ ever become the bottleneck rather than the safeguard, that's the point at
 which a dedicated in-memory limiter (Redis and similar) starts to earn
 its keep — but plenty of systems never reach the traffic level where that
 trade-off is worth the added moving part.*
+
+
 # Chapter 8 — Declarative Partitioning and BRIN Indexes
 
 > *"A table doesn't get slow because it's big. It gets slow because every
@@ -7433,6 +7447,8 @@ every block range ends up spanning the entire value domain. Check
 `correlation` before reaching for BRIN, the same way Exercise 4 did here
 — it's a bet on the physical shape of your data, not a strictly smaller
 B-tree.*
+
+
 # Chapter 9 — Materialized Views: Precomputing Expensive Aggregations
 
 > *"A view is a promise to run the query again. A materialized view is a
@@ -8234,6 +8250,8 @@ for that recomputation. Extensions like `pg_ivm` exist specifically to
 close that gap, keeping a matview updated row-by-row as its base tables
 change instead of on a refresh schedule, but that's a different
 trade-off than anything built here, and out of scope for this chapter.*
+
+
 # Chapter 10 — PostgREST: A Web-Native REST API from Your Schema
 
 > *"PostgREST doesn't generate an API from your schema. It *is* your
@@ -9093,6 +9111,8 @@ all be scoped per-column the same way `INSERT` was here — is worth a
 deliberate read through the `GRANT` documentation before exposing any
 table this way for real, well beyond what one chapter's exercises can
 cover.*
+
+
 # Chapter 11 — Window Functions: Analytics Beyond `GROUP BY`
 
 > *"`GROUP BY` answers a question by throwing away the rows that don't
@@ -9927,6 +9947,8 @@ current row" — recursive CTEs walk relationships the data itself defines
 (a parent, a neighbour node), where window functions walk an *ordering*
 you impose yourself; knowing which kind of "related rows" a problem
 actually has is most of the work of picking the right one.*
+
+
 # Chapter 12 — Recursive CTEs: Graphs and Hierarchies
 
 > *"SQL doesn't have loops. `WITH RECURSIVE` is a query that keeps
@@ -10631,6 +10653,8 @@ production answer to "I need real shortest-path routing, not the
 smallest example that demonstrates the idea" — turn restrictions,
 one-way streets, and genuine Dijkstra/A* implementations, all built on
 top of the same PostGIS geometry this chapter's road graph came from.*
+
+
 # Chapter 13 — `LISTEN`/`NOTIFY`: Database-Native Pub/Sub
 
 > *"Polling asks 'did anything happen yet?' a thousand times a minute.
@@ -11329,6 +11353,8 @@ replication when the requirement is "give me the data," and
 a scheduled job that sweeps for log rows newer than a dashboard's last
 checkpoint is exactly how that dashboard recovers from having been
 disconnected, the catch-up path `NOTIFY` alone can never provide.*
+
+
 # Chapter 14 — Advisory Locks: Distributed Coordination
 
 > *"Every lock in this book so far has been about a row. This one isn't
@@ -11915,6 +11941,8 @@ Chapter 3 explicitly: `FOR UPDATE SKIP LOCKED` coordinates access to
 *rows that exist*; advisory locks coordinate *processes*, around ideas
 that were never going to have a row of their own no matter how the
 schema was designed.*
+
+
 # Chapter 15 — Custom Types, Domains, and Enums
 
 > *"A `CHECK` constraint says 'reject this if it's wrong.' A type says
@@ -12570,6 +12598,8 @@ in application-layer validation code. And Exercise 1's dependency chain
 change — is worth remembering the next time any column with a few
 chapters of history behind it needs to change shape: `\d` on the table
 first, always, before the `ALTER`.*
+
+
 # Chapter 16 — Generated Columns
 
 > *"A trigger is a promise that someone wrote the sync logic correctly.
@@ -13198,6 +13228,8 @@ worth remembering Exercise 6's dividing line the next time a derived
 column is on the table at all: reach for a generated column first,
 purely for the guarantee it makes, and only fall back to a trigger once
 the derivation genuinely needs to see past the row it lives on.*
+
+
 # Chapter 17 — Foreign Data Wrappers: PostgreSQL as a Data Hub
 
 > *"A foreign table looks exactly like a table. Everything a DBA would
@@ -13955,6 +13987,8 @@ drops them locally, the same way Chapter 8's own "going further" note
 imagined `pg_partman` automating partition lifecycle management, is
 exactly the kind of recurring maintenance `pg_cron` is suited to run
 unattended.*
+
+
 # Chapter 18 — Logical Replication and Change Data Capture
 
 > *A foreign data wrapper asks a question and waits for an answer,
@@ -14741,6 +14775,8 @@ job that checks `pg_replication_slots` for a slot whose
 consumer, quietly retaining WAL) and pages someone before disk fills
 up, the same shape of unattended, recurring maintenance task Chapter
 17's own "going further" note imagined for aging partition exports.*
+
+
 # Chapter 19 — `pg_cron`: Scheduled Jobs Inside PostgreSQL
 
 > *A cron job that lives outside the database has to be told, from
@@ -15310,6 +15346,8 @@ Chapter 18's own "going further" note: a second `pg_cron` job that
 watches `pg_replication_slots` for a slot whose `confirmed_flush_lsn`
 has stopped advancing is the exact same "scheduled health check" shape
 applied to replication instead of the job queue.*
+
+
 # Chapter 20 — `pg_stat_statements` and Query Performance
 
 > *"It's slow" is a feeling. "This queryid has a mean execution time of
@@ -15811,6 +15849,8 @@ built — `pg_stat_statements`, `EXPLAIN (ANALYZE, BUFFERS)`, and
 `auto_explain` — are worth running against every earlier chapter's own
 exercises; several of this book's own "real, verified" numbers were
 found exactly this way.*
+
+
 # Chapter 21 — Graph Queries: PostgreSQL 19's Property Graphs
 
 > *Chapter 12 taught you how graph traversal works by making you write
@@ -16294,6 +16334,8 @@ rather than SQL/PGQ's property-graph model over relational tables. It's
 worth holding this chapter's central finding in mind going in: a young
 extension or a beta feature is worth exactly what you can verify about
 it live, not what its README or its standard promises.*
+
+
 # Chapter 22 — RDF Triple Stores: `pg-ripple`
 
 > *Everything so far in this book has been rows, or documents shaped
@@ -16828,6 +16870,8 @@ deliberately does not lean on this chapter's broken custom-rule
 chaining; RDFS/OWL reasoning in Chapter 23 uses `pg-ripple`'s built-in
 rule sets rather than hand-written Datalog, which is worth verifying
 independently rather than assuming it avoids the same bug.*
+
+
 # Chapter 23 — Ontologies and Knowledge Graphs for AI Workflows
 
 > *Chapter 22 gave you a way to store facts and query them. This
@@ -17322,3 +17366,782 @@ extension mechanism keeps making ambitious things installable in an
 afternoon — but installable was never the same claim as correct, and
 this book's own most useful moments came from checking the difference
 directly rather than assuming either one.*
+
+
+# Appendix A — Environment Setup
+
+This book does not run on one PostgreSQL installation. It runs on
+**three**, and that split is itself a real finding worth understanding
+before you set anything up, not an accident of how the book was
+written: Chapters 1–20 share one long-lived cluster; Chapters 21–23
+each needed a separate, disposable one, for reasons specific to what
+each chapter was testing.
+
+| Environment | Chapters | Version | Where |
+|---|---|---|---|
+| Main cluster | 1–20 | PostgreSQL 16 | Installed directly on the host (`apt`) |
+| SQL/PGQ container | 21 | PostgreSQL 19 beta2 | `docker/ch21/` |
+| `pg-ripple` container | 22–23 | PostgreSQL 18 | `docker/ch22/` |
+
+## Why three, not one
+
+The main cluster accumulates real, cumulative state across twenty
+chapters — roles, grants, two databases, rows mutated by earlier
+exercises that later chapters depend on. Chapter 21 needed PostgreSQL
+19, which was still in beta at the time of writing; Chapters 22–23
+needed a Rust extension (`pg-ripple`) built from source against
+PostgreSQL 18. Running either of those against the main cluster would
+have meant either upgrading a host carrying real state onto beta
+software, or bolting a from-source Rust build onto an installation
+everything else depends on staying stable. Both risks were judged not
+worth it for two chapters' worth of exercises — isolate instead, and
+throw the container away if something goes wrong. This turned out to
+matter in practice: Chapter 21's PostgreSQL 19 needed rebuilding from
+scratch after a packaging misconfiguration, and Chapter 22's container
+was restarted mid-chapter to fix a `shared_preload_libraries` setting.
+Neither touched the main cluster at all.
+
+## The main cluster (Chapters 1–20)
+
+Installed directly, not in a container — every extension in the table
+below is a plain `apt install` against a single PostgreSQL 16 server.
+
+```bash
+sudo apt install -y postgresql-16 postgresql-client-16
+```
+
+Two databases exist on it by the end of Chapter 20:
+
+- `portsmith` — the primary database essentially every chapter uses.
+- `portsmith_legacy` — introduced in Chapter 17 as a genuinely separate
+  `postgres_fdw` target, reused in Chapter 18 as the logical-replication
+  subscriber.
+
+The full extension list, required `postgresql.conf` settings, and the
+role/grant history this cluster accumulated chapter by chapter are in
+**Appendix C**, not repeated here — that appendix is the canonical
+reference for "what needs to be installed," this one is about the
+overall shape of the setup.
+
+## The PostgreSQL 19 beta2 container (Chapter 21)
+
+`docker/ch21/` — `Dockerfile`, `entrypoint.sh`, `docker-compose.yml`.
+Bring it up:
+
+```bash
+cd docker/ch21
+docker compose up --build
+```
+
+Listens on host port **5433** (5432 is the main cluster). Two real
+build problems, both explained in full in Chapter 21's own Environment
+Setup section, worth knowing before you rebuild this yourself:
+
+1. PGDG publishes pre-release major versions as an additional
+   `main <version>` **component** inside the normal `-pgdg` suite, not
+   a separate suite — and that component alone isn't sufficient; the
+   plain `main` component is also needed, for `postgresql-common`/
+   `libpq5`.
+2. Debian's `postgresql-19` package auto-creates a cluster on install
+   via `pg_createcluster`, splitting config (`/etc/postgresql/`) from
+   data (`/var/lib/postgresql/`) — incompatible with this image's
+   hand-rolled `initdb`, fixed with `pg_dropcluster --stop 19 main`
+   before `initdb` runs.
+
+## The PostgreSQL 18 / `pg-ripple` container (Chapters 22–23)
+
+`docker/ch22/` — same three-file shape as Chapter 21's container, built
+on PostgreSQL 18 (GA, not 19 — `pg-ripple`'s own documentation targets
+18, and there was no reason to stack PostgreSQL 19's own beta
+uncertainty on top of an already-real-risk Rust build).
+
+```bash
+cd docker/ch22
+docker compose up --build
+```
+
+Listens on host port **5434**. `pg-ripple` is compiled from source via
+Rust/`pgrx`, not installed as a package — the real, non-obvious trap
+here: `cargo-pgrx`'s own version must **exactly** match the `pgrx`
+library version an extension's `Cargo.toml` pins (`0.18.0` for
+`pg-ripple`), not just satisfy a semver range. `cargo install
+cargo-pgrx --version "^0.18"` resolves to whatever the newest `0.18.x`
+happens to be, and `cargo-pgrx` refuses to build against a mismatched
+version with a clear, specific error — the fix is pinning the exact
+version:
+
+```dockerfile
+RUN cargo install --locked cargo-pgrx --version "0.18.0"
+```
+
+Chapter 22's environment setup covers the rest, including the
+`shared_preload_libraries = 'pg_ripple'` setting this container needs
+from its very first start to get `pg-ripple`'s background workers
+running (the same class of gotcha Chapters 19–20's `pg_cron`/
+`pg_stat_statements` needed on the main cluster).
+
+## Connecting to all three
+
+```bash
+psql portsmith                                                       # main cluster, PG16
+psql -h localhost -p 5433 -U chris -d portsmith19                    # Chapter 21, PG19 beta2
+psql -h localhost -p 5434 -U chris -d portsmith22                    # Chapters 22-23, PG18
+```
+
+Both container passwords are set directly in their respective
+`docker-compose.yml` files (`ch21-scratch`, `ch22-scratch`) — these are
+throwaway scratch instances, not meant to hold anything you'd mind
+losing to a `docker compose down -v`.
+
+## A note for anyone continuing this book
+
+If you're picking Chapters 22–23's container back up, one thing is
+worth knowing before you run anything against it: Chapter 23 found that
+`pg_ripple.infer()`, run with a built-in rule set, does not behave as a
+safe read-only reasoning query — it was verified, twice, to overwrite
+real classification data with incorrect facts. Don't run it against
+data in that container you haven't already exported, and see Chapter
+23 Exercise 2 for the full, reproduced finding before relying on it for
+anything.
+
+
+# Appendix B — Synthetic Data Generation Scripts
+
+Every chapter in this book follows the same rule: real, synthetic-but-
+realistic data first, exercises against it second — nothing in the
+exercises is invented on the spot or asserted without a live query
+behind it. This appendix indexes every script that builds that data,
+in `data/`, run against `dbname=portsmith` unless noted otherwise.
+
+## Seed scripts (build a chapter's tables from scratch)
+
+| Script | Chapter | Builds |
+|---|---|---|
+| `ch01_seed.py` | 1 — JSONB | `businesses`, with a heterogeneous `details` JSONB column varying by category |
+| `ch02_seed.py` | 2 — PostGIS | `neighborhoods`, `city_infrastructure`, `parks`, and business point geometry |
+| `ch03_seed.py` | 3 — Job Queues | `jobs`, synthetic permit-application work items |
+| `ch04_seed.py` | 4 — Full-Text Search | `city_documents` (council minutes, zoning ordinances, public notices) |
+| `ch05_seed.py` | 5 — Fuzzy Matching | `residents` (with 12 real seeded typo/duplicate pairs — see below) and `business_names` |
+| `ch06_seed.py` | 6 — pgvector | `city_photos` and synthetic embedding scaffolding |
+| `ch07_seed.py` | 7 — IP/Network | `network_events`, `blocklists` |
+| `ch08_seed.py` | 8 — Partitioning & BRIN | `sensor_readings`, partitioned IoT data, ~9.6M rows |
+| `ch11_seed.py` | 11 — Window Functions | `business_revenue` (48 businesses × 4 quarters) |
+| `ch12_seed.py` | 12 — Recursive CTEs | `city_org` (invented org chart), `intersections`/`road_segments` (derived from Chapter 2's real geometry via `ST_Intersects`), `categories` (derived from Chapter 1's real category values) |
+
+Chapters 9, 10, 13–20 deliberately seed nothing new — each reuses
+tables earlier chapters already built, per the book's running
+principle of building on real prior state rather than starting fresh
+every chapter.
+
+## Data-processing and demo scripts (not seeding — used within exercises)
+
+| Script | Chapter | Purpose |
+|---|---|---|
+| `ch03_worker.py` | 3 | Simulates a concurrent job-queue worker claiming rows with `FOR UPDATE SKIP LOCKED` |
+| `ch03_reclaim.py` | 3 | Reclaims stalled jobs past a timeout — later ported to SQL as Chapter 19's `sweep_stalled_jobs()` |
+| `ch06_embed_documents.py` | 6 | Computes real `sentence-transformers` embeddings for `city_documents` |
+| `ch06_semantic_search.py` | 6 | Semantic and hybrid (semantic + keyword) search over embedded documents |
+| `ch06_rag_ingest.py` / `ch06_rag_chat.py` | 6 (bonus) | A small local RAG pipeline — chunk/embed/retrieve, then generate via Ollama |
+| `ch13_listen.py` | 13 | A `psycopg` `LISTEN` client used across the `LISTEN`/`NOTIFY` exercises |
+| `ch14_leader_election.py` | 14 | Multiprocessing leader-election race over `pg_try_advisory_lock` |
+| `ch17_export_to_parquet.py` | 17 | Exports `sensor_readings` to Parquet in MinIO, partitioned by month |
+| `ch17_query_parquet.py` | 17 | Verifies the Parquet export independently via DuckDB, no PostgreSQL involved |
+| `ch17_census.csv` | 17 | Real CSV used for the `file_fdw` exercise |
+| `ch18_replication_stream.py` | 18 | Consumes the logical replication stream directly via `psycopg`'s low-level `pgconn` API |
+| `ch22_export_turtle.py` | 22 | Exports `businesses`/`neighborhoods` (plus real `ST_Touches`-derived adjacency) as Turtle triples |
+| `ch23_export_ontology.py` | 23 | Exports Chapter 12's `categories` tree as an `rdfs:subClassOf` class hierarchy |
+| `ch23_hybrid_retrieval.py` | 23 | Combines Chapter 6's `pgvector` search with the Chapter 22/23 graph — two databases, joined in Python |
+| `ch23_entity_resolution.py` | 23 | Head-to-head: `pg_trgm` vs. `pg-ripple`'s `dice_similarity()` against real ground-truth duplicates |
+
+## Worth knowing before you run any of these
+
+- **Run seed scripts in chapter order.** Several later chapters'
+  scripts assume earlier chapters' tables already exist (Chapter 12's
+  road graph reads Chapter 2's real geometry live; Chapter 22's export
+  reads Chapter 1/2's live, possibly-mutated data).
+- **The live database reflects cumulative mutation, not just seed
+  output.** Chapter 1 Exercise 5 bumps a rating via `jsonb_set`;
+  Chapter 15 converts `jobs.status` from `TEXT` to an enum in place.
+  Querying the seed script alone won't show you the database's actual
+  current state — query the database.
+- **Always set `SET timezone = 'UTC';`** before any verification query
+  touching a timestamp column. This environment's default session
+  timezone is not UTC, and several chapters (8, 9, 11) bucket rows by
+  day on `TIMESTAMPTZ` columns — a non-UTC session silently groups a
+  different set of rows per bucket.
+- **Chapter 22/23 scripts connect to two different PostgreSQL
+  instances** (the main cluster and the Chapter 22 container) — check
+  the DSN each script uses before assuming "the database" means the
+  same thing every time in this book.
+
+
+# Appendix C — Extension Installation Reference
+
+Every `CREATE EXTENSION` this book actually ran, in one place. Package
+names follow the PGDG `postgresql-<version>-<name>` convention; adjust
+the version number for whichever cluster you're installing into (see
+Appendix A for which chapters use which of the three).
+
+## Main cluster (PostgreSQL 16, Chapters 1–20)
+
+| Chapter | Extension | `apt` package | `CREATE EXTENSION` | Notes |
+|---|---|---|---|---|
+| 2 | PostGIS | `postgresql-16-postgis-3` | `postgis` | Needs superuser |
+| 5 | `pg_trgm` | bundled (core/contrib) | `pg_trgm` | No separate package |
+| 6 | pgvector | `postgresql-16-pgvector` | `vector` | Needs superuser |
+| 7 | `ip4r` | `postgresql-16-ip4r` | `ip4r` | Needs superuser |
+| 17 | `postgres_fdw` | bundled (core/contrib) | `postgres_fdw` | Needs superuser; `USAGE` grant needed for non-superuser roles |
+| 17 | `file_fdw` | bundled (core/contrib) | `file_fdw` | Needs superuser; reading needs `pg_read_server_files` membership too |
+| 17 (Ex6, sketch only) | `parquet_s3_fdw` | build from source | `parquet_s3_fdw` | Built against Apache Arrow C++; never actually run in this book — see Chapter 17's own honest account of why |
+| 19 | `pg_cron` | `postgresql-16-cron` | `pg_cron` | Needs `shared_preload_libraries`; schema `cron` owned by `postgres` |
+| 19/20 | `pg_stat_statements` | bundled (core/contrib) | `pg_stat_statements` | Needs `shared_preload_libraries`; `pg_stat_statements_reset()` revoked from `PUBLIC` by default |
+| 19/20 | `auto_explain` | bundled (core/contrib) | *(none — loaded via config, not `CREATE EXTENSION`)* | `shared_preload_libraries` only; GUCs are superuser-only (`PGC_SUSET`) |
+
+Required `postgresql.conf` settings, all needing a full restart, not
+just a reload — set once, in Chapter 19, and left in place for the
+rest of the book:
+
+```conf
+shared_preload_libraries = 'pg_cron,pg_stat_statements,auto_explain'
+wal_level = logical
+cron.database_name = 'portsmith'
+```
+
+## PostgreSQL 19 beta2 container (Chapter 21)
+
+No extensions — `CREATE PROPERTY GRAPH`/`GRAPH_TABLE` (SQL/PGQ) are
+core PostgreSQL 19 features, not an installable extension. The only
+package needed beyond the server itself is PostGIS, and even that
+turned out unnecessary — Chapter 21 sidesteps it by exporting
+`intersections.geom` as plain `lon`/`lat` columns rather than pulling
+PostGIS into a still-beta major version.
+
+## PostgreSQL 18 / `pg-ripple` container (Chapters 22–23)
+
+| Extension | Install | `CREATE EXTENSION` | Notes |
+|---|---|---|---|
+| `pg_ripple` | build from source (Rust + `pgrx 0.18.0` exactly, against PostgreSQL 18 server headers) | `pg_ripple` | See Appendix A for the exact version-pinning trap; needs `shared_preload_libraries = 'pg_ripple'` from first start for its background merge worker |
+
+## A note on `GRANT`s, not just `CREATE EXTENSION`
+
+Installing an extension is frequently the *easy* privilege gate in
+this book, not the only one. Real walls hit and documented,
+chapter by chapter, on the main cluster:
+
+- `CREATE EXTENSION` itself always needs superuser.
+- `postgres_fdw`/`file_fdw` need `GRANT USAGE ON FOREIGN DATA WRAPPER`
+  to a non-superuser role separately from installing the extension.
+- `file_fdw` additionally needs `pg_read_server_files` role membership
+  — and even then, PostgreSQL reads server-side as the `postgres` OS
+  user, so file permissions on disk matter independently of the SQL
+  grant (Chapter 17's sharpest gotcha: a file under a `700` home
+  directory was unreadable regardless of the file's own mode).
+- `pg_cron`'s schema (`cron`) and `pg_stat_statements`'
+  reset/reload functions are all revoked from `PUBLIC` by default —
+  `GRANT EXECUTE`/`GRANT USAGE` explicitly, per database (both are
+  per-database extensions, easy to grant into the wrong one by
+  accident).
+- `pg_cron` jobs run as the job-owning role, authenticated over a
+  **fresh libpq connection** opened by the `postgres` OS user — a real,
+  non-obvious consequence: that OS user needs its own `~postgres/
+  .pgpass` entry for the job-owning role's password, or every
+  scheduled job fails with `connection failed` and no corresponding
+  entry in the server log.
+
+None of this is unique to this book's exact setup — it's the general
+shape of PostgreSQL's privilege model, and the book's own experience
+is that each of these gates was found by testing, one at a time, not
+by reading the whole list in advance. Expect the same if you're
+installing on a fresh cluster of your own.
+
+
+# Appendix D — Index Decision Guide
+
+A decision tree for which index type to reach for, built from the real
+index choices this book actually made — and, in one important case
+(Chapter 20), a real index choice that turned out to be wrong until
+measured.
+
+## The decision tree
+
+**1. Is the column being matched with plain equality or a range
+(`=`, `<`, `BETWEEN`, `ORDER BY`)?**
+→ **B-tree** — PostgreSQL's default, and correct by default for most
+columns. Every primary key and foreign key in this book uses one
+without a second thought. The one real trap: an **implicit type cast**
+silently defeats it. Chapter 20 Exercise 3 found `businesses.id = 5`
+(integer column, integer literal) using `Index Cond` correctly, while
+`businesses.id = 5::numeric` used `Filter` instead — a full scan
+comparing every row, invisible unless you actually read the plan.
+
+**2. Is the column a `JSONB` document, and are you querying with
+containment (`@>`) or existence (`?`)?**
+→ **GIN**, directly on the `jsonb` column. Chapter 1's `businesses.details`
+uses this for exactly this reason — Chapter 1 Exercise 3 confirms via
+`EXPLAIN ANALYZE` that the GIN index is actually used, not just
+present. `jsonb_path_ops` is worth a second GIN index alongside the
+default operator class if your queries are containment-only —
+Chapter 1 builds both, on the same column, and compares.
+
+**3. Is the column full-text search (`tsvector`) or a trigram-matched
+string (`pg_trgm`)?**
+→ **GIN** in both cases, for the same underlying reason: both are
+matching against a large, variable-length set of tokens (lexemes for
+text search, trigrams for fuzzy matching) per row, which is what GIN
+is actually built for. Chapter 4's `city_documents.search_vector` and
+Chapter 5's trigram indexes on `residents`/`business_names` both use
+GIN. `pg_trgm` also supports a **GiST** trigram index
+(`gist_trgm_ops`) — Chapter 5 builds one specifically to compare: GiST
+trigram indexes are typically smaller and faster to build, GIN indexes
+are typically faster to query, and the right choice depends on your
+write-vs-read ratio more than any fixed rule.
+
+**4. Is the column geometry, a network range (`ip4r`), or otherwise a
+"does this overlap/contain that" question rather than plain equality?**
+→ **GiST**. Chapter 2's `neighborhoods.geom`/`businesses.geom` and
+Chapter 7's `blocklists` CIDR ranges both use GiST for the same
+underlying reason: both are answering containment/overlap questions
+over 2D or range-shaped data, which B-tree's linear ordering can't
+represent and GIN's token-set model doesn't fit either.
+
+**5. Is the table huge, append-mostly, and naturally correlated with
+insertion order (a timestamp, a sequential ID)?**
+→ **BRIN**, and *only* if that correlation is real. Chapter 8's
+`sensor_readings` (9.6M rows, inserted roughly in `recorded_at` order)
+is the textbook case — a BRIN index stores block-range summaries, not
+per-row entries, so it's tiny compared to a B-tree on the same column,
+at the cost of only being useful when physical row order genuinely
+tracks the indexed value. Combined with partitioning (also Chapter 8),
+most queries never need the index at all — partition pruning already
+eliminates the irrelevant months before any index gets consulted.
+
+**6. Is the column a vector embedding, queried by approximate nearest
+neighbor?**
+→ **HNSW** or **IVFFlat**, both `pgvector`-specific, both genuinely
+different trade-offs rather than one being strictly better:
+- **IVFFlat**: faster to build, needs `lists`/`probes` tuning, recall
+  degrades further from exact as the dataset grows unless retuned.
+- **HNSW**: slower to build, no equivalent tuning parameter needed,
+  generally better recall at query time.
+
+Chapter 6 builds both against the same data specifically to compare
+build time and recall directly rather than taking either trade-off on
+faith.
+
+**7. Does the query only ever touch a small, predictable subset of
+rows — most rows never relevant to any query that matters?**
+→ A **partial index**, on top of whichever type above fits the column.
+Chapter 3's `idx_jobs_claim_order` only indexes `queued` jobs — a
+`completed` job is never going to be claimed again, so indexing it is
+pure waste. This isn't a separate index *type*, it's a `WHERE` clause
+on any of the types above, and it's worth considering by default for
+any status-flag-shaped column, not just this one.
+
+**8. Do queries always filter on a column combination together, not
+independently?**
+→ A **compound index**, ordered with the most selective/most-commonly-
+filtered column first (or the one narrowing the range in a partitioned
+table, so the query planner can combine it with partition pruning).
+Chapter 20's most important, counter-intuitive real finding belongs
+here: a naive single-column index on `sensor_readings.sensor_id` (a
+low-cardinality, evenly-scattered column, roughly 1-in-120 rows
+matching) made a real query **slower** — 338ms → 377ms — than the
+original parallel sequential scan, because a Bitmap Heap Scan at that
+scatter still has to visit nearly every heap page, while giving up the
+seq scan's free parallelism entirely. The actual fix needed both a
+realistic, time-bounded query (letting Chapter 8's partition pruning
+narrow to one month first) *and* a compound index,
+`(sensor_id, recorded_at)`, matching that query's actual shape — a
+real, measured ~4.5× win over pruning alone, ~43× over the original
+query. **Row count and column cardinality alone don't tell you whether
+an index will help — the physical scatter of matching rows across
+pages does, and the only way to know is `EXPLAIN (ANALYZE, BUFFERS)`
+against the real query shape, not an assumption about "add an index"
+being automatically correct.**
+
+## Quick-reference table
+
+| Index type | Best for | Chapter(s) | Real caveat found in this book |
+|---|---|---|---|
+| B-tree | Equality, range, `ORDER BY` | 1, 3, 15, 20 | Implicit casts silently defeat it — check `Index Cond` vs. `Filter` |
+| GIN (`jsonb`) | JSONB containment/existence | 1 | Two operator classes worth having side by side (default + `jsonb_path_ops`) |
+| GIN (`tsvector`) | Full-text search | 4, 16 | Pair with a *generated* `tsvector` column, not a trigger, where possible (Chapter 16) |
+| GIN (`pg_trgm`) | Fuzzy/substring matching | 5 | Faster queries, larger index/slower writes than the GiST alternative |
+| GiST (`pg_trgm`) | Fuzzy/substring matching | 5 | Smaller/faster to build; slower queries than GIN |
+| GiST (geometry) | Spatial containment/overlap | 2 | The only correct choice for `ST_*` operators — B-tree/GIN don't apply |
+| GiST (`ip4r`) | CIDR/range containment | 7 | Same shape of problem as spatial GiST, different domain |
+| BRIN | Huge, insertion-order-correlated columns | 8 | Only useful if physical order genuinely correlates — verify, don't assume |
+| HNSW | Vector ANN, best recall | 6 | Slower to build than IVFFlat |
+| IVFFlat | Vector ANN, faster build | 6 | Needs `lists`/`probes` tuning; recall degrades more as data grows |
+| Partial (any type) | Narrow, predictable subset of rows | 3, 18 | Free win wherever a status flag makes most rows permanently irrelevant |
+| Compound (any type) | Multi-column filter shapes | 20 | Match the index to the *actual query shape*, not just "the columns in the `WHERE` clause" — verified via `EXPLAIN`, not assumed |
+
+
+# Appendix E — Further Reading
+
+Official documentation and project sources for every chapter — not
+blog posts or opinion, deliberately. Each chapter's own exercises are
+the place for "how it actually behaves"; these are the primary sources
+for the parts a single lab exercise can't cover.
+
+| Chapter | Topic | Source |
+|---|---|---|
+| 1 | JSONB | [postgresql.org/docs/current/datatype-json.html](https://www.postgresql.org/docs/current/datatype-json.html) |
+| 2 | PostGIS | [postgis.net/documentation](https://postgis.net/documentation/) |
+| 3 | `FOR UPDATE`/`SKIP LOCKED` | [postgresql.org/docs/current/sql-select.html](https://www.postgresql.org/docs/current/sql-select.html) — locking clause section |
+| 4 | Full-text search | [postgresql.org/docs/current/textsearch.html](https://www.postgresql.org/docs/current/textsearch.html) |
+| 5 | `pg_trgm` | [postgresql.org/docs/current/pgtrgm.html](https://www.postgresql.org/docs/current/pgtrgm.html) |
+| 6 | pgvector | [github.com/pgvector/pgvector](https://github.com/pgvector/pgvector) |
+| 6 (bonus) | Sentence embeddings / Ollama | [sbert.net](https://www.sbert.net/), [ollama.com](https://ollama.com/) |
+| 7 | `ip4r` | [github.com/RhodiumToad/ip4r](https://github.com/RhodiumToad/ip4r) |
+| 8 | Partitioning | [postgresql.org/docs/current/ddl-partitioning.html](https://www.postgresql.org/docs/current/ddl-partitioning.html) |
+| 8 | BRIN indexes | [postgresql.org/docs/current/brin-intro.html](https://www.postgresql.org/docs/current/brin-intro.html) |
+| 9 | Materialized views | [postgresql.org/docs/current/rules-materializedviews.html](https://www.postgresql.org/docs/current/rules-materializedviews.html) |
+| 10 | PostgREST | [postgrest.org](https://postgrest.org/) |
+| 11 | Window functions | [postgresql.org/docs/current/tutorial-window.html](https://www.postgresql.org/docs/current/tutorial-window.html) |
+| 12 | Recursive CTEs | [postgresql.org/docs/current/queries-with.html](https://www.postgresql.org/docs/current/queries-with.html) |
+| 13 | `LISTEN`/`NOTIFY` | [postgresql.org/docs/current/sql-notify.html](https://www.postgresql.org/docs/current/sql-notify.html) |
+| 14 | Advisory locks | [postgresql.org/docs/current/explicit-locking.html](https://www.postgresql.org/docs/current/explicit-locking.html) — advisory locks section |
+| 15 | Types, domains, enums | [postgresql.org/docs/current/sql-createtype.html](https://www.postgresql.org/docs/current/sql-createtype.html), [sql-createdomain.html](https://www.postgresql.org/docs/current/sql-createdomain.html) |
+| 16 | Generated columns | [postgresql.org/docs/current/ddl-generated-columns.html](https://www.postgresql.org/docs/current/ddl-generated-columns.html) |
+| 17 | `postgres_fdw` / `file_fdw` | [postgresql.org/docs/current/postgres-fdw.html](https://www.postgresql.org/docs/current/postgres-fdw.html), [file-fdw.html](https://www.postgresql.org/docs/current/file-fdw.html) |
+| 17 | DuckDB (independent Parquet verification) | [duckdb.org](https://duckdb.org/) |
+| 17 | MinIO | [min.io](https://min.io/) |
+| 18 | Logical replication | [postgresql.org/docs/current/logical-replication.html](https://www.postgresql.org/docs/current/logical-replication.html) |
+| 19 | `pg_cron` | [github.com/citusdata/pg_cron](https://github.com/citusdata/pg_cron) |
+| 20 | `pg_stat_statements` | [postgresql.org/docs/current/pgstatstatements.html](https://www.postgresql.org/docs/current/pgstatstatements.html) |
+| 20 | `auto_explain` | [postgresql.org/docs/current/auto-explain.html](https://www.postgresql.org/docs/current/auto-explain.html) |
+| 21 | `CREATE PROPERTY GRAPH` / SQL/PGQ | [postgresql.org/docs/current/sql-create-property-graph.html](https://www.postgresql.org/docs/current/sql-create-property-graph.html) — check the version-specific docs, not just "current," since this feature is new as of PostgreSQL 19 |
+| 22 | `pg-ripple` | [github.com/trickle-labs/pg-ripple](https://github.com/trickle-labs/pg-ripple) |
+| 22 | SPARQL 1.1 | [w3.org/TR/sparql11-query](https://www.w3.org/TR/sparql11-query/) |
+| 22 | Turtle (RDF syntax) | [w3.org/TR/turtle](https://www.w3.org/TR/turtle/) |
+| 22 | SHACL | [w3.org/TR/shacl](https://www.w3.org/TR/shacl/) |
+| 23 | RDF Schema (RDFS) | [w3.org/TR/rdf-schema](https://www.w3.org/TR/rdf-schema/) |
+| 23 | OWL 2 Web Ontology Language | [w3.org/TR/owl2-overview](https://www.w3.org/TR/owl2-overview/) |
+
+## A note on reading these versus running the exercises
+
+This book's own recurring finding, most sharply in Chapters 21–23:
+official documentation and a specification describe what a feature is
+*meant* to do, not necessarily what a specific version actually does
+today. PostgreSQL 19's own SQL/PGQ documentation describes quantified
+path patterns as part of the feature; PostgreSQL 19 beta2 itself
+rejects them. `pg-ripple`'s README describes working RDFS reasoning
+and CLK Bloom-filter record linkage; this book's own testing found the
+former corrupts data and the latter misses real duplicates at default
+settings. None of that is a reason to skip the documentation — it's
+the reason every exercise in this book is written to run something
+real and check the actual output against it, rather than trust either
+source alone.
+
+
+# Appendix F — Syntax Quick Reference
+
+One page per chapter. Meant to be flipped to, not read start to end —
+the syntax this book actually used, nothing more. Where this book
+found something doesn't work as documented, it's flagged **⚠ verified
+broken/unsupported** right here, not just buried in that chapter's
+prose — don't copy those forms expecting them to work.
+
+### Chapter 1 — JSONB
+
+```sql
+details -> 'key'            -- get JSON value (as jsonb)
+details ->> 'key'           -- get JSON value (as text)
+details #>> '{a,b}'         -- get nested value by path (as text)
+details @> '{"k":"v"}'      -- containment
+details ? 'key'             -- key exists
+jsonb_set(details, '{k}', '"v"')
+jsonb_insert(details, '{arr,0}', '"v"')
+jsonb_array_elements(details -> 'tags')
+jsonb_path_query(details, '$.hours[*] ? (@.day == "sun")')
+CREATE INDEX ... USING GIN (details);
+CREATE INDEX ... USING GIN (details jsonb_path_ops);
+```
+
+### Chapter 2 — PostGIS
+
+```sql
+ST_GeomFromText('POINT(-1.1 50.8)', 4326)
+ST_DWithin(a.geom, b.geom, 500)          -- meters, if geography-cast
+ST_Within(point_geom, polygon_geom)
+ST_Contains(polygon_geom, point_geom)
+ST_Area(geom::geography)
+ST_Distance(a.geom, b.geom)
+CREATE INDEX ... USING GIST (geom);
+```
+
+### Chapter 3 — Job Queues
+
+```sql
+SELECT * FROM jobs
+WHERE status = 'queued'
+ORDER BY priority DESC, created_at
+FOR UPDATE SKIP LOCKED
+LIMIT 1;
+```
+
+### Chapter 4 — Full-Text Search
+
+```sql
+to_tsvector('english', body)
+to_tsquery('english', 'budget & housing')
+plainto_tsquery('english', 'budget housing')
+ts_rank(search_vector, query)
+ts_rank_cd(search_vector, query)
+ts_headline('english', body, query)
+CREATE TEXT SEARCH CONFIGURATION portsmith (COPY = english);
+CREATE INDEX ... USING GIN (search_vector);
+```
+
+### Chapter 5 — Fuzzy Matching
+
+```sql
+CREATE EXTENSION pg_trgm;
+similarity('a', 'b')
+word_similarity('needle', 'haystack containing needle')
+'query' % column                          -- similarity above pg_trgm.similarity_threshold
+CREATE INDEX ... USING GIN (name gin_trgm_ops);
+CREATE INDEX ... USING GIST (name gist_trgm_ops);
+```
+
+### Chapter 6 — pgvector
+
+```sql
+CREATE EXTENSION vector;
+embedding vector(384)
+embedding <-> query_vec      -- L2 distance
+embedding <#> query_vec      -- negative inner product
+embedding <=> query_vec      -- cosine distance
+CREATE INDEX ... USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX ... USING hnsw (embedding vector_cosine_ops);
+```
+
+### Chapter 7 — IP/Network (`ip4r`)
+
+```sql
+CREATE EXTENSION ip4r;
+ip '10.0.0.5' <<= cidr '10.0.0.0/24'      -- contained by
+cidr >> ip                                 -- contains
+network(addr), masklen(addr)
+CREATE INDEX ... USING GIST (cidr_range);
+```
+
+### Chapter 8 — Partitioning & BRIN
+
+```sql
+CREATE TABLE sensor_readings (...) PARTITION BY RANGE (recorded_at);
+CREATE TABLE sensor_readings_2024_01 PARTITION OF sensor_readings
+    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+ALTER TABLE sensor_readings DETACH PARTITION sensor_readings_2024_01;
+CREATE INDEX ... USING BRIN (recorded_at);
+```
+
+### Chapter 9 — Materialized Views
+
+```sql
+CREATE MATERIALIZED VIEW mv_sensor_daily AS SELECT ...;
+REFRESH MATERIALIZED VIEW mv_sensor_daily;
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_sensor_daily;  -- needs a unique index first
+```
+
+### Chapter 10 — PostgREST
+
+```sql
+CREATE ROLE web_anon NOLOGIN;
+CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD '...';
+GRANT web_anon TO authenticator;
+GRANT SELECT ON api.businesses TO web_anon;
+CREATE POLICY resident_self_only ON residents FOR SELECT
+    USING (id = current_setting('request.jwt.claims', true)::json ->> 'resident_id');
+```
+```bash
+postgrest postgrest.conf
+```
+
+### Chapter 11 — Window Functions
+
+```sql
+SELECT sensor_id, recorded_at,
+       AVG(value) OVER (PARTITION BY sensor_id ORDER BY recorded_at
+                         ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS rolling_avg,
+       RANK() OVER (PARTITION BY sensor_id ORDER BY value DESC) AS rnk
+FROM sensor_readings;
+```
+
+### Chapter 12 — Recursive CTEs
+
+```sql
+WITH RECURSIVE reports AS (
+    SELECT id, manager_id, 0 AS depth FROM city_org WHERE id = 1
+    UNION ALL
+    SELECT c.id, c.manager_id, r.depth + 1
+    FROM city_org c JOIN reports r ON c.manager_id = r.id
+)
+SELECT * FROM reports;
+
+WITH RECURSIVE walk AS (
+    ...
+    CYCLE id SET is_cycle USING path
+)
+SELECT * FROM walk;
+```
+
+### Chapter 13 — `LISTEN`/`NOTIFY`
+
+```sql
+LISTEN permit_updates;
+NOTIFY permit_updates, '{"job_id": 42}';
+pg_notify('permit_updates', payload);
+UNLISTEN permit_updates;
+```
+
+### Chapter 14 — Advisory Locks
+
+```sql
+pg_try_advisory_lock(hashtext('demolition_permit'))
+pg_advisory_lock(key)          -- session-level, must be explicitly unlocked
+pg_advisory_unlock(key)
+pg_advisory_xact_lock(key)     -- transaction-level, auto-released on commit/rollback
+SELECT * FROM pg_locks WHERE locktype = 'advisory';
+```
+
+### Chapter 15 — Custom Types, Domains, Enums
+
+```sql
+CREATE TYPE job_status AS ENUM ('queued','on_hold','in_progress','completed','failed','cancelled');
+ALTER TYPE job_status ADD VALUE 'on_hold' AFTER 'queued';
+CREATE DOMAIN positive_integer AS INTEGER CHECK (VALUE > 0);
+CREATE TYPE contact_info AS (phone TEXT, postcode uk_postcode);
+```
+
+### Chapter 16 — Generated Columns
+
+```sql
+ALTER TABLE sensor_readings
+    ADD COLUMN reading_date DATE
+    GENERATED ALWAYS AS ((recorded_at AT TIME ZONE 'UTC')::date) STORED;
+-- bare ::date on a timestamptz fails: "generation expression is not immutable"
+```
+
+### Chapter 17 — Foreign Data Wrappers
+
+```sql
+CREATE EXTENSION postgres_fdw;
+CREATE SERVER legacy_srv FOREIGN DATA WRAPPER postgres_fdw
+    OPTIONS (host 'localhost', dbname 'portsmith_legacy');
+CREATE USER MAPPING FOR chris SERVER legacy_srv
+    OPTIONS (user 'chris', password 'fdw-demo-password');
+IMPORT FOREIGN SCHEMA public FROM SERVER legacy_srv INTO public;
+
+CREATE EXTENSION file_fdw;
+CREATE FOREIGN TABLE census_raw (...) SERVER file_srv
+    OPTIONS (filename '/tmp/census.csv', format 'csv', header 'true');
+```
+
+### Chapter 18 — Logical Replication
+
+```sql
+ALTER SYSTEM SET wal_level = 'logical';  -- own -c call, needs restart
+CREATE PUBLICATION portsmith_pub FOR TABLE businesses (id, name, ...) WHERE (active = true);
+SELECT pg_create_logical_replication_slot('portsmith_slot', 'pgoutput');
+CREATE SUBSCRIPTION portsmith_sub CONNECTION '...' PUBLICATION portsmith_pub
+    WITH (create_slot = false, slot_name = 'portsmith_slot');
+ALTER TABLE businesses REPLICA IDENTITY USING INDEX idx_businesses_replident;
+```
+
+### Chapter 19 — `pg_cron`
+
+```sql
+CREATE EXTENSION pg_cron;
+SELECT cron.schedule('refresh-mv-sensor-daily', '0 * * * *', $$CALL refresh_and_log('mv_sensor_daily')$$);
+SELECT cron.schedule_in_database('legacy-analyze', '0 4 * * *', 'ANALYZE businesses_archive', 'portsmith_legacy');
+SELECT * FROM cron.job_run_details ORDER BY start_time DESC NULLS LAST;
+```
+
+### Chapter 20 — `pg_stat_statements` / `EXPLAIN`
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
+SELECT query, calls, total_exec_time, mean_exec_time
+FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;
+SELECT pg_stat_statements_reset();
+ALTER SYSTEM SET auto_explain.log_min_duration = 200;
+SELECT pg_reload_conf();
+```
+
+### Chapter 21 — SQL/PGQ (PostgreSQL 19 beta2)
+
+```sql
+CREATE PROPERTY GRAPH city_org_graph
+    VERTEX TABLES ( city_org KEY (id) LABEL employee PROPERTIES ALL COLUMNS )
+    EDGE TABLES (
+        city_org AS reports_to KEY (id)
+            SOURCE KEY (id) REFERENCES city_org (id)
+            DESTINATION KEY (manager_id) REFERENCES city_org (id)
+            LABEL reports_to NO PROPERTIES
+    );
+
+SELECT * FROM GRAPH_TABLE (city_org_graph
+    MATCH (a IS employee) -[IS reports_to]-> (b IS employee)
+    COLUMNS (a.name, b.name)
+);
+```
+
+**⚠ verified broken/unsupported (beta2):**
+```sql
+-- quantified path patterns -- both forms rejected:
+MATCH (a) (-[IS reports_to]->(b)){1,10} (root)     -- "unsupported element pattern kind"
+MATCH (a) -[IS reports_to]->{1,10} (root)          -- "element pattern quantifier is not supported"
+```
+No working substitute exists in this release — use Chapter 12's
+`WITH RECURSIVE` for anything of unbounded/unknown depth.
+
+### Chapter 22 — RDF / `pg-ripple`
+
+```sql
+SELECT pg_ripple.load_turtle(turtle_text, false);
+SELECT * FROM pg_ripple.sparql('SELECT ?s ?o WHERE { ?s :locatedIn ?o }');
+SELECT pg_ripple.sparql_update('INSERT DATA { ... }');
+SELECT pg_ripple.load_shacl(shacl_text);
+SELECT pg_ripple.shacl_score('default');
+SELECT pg_ripple.shacl_report_scored('default');
+```
+```sparql
+-- property paths (these work correctly):
+:a :adjacentTo+ ?n                    -- one-or-more, directed
+:a (:adjacentTo|^:adjacentTo)+ ?n     -- one-or-more, either direction
+```
+
+**⚠ verified broken:** custom Datalog rules
+(`pg_ripple.load_rules()`/`infer()`) — multi-atom rule bodies don't
+chain correctly; a rule head's second variable binds to the wrong
+value regardless of body atom order. Reproduced on an isolated
+3-triple example, not just the chapter's larger dataset.
+
+**⚠ gotcha:** `DELETE WHERE { pat1 . pat2 }` deletes *every* pattern
+per matched solution, not just the one you meant — use `DELETE DATA`
+with exact triples for anything you can't afford to lose collaterally.
+
+### Chapter 23 — Ontologies
+
+```sql
+-- correct, reliable way to query a class hierarchy (no infer() needed):
+SELECT * FROM pg_ripple.sparql(
+  'SELECT ?super WHERE { :Category_seafood <...#subClassOf>* ?super }'
+);
+SELECT pg_ripple.load_rules_builtin('rdfs');   -- valid names discovered via a bogus-name error:
+                                                -- rdfs, owl-rl, owl-el, owl-ql, skos, skos-transitive,
+                                                -- skosxl, dcterms, dcterms-integrity, schema,
+                                                -- schema-integrity, foaf, foaf-integrity
+```
+
+**⚠ verified broken, and dangerous:** `pg_ripple.infer('rdfs')` does
+not correctly propagate `rdf:type` up a class hierarchy, and was
+verified — twice, isolated test and full dataset — to **overwrite real
+classification triples** with an incorrect self-type
+(`:business_N a :business_N`) and a spurious `a rdfs:Class`. Treat any
+`infer()` call with a built-in rule set as a real write against the
+whole default graph, not a safe query. Back up before running it.
+
+

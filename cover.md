@@ -1,7 +1,8 @@
 # The Portsmith Papers
-## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
 <img src="imgs/cover.svg" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
+
+## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
 ---
 
@@ -10,7 +11,7 @@
 
 ---
 
-### About This Book
+# About This Book
 
 Most PostgreSQL tutorials end where the interesting work begins.
 
@@ -26,7 +27,7 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 **What you will need:**
 
-- A working PostgreSQL 16 installation (setup covered in Appendix A)
+- A working PostgreSQL 16 installation, plus two disposable Docker containers (PostgreSQL 19 and 18) for the final chapters — setup for all three covered in Appendix A
 - Python 3.12+
 - A Debian-based Linux environment
 - Familiarity with basic SQL (`SELECT`, `INSERT`, `JOIN`, `GROUP BY`)
@@ -34,10 +35,6 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 ---
 
-### Author
-
 **Chris Lee**  
 
----
-
-*Edition 1.0 — Portsmith, 2026*
+*Edition 1.0 — September 12, 2026*

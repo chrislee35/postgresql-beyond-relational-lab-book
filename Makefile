@@ -48,7 +48,8 @@ $(OUTPUT).md: $(INPUT) diagrams | $(OUTDIR)
 	mkdir -p $(OUTDIR)/imgs $(OUTDIR)/css
 	rm -rf $(OUTPUT).md
 	for file in $(INPUT); do \
-		cat "$$file" >> $(OUTPUT).md >> $(OUTPUT).md; \
+		cat "$$file" >> $(OUTPUT).md; \
+		printf '\n\n' >> $(OUTPUT).md; \
 	done
 	cat $(OUTPUT).md | utils/fix_links.py > $(OUTPUT).md2
 	mv $(OUTPUT).md2 $(OUTPUT).md
@@ -56,7 +57,6 @@ $(OUTPUT).md: $(INPUT) diagrams | $(OUTDIR)
 	# copy resources
 	cp imgs/* $(OUTDIR)/imgs
 	cp css/* $(OUTDIR)/css
-	#find chapters/ \( -name '*.png' -o -name '*.jpg' -o -name '*.gif' -o -name '*.jpeg' \) -exec cp "{}" $(OUTDIR)/imgs \;
 
 # Generate HTML
 html: $(OUTPUT).md
@@ -73,10 +73,9 @@ pdf: $(OUTPUT).md
 	cd $(OUTDIR) && \
 	sed -E 's#(src="imgs/[A-Za-z0-9_-]+)\.svg#\1.png#g' $(FILEBASE).md > $(FILEBASE).pdf.md && \
 	pandoc $(FILEBASE).pdf.md -o $(FILEBASE).pdf \
-		--metadata title=$(TITLE) \
 		--pdf-engine=weasyprint \
 		-c css/pdf.css \
-		--toc \
+		--dpi=300 \
 		--standalone
 
 # Generate EPUB

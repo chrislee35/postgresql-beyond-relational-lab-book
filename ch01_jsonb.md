@@ -890,4 +890,5 @@ of the harbour, and which neighbourhood does each one belong to.
 `jsonb_path_query_array` and `jsonb_path_query_first` variants are useful for
 pagination and single-value extraction. For write-heavy workloads, profile
 whether `JSONB` or a computed stored column (Chapter 16) gives better
-`INSERT`/`UPDATE` throughput on your hardware.*
+`INSERT`/`UPDATE` throughput on your hardware.*  
+
