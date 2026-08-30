@@ -1,3 +1,8 @@
 .venv
 .claude
 node_modules
+
+# Book build output -- now built and published by
+# .github/workflows/publish-book.yml on each tagged release, not
+# meant to be committed from local `make` runs anymore.
+psql-book/
