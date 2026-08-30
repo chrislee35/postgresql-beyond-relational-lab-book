@@ -1,9 +1,9 @@
 # Appendix A — Environment Setup
 
 This book does not run on one PostgreSQL installation. It runs on
-**three**, and that split is itself a real finding worth understanding
+**four**, and that split is itself a real finding worth understanding
 before you set anything up, not an accident of how the book was
-written: Chapters 1–20 share one long-lived cluster; Chapters 21–23
+written: Chapters 1–20 share one long-lived cluster; Chapters 21–24
 each needed a separate, disposable one, for reasons specific to what
 each chapter was testing.
 
@@ -12,8 +12,9 @@ each chapter was testing.
 | Main cluster | 1–20 | PostgreSQL 16 | Installed directly on the host (`apt`) |
 | SQL/PGQ container | 21 | PostgreSQL 19 beta2 | `docker/ch21/` |
 | `pg-ripple` container | 22–23 | PostgreSQL 18 | `docker/ch22/` |
+| `pgColumnar` container | 24 | PostgreSQL 18 | `docker/ch24/` |
 
-## Why three, not one
+## Why four, not one
 
 The main cluster accumulates real, cumulative state across twenty
 chapters — roles, grants, two databases, rows mutated by earlier
@@ -30,6 +31,15 @@ matter in practice: Chapter 21's PostgreSQL 19 needed rebuilding from
 scratch after a packaging misconfiguration, and Chapter 22's container
 was restarted mid-chapter to fix a `shared_preload_libraries` setting.
 Neither touched the main cluster at all.
+
+Chapter 24 is the sharpest version of this lesson, because it isn't
+hypothetical: `pgColumnar` was tried against the main cluster *first* —
+reasonable, since it needs nothing beta or built from source — and a
+genuine `ALTER SYSTEM SET` bug (a `shared_preload_libraries` update
+silently mis-quoted into one broken value) took the entire cluster
+down for real, mid-book, before the fourth container replaced that
+attempt. Isolation here isn't precautionary; it's a direct response to
+an outage that already happened once on this exact extension.
 
 ## The main cluster (Chapters 1–20)
 
@@ -110,18 +120,41 @@ from its very first start to get `pg-ripple`'s background workers
 running (the same class of gotcha Chapters 19–20's `pg_cron`/
 `pg_stat_statements` needed on the main cluster).
 
-## Connecting to all three
+## The second PostgreSQL 18 container (Chapter 24)
+
+`docker/ch24/` — same three-file shape again, a second, separate
+PostgreSQL 18 container rather than reusing Chapter 22–23's (kept apart
+so a `pgColumnar` crash or a bad `docker compose down -v` can't take
+`pg-ripple`'s state with it, and vice versa).
+
+```bash
+cd docker/ch24
+docker compose up --build
+```
+
+Listens on host port **5435**. No beta packaging dance and no Rust
+build here — `pgColumnar` is a plain C extension built via PGXS against
+`postgresql-server-dev-18` — but two things still matter, both folded
+into this image directly: the dev headers are easy to forget (a bare
+`postgresql-18` package doesn't include them), and
+`shared_preload_libraries` is written into `postgresql.conf` *before*
+the first `pg_ctl start`, never as a live `ALTER SYSTEM SET` — see this
+appendix's own "Why four, not one" section for exactly what that
+setting broke when it was tried the other way.
+
+## Connecting to all four
 
 ```bash
 psql portsmith                                                       # main cluster, PG16
 psql -h localhost -p 5433 -U chris -d portsmith19                    # Chapter 21, PG19 beta2
 psql -h localhost -p 5434 -U chris -d portsmith22                    # Chapters 22-23, PG18
+psql -h localhost -p 5435 -U chris -d portsmith24                    # Chapter 24, PG18
 ```
 
-Both container passwords are set directly in their respective
-`docker-compose.yml` files (`ch21-scratch`, `ch22-scratch`) — these are
-throwaway scratch instances, not meant to hold anything you'd mind
-losing to a `docker compose down -v`.
+All container passwords are set directly in their respective
+`docker-compose.yml` files (`ch21-scratch`, `ch22-scratch`,
+`ch24-scratch`) — these are throwaway scratch instances, not meant to
+hold anything you'd mind losing to a `docker compose down -v`.
 
 ## A note for anyone continuing this book
 
@@ -133,3 +166,13 @@ real classification data with incorrect facts. Don't run it against
 data in that container you haven't already exported, and see Chapter
 23 Exercise 2 for the full, reproduced finding before relying on it for
 anything.
+
+**Chapter 24 has a standing, queued follow-up, not yet done:**
+`pgcolumnar_parquet`'s row-group skip was filed upstream as
+[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850)
+and is still open as of this writing. Anyone picking this chapter back
+up should check that issue first — if it's closed, Exercise 5 needs a
+full retest against the fixed build, and the Decision Guide's Parquet
+FDW row should be updated to match, the same way Chapter 21's own
+findings were framed as provisional to whatever beta was current at
+the time.

@@ -1,6 +1,6 @@
 # The Portsmith Papers
 
-<img src="imgs/cover.svg" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
+<img src="imgs/portsmith-art.jpg" alt="The harbour of Portsmith Art" width="800"/>
 
 ## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 

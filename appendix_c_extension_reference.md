@@ -70,6 +70,15 @@ chapter by chapter, on the main cluster:
   .pgpass` entry for the job-owning role's password, or every
   scheduled job fails with `connection failed` and no corresponding
   entry in the server log.
+- Chapter 24's `pgColumnar` needs its own `USAGE` grants beyond
+  installing the extension, twice: `GRANT USAGE ON SCHEMA pgcolumnar` +
+  `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pgcolumnar` before a
+  non-superuser role can call any `pgcolumnar.*` maintenance function
+  (creating and querying a table `USING pgcolumnar` needs neither), and
+  a second, separate `GRANT USAGE ON FOREIGN DATA WRAPPER
+  pgcolumnar_parquet` before that role can `CREATE SERVER` against it —
+  the same shape of gate Chapter 17 already documented for
+  `postgres_fdw`/`file_fdw`.
 
 None of this is unique to this book's exact setup — it's the general
 shape of PostgreSQL's privilege model, and the book's own experience

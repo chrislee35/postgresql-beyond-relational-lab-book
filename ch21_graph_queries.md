@@ -33,6 +33,17 @@ out, empirically, what the beta actually supports — which turned out to
 be a genuinely different (and smaller) feature than the placeholder
 outline assumed. That gap is most of this chapter's real content.
 
+This chapter's exercises were first verified against PostgreSQL 19
+beta2, then re-run in full against **beta3** once it was released —
+same container recipe, same rebuild, a fresh `pg_dropcluster`'d cluster
+underneath. Every finding held: the same two quantified-path forms
+still fail with byte-for-byte identical errors, and everything that
+worked in beta2 still works. Where the chapter shows a captured
+transcript below, it's beta3's output; anywhere the two betas diverged
+is called out explicitly. That the retest was this uneventful is itself
+the point worth taking away — for beta software, "still true" is a
+result you check, not one you assume.
+
 ---
 
 ## The Scenario
@@ -63,9 +74,10 @@ By the end of this chapter you will be able to:
 - Write `GRAPH_TABLE` pattern-matching queries, including undirected
   edge patterns.
 - Know precisely which of SQL/PGQ's standard-defined features are
-  actually implemented in PostgreSQL 19 beta2, versus which ones parse
-  as errors today — verified directly, not assumed from the standard.
-  Verified is not implied — the beta's own errors are the appendix.
+  actually implemented in PostgreSQL 19 (beta2, re-verified on beta3),
+  versus which ones parse as errors today — verified directly, not
+  assumed from the standard. Verified is not implied — the beta's own
+  errors are the appendix.
 - Decide, for a given traversal, whether `GRAPH_TABLE` is a genuine
   readability win today or whether Chapter 12's recursive CTE is still
   the only tool that actually works.
@@ -135,12 +147,20 @@ WARNING:  authenticated with an MD5-encrypted password
 DETAIL:  MD5 password support is deprecated and will be removed in a future release of PostgreSQL.
                                                      version
 ------------------------------------------------------------------------------------------------------------------
- PostgreSQL 19beta2 (Debian 19~beta2-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+ PostgreSQL 19beta3 (Debian 19~beta3-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
 ```
 
 That `MD5 password support is deprecated` warning is itself a small,
 real signal of what's coming in a future major version, seen live
-rather than read about in a release note.
+rather than read about in a release note — and it's still there
+verbatim in beta3, unchanged. Getting this far required no changes to
+`docker/ch21/Dockerfile` at all: it never pinned a specific beta, so
+rebuilding it with `docker compose build --no-cache` against the same
+PGDG `main 19` component simply picked up whatever PGDG was currently
+publishing there. Since a beta's on-disk format can change between
+pre-releases, the old cluster's data volume was dropped first
+(`docker compose down -v`) rather than reused — a fresh `initdb` under
+beta3's own binaries, not an upgrade attempt.
 
 **Getting Chapter 12's data across.** `intersections.geom` is a real
 PostGIS `GEOMETRY(POINT, 4326)` column, and PostGIS packages for a
@@ -304,14 +324,26 @@ ORDER BY employee;
  Marcus Reilly  | Patrol Captain                  | Diane Okonjo       | Coretta Vance
  Paula Mensah   | Records Sergeant                | Diane Okonjo       | Coretta Vance
  Ray Castellano | Building Inspector              | Helena Cross       | Coretta Vance
+ Renata Sikes   | City Accountant                 | Julian Ostrowski   | Coretta Vance
+ Tom Delgado    | Water & Sewer Supervisor        | Marcus Webb        | Coretta Vance
+ Zara Lindholm  | Systems Administrator           | Wendell Achebe     | Coretta Vance
 ```
 
 A self-join written by hand to answer this — `city_org a JOIN city_org b
 ON a.manager_id = b.id JOIN city_org c ON b.manager_id = c.id` — returns
-the identical rows. Whether the pattern-matching form is actually
-*more* readable than that join is genuinely a judgment call; it's at
-least no worse, and it stops looking like an accident of how the join
-happened to be written.
+the identical 11 rows on the same freshly-loaded data, confirmed
+directly during the beta3 retest. Whether the pattern-matching form is
+actually *more* readable than that join is genuinely a judgment call;
+it's at least no worse, and it stops looking like an accident of how
+the join happened to be written.
+
+*(This table originally showed 8 rows, missing Renata Sikes, Tom
+Delgado, and Zara Lindholm — not a beta-version difference, but the
+live `portsmith` database's `city_org` having drifted since this
+chapter's first capture. Re-exporting Chapter 12's data for the beta3
+retest pulled the current, correct tree — the same one Chapter 12
+itself documents — so the table above reflects that, not beta3
+behavior.)*
 
 ---
 
@@ -321,8 +353,7 @@ This is the exercise the original chapter outline assumed would work,
 and the actual finding worth this whole chapter existing: **SQL/PGQ's
 quantified path patterns — the `{m,n}` repetition syntax that makes
 "walk zero-or-more/one-or-more hops" possible — are not implemented in
-PostgreSQL 19 beta2.** Two different attempts, two different real
-errors:
+PostgreSQL 19.** Two different attempts, two different real errors:
 
 ```sql
 MATCH (a IS employee WHERE a.name = 'Leo Park') (-[IS reports_to]->(IS employee)){1,10} (root IS employee)
@@ -336,18 +367,23 @@ Both forms the SQL:2023 standard defines for repeating a path — a
 quantified nested group, and a quantifier directly on an edge pattern —
 are parsed far enough to be recognized and then explicitly rejected as
 unsupported. This isn't a syntax mistake on this book's part; it's a
-real, verified gap in what's shipped so far in this beta.
+real, verified gap in what's shipped so far.
+
+**Retested against beta3 after this chapter first shipped against
+beta2 — both errors came back character-for-character identical.**
+Nothing about this gap moved between the two betas; whatever's blocking
+quantified paths clearly wasn't on beta3's list of changes.
 
 The practical consequence: **Chapter 12's recursive CTEs are still the
-only tool in PostgreSQL 19 beta2 that can walk a graph to an unknown
-depth.** "Walk any node to the root," "find the shortest path with no
-upper bound on hops," and "detect a cycle by construction" — all three
-of Chapter 12's headline capabilities — have no `GRAPH_TABLE`
+only tool in PostgreSQL 19 (through beta3) that can walk a graph to an
+unknown depth.** "Walk any node to the root," "find the shortest path
+with no upper bound on hops," and "detect a cycle by construction" —
+all three of Chapter 12's headline capabilities — have no `GRAPH_TABLE`
 equivalent yet, no matter how the pattern is phrased. Whether that
-changes before PostgreSQL 19's actual GA release is worth checking
-directly against a later beta or release candidate, the same way this
-finding itself was reached: by running the query, not by reading the
-standard.
+changes before PostgreSQL 19's actual GA release is still worth
+checking directly against a later beta, a release candidate, or GA
+itself — the same way both findings so far were reached: by running the
+query, not by reading the standard.
 
 ---
 
@@ -427,7 +463,7 @@ This is Exercise 4's wall again, in a second dataset.
 
 ---
 
-## Decision Guide: Recursive CTE vs. `GRAPH_TABLE`, as of PostgreSQL 19 Beta2
+## Decision Guide: Recursive CTE vs. `GRAPH_TABLE`, as of PostgreSQL 19 Beta3
 
 | Need | Use |
 |---|---|
@@ -436,20 +472,22 @@ This is Exercise 4's wall again, in a second dataset.
 | Everything needs to stay inside one cluster, no new storage | Either — both query existing tables directly |
 | A workload that's *fundamentally* graph-shaped at production scale (millions of nodes, deep unbounded traversal as the primary access pattern) | Neither, necessarily — this is the point in the decision tree where a dedicated graph database (Neo4j and similar) starts to be worth the operational cost of running a second system, though nothing in this chapter's small, in-memory-sized dataset actually demonstrates that threshold being crossed |
 
-The honest summary: PostgreSQL 19 beta2 ships real, working
-infrastructure for declaring and pattern-matching property graphs, and
-for the specific class of fixed-depth queries it supports, it's a
-genuine readability improvement over hand-written joins. It does not
-yet replace recursive CTEs for anything Chapter 12 actually needed them
-for. That could easily change before general availability — quantified
-path patterns are explicitly part of the SQL:2023 standard this feature
-implements, and "not yet supported" read from a beta's own error
-message is a very different claim than "not supported," worth
-re-verifying against whatever release you're actually running.
+The honest summary: PostgreSQL 19 ships real, working infrastructure
+for declaring and pattern-matching property graphs, and for the
+specific class of fixed-depth queries it supports, it's a genuine
+readability improvement over hand-written joins. It does not yet
+replace recursive CTEs for anything Chapter 12 actually needed them
+for — true as of beta2, and, after an actual retest rather than an
+assumption, still true as of beta3. That could still change before
+general availability — quantified path patterns are explicitly part of
+the SQL:2023 standard this feature implements, and "not yet supported"
+read from a beta's own error message is a very different claim than
+"not supported," worth re-verifying again against whatever release
+you're actually running.
 
 ---
 
-<img src="imgs/ch21_query_model_wall.svg" alt="Diagram contrasting two query models over the same city_org and road_segments tables. Left path: Chapter 12's WITH RECURSIVE CTE, unbounded depth, working today for walk-to-root, shortest-path, and cycle detection. Right path: PostgreSQL 19 beta2's CREATE PROPERTY GRAPH and GRAPH_TABLE, which succeeds for fixed-depth pattern matches and undirected edges, but hits a wall at quantified variable-length path patterns, marked with the two real captured errors: unsupported element pattern kind nested path pattern, and element pattern quantifier is not supported."/>
+<img src="imgs/ch21_query_model_wall.svg" alt="Diagram contrasting two query models over the same city_org and road_segments tables. Left path: Chapter 12's WITH RECURSIVE CTE, unbounded depth, working today for walk-to-root, shortest-path, and cycle detection. Right path: PostgreSQL 19 beta3's CREATE PROPERTY GRAPH and GRAPH_TABLE, which succeeds for fixed-depth pattern matches and undirected edges, but hits a wall at quantified variable-length path patterns, marked with the two real captured errors: unsupported element pattern kind nested path pattern, and element pattern quantifier is not supported."/>
 
 ---
 
@@ -460,9 +498,9 @@ re-verifying against whatever release you're actually running.
 | `CREATE PROPERTY GRAPH` | Declares existing tables as a labeled graph — no new storage, a view over what you already have |
 | `GRAPH_TABLE` with fixed-depth patterns | A genuinely more declarative way to write a known-depth traversal or self-join |
 | `-[ ]-` (undirected edge pattern) | A real, clean replacement for a hand-written `UNION` of both directions |
-| Quantified path patterns (`{m,n}`) | Standard-defined, but **not implemented in PostgreSQL 19 beta2** — verified via two distinct real errors, not assumed |
+| Quantified path patterns (`{m,n}`) | Standard-defined, but **not implemented as of PostgreSQL 19 beta3** — verified via two distinct real errors, unchanged from beta2 on a full retest |
 | Chapter 12's `WITH RECURSIVE` | Still the only working tool in this release for any traversal of unknown or unbounded depth |
-| A second, disposable Docker cluster | The right way to try a beta major version without touching a cluster carrying real cumulative state |
+| A second, disposable Docker cluster | The right way to try a beta major version without touching a cluster carrying real cumulative state — and to retest cleanly against a newer beta later, since the Dockerfile has nothing pinned to un-pin |
 
 **The key design insight** from this chapter is less about SQL/PGQ
 itself than about how to evaluate a beta feature honestly: read what
@@ -471,7 +509,10 @@ really there, and report the difference plainly rather than writing the
 chapter the outline assumed would be true. Every other chapter in this
 book got to lean on a stable, GA PostgreSQL; this one is a reminder
 that "run the real thing" sometimes means the real thing tells you
-"not yet."
+"not yet." The beta3 retest adds the other half of that discipline:
+"not yet" isn't a one-time verdict either — it needs re-checking against
+each new pre-release, and this time re-checking it cost nothing more
+than a container rebuild and confirmed the same answer.
 
 ---
 

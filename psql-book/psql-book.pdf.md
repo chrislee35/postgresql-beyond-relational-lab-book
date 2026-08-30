@@ -1,6 +1,6 @@
 # The Portsmith Papers
 
-<img src="imgs/cover.png" alt="A rowboat moored at the dock of a small fishing port — the harbour of Portsmith at dawn" width="800"/>
+<img src="imgs/portsmith-art.jpg" alt="The harbour of Portsmith Art" width="800"/>
 
 ## A Hands-On Tour of PostgreSQL Beyond the Relational Model
 
@@ -13998,13 +13998,42 @@ unattended.*
 
 ## Background
 
-Chapter 17 reached across to another database at query time, live,
-through `postgres_fdw` — every `SELECT` was a real network round-trip,
-answered fresh. **Logical replication** solves a different problem: it
-streams every row-level change out of PostgreSQL, continuously, so a
-second database ends up with its own independent, current copy —
-queryable locally, with its own indexes, at none of the join-time
-latency an FDW pays.
+Every business and permit in Portsmith lives in one place: `portsmith`,
+the operational database every clerk's terminal and every intake job
+reads and writes directly. That's exactly where it should live — until
+the city decides it also wants a public-facing **Business Finder**
+portal, so a resident can search "what's open in Old Town" or check
+whether their neighbor's demolition permit has cleared, without calling
+City Hall.
+
+Pointing the portal straight at `portsmith` — a live connection, or
+Chapter 17's `postgres_fdw` reaching across at query time — is the
+obvious first idea, and IT rejects it fast. A Saturday-morning traffic
+spike on the public site has no business competing for locks and
+connections with a clerk mid-edit on a permit. The portal also has no
+business seeing everything `portsmith` has: no PostGIS geometry, no
+internal search-ranking internals, and definitely nothing from
+businesses that have since closed. And a nightly export job — the
+other obvious idea — means a business that reopens Tuesday morning
+doesn't show as open on the portal until Wednesday's batch run, which
+isn't good enough for something citizens are expected to trust.
+
+What the city actually wants is a second, independent copy of just the
+public-facing slice of `businesses` and `jobs` — one the portal can hit
+as hard as it likes without touching the real system, that only ever
+shows currently-active businesses, and that updates itself the moment
+something changes upstream, with nobody babysitting a cron job.
+**Logical replication** is exactly that: it streams every row-level
+change out of PostgreSQL, continuously, so a second database ends up
+with its own current copy — queryable locally, with its own indexes,
+filtered down to only the columns and rows that copy is allowed to see.
+Experientially, once it's running, it disappears: a clerk approves a
+new registration in `portsmith`, and a moment later — no refresh
+button, no scheduled job, nobody polling anything — that business is
+searchable on the portal. This chapter builds the portal's copy as
+`portsmith_legacy`, the same second database Chapter 17 introduced,
+now playing a different role: instead of something `portsmith` reaches
+into, it's something `portsmith` continuously pushes into.
 
 The mechanism underneath is the same **write-ahead log (WAL)** every
 PostgreSQL install already produces for crash recovery, decoded into a
@@ -14046,10 +14075,11 @@ read directly from Python.
 | `data/ch18_replication_stream.py` | *(new)*                            | Consumes `demo_test_decoding` at the wire protocol level |
 
 `portsmith_legacy` is the same second database Chapter 17 created —
-reused here as the subscriber, on the same PostgreSQL instance as the
-publisher. That choice is convenient for a lab environment and, as
-Exercise 2 shows, not free: it creates a real deadlock a genuinely
-separate instance wouldn't.
+now standing in for the Business Finder portal's own database, on the
+same PostgreSQL instance as the publisher. That's convenient for a lab
+environment and, as Exercise 2 shows, not free: it creates a real
+deadlock a genuinely separate instance (which is what a real portal
+database would be) wouldn't.
 
 ---
 
@@ -14186,7 +14216,11 @@ CREATE PUBLICATION
 name a subset of a table's columns, not just a subset of its rows.
 Here that's what makes the narrower subscriber schema above valid at
 all: `geom` and `search_vector` are simply never offered, so
-`portsmith_legacy` never needs to know they exist.
+`portsmith_legacy` never needs to know they exist. Practically, this
+is the city deciding what the portal is *allowed* to see: internal
+geometry and search-ranking internals stay behind in `portsmith`,
+never even leaving the publisher's WAL decode step for this
+publication.
 
 ```sql
 SELECT pubname, puballtables FROM pg_publication;
@@ -14354,10 +14388,20 @@ SELECT id, name, employee_count FROM businesses WHERE name = 'Harbor Light Cafe'
 
 No polling, no manual refresh — the row is there because a walsender
 process pushed it the moment the `INSERT` committed on the publisher.
+This is the payoff the whole chapter is built around: a clerk enters
+Harbor Light Cafe's registration in `portsmith`, and — with nobody
+running a sync script, no nightly job, nothing on a timer — it's
+already sitting in the portal's own database, ready for the next
+citizen search.
 
 ---
 
 ### Exercise 3 — Inspecting Slot and Replication State
+
+This is the question an operator actually asks about the Business
+Finder portal: is it still current, or has it quietly fallen behind
+without anyone noticing? These two views are how you'd answer that —
+in a monitoring dashboard, not just by hand.
 
 ```sql
 -- in portsmith
@@ -14413,6 +14457,13 @@ this view for.
 ---
 
 ### Exercise 4 — Row-Filtered Publication: Active Businesses Only
+
+A citizen searching the Business Finder portal for a seafood restaurant
+in Old Town doesn't want three shuttered storefronts in the results.
+The column list in Exercise 1 controlled *what* the portal sees about
+each business; this exercise controls *which businesses* it sees at
+all — closed ones simply shouldn't exist as far as `portsmith_legacy`
+is concerned.
 
 **4.1 — Give `businesses` something to filter on**
 
@@ -14562,8 +14613,10 @@ SELECT id FROM businesses WHERE id = 49;
 ```
 
 Gone — correctly filtered out the moment `active` flipped, effectively
-replicated as a delete. Flipping a previously-closed business back to
-active does the reverse:
+replicated as a delete. That's the portal experience made concrete: a
+business owner closes up shop, a clerk flips one flag in `portsmith`,
+and the listing vanishes from public search — not tomorrow, right now.
+Flipping a previously-closed business back to active does the reverse:
 
 ```sql
 UPDATE businesses SET active = true WHERE id = 6;
@@ -14598,6 +14651,15 @@ client to read directly. Anything that wants to consume the *raw*
 change stream — a custom sync tool, or (Exercise 6) Debezium — talks
 the same underlying replication protocol, just with a different output
 plugin and its own logic for what to do with each change.
+
+Not every downstream consumer of Portsmith's data wants a full
+PostgreSQL database, though. Suppose IT also wants to keep a search
+index warm, or fire an internal Slack alert whenever a `jobs` row
+lands in `failed` — neither of those is "spin up another Postgres and
+`CREATE SUBSCRIPTION`," it's "run a lightweight process that reacts to
+each change." This exercise builds the simplest version of exactly
+that: reading the change stream directly, with nothing between it and
+the WAL.
 
 **5.1 — A second, independent slot**
 
@@ -14787,16 +14849,42 @@ up, the same shape of unattended, recurring maintenance task Chapter
 
 ## Background
 
-Every real system accumulates recurring maintenance: materialized
-views that need refreshing, stalled work that needs reclaiming, stale
-statistics that need updating. The traditional answer is an external
-scheduler — OS-level `cron`, a workflow tool, a sidecar container —
-that wakes up on its own timeline and connects in from outside.
-**`pg_cron`** takes a different position: it runs *inside* PostgreSQL,
-as a background process the postmaster manages like any other, reading
-its schedule from an ordinary table (`cron.job`) and writing its
-history to another (`cron.job_run_details`). Scheduling a job is a
-`SELECT`, not a deployment.
+By this point in the book, Portsmith has quietly accumulated three
+things that all need to happen on a schedule, and right now every one
+of them depends on a person remembering to do it. Chapter 9's
+`mv_sensor_daily` — the rollup the public works dashboard reads sensor
+trends from — only reflects reality as recently as whoever last ran
+`CALL refresh_and_log(...)` by hand thought to run it. Chapter 3's
+permit-processing workers occasionally crash mid-job without releasing
+what they were holding, and until someone remembers to re-run
+`ch03_reclaim.py`, that permit just sits `in_progress` forever, with no
+error, and no worker aware it's supposed to try again. And Chapter 17's
+`businesses_archive`, living quietly in `portsmith_legacy`, gets so
+little ordinary traffic that autovacuum's usual change-percentage
+triggers rarely fire on it — its planner statistics can go stale for
+months with nothing to notice.
+
+
+
+None of these are hypothetical. The specific version of this that
+actually happened while building this chapter's demo data: a stalled
+`in_progress` permit sat unprocessed for over half an hour before
+anything caught it, because nothing was watching — exactly the failure
+mode Exercise 4 reproduces on purpose. The pattern behind all three is
+the same one every real system eventually hits: recurring maintenance
+that depends on a human's memory degrades quietly, not loudly, and
+"someone should really schedule that" has a way of staying a to-do item
+for months.
+
+The traditional fix is an external scheduler — OS-level `cron`, a
+workflow tool, or a sidecar container — that wakes up on its own timeline
+and connects in from outside. **`pg_cron`** takes a different position:
+it runs *inside* PostgreSQL, as a background process the postmaster
+manages like any other, reading its schedule from an ordinary table
+(`cron.job`) and writing its history to another
+(`cron.job_run_details`). Scheduling Portsmith's daily refresh, its
+stalled-job sweep, and the archive database's `ANALYZE` all become a
+`SELECT`, not three separate deployments to babysit.
 
 That proximity is also exactly where this chapter's real gotchas come
 from: a job that "lives inside PostgreSQL" doesn't skip the parts of
@@ -14809,13 +14897,16 @@ connection needs one too, from somewhere.
 
 ## The Scenario
 
+Three of Portsmith's own real, already-built pieces become this
+chapter's scheduled jobs — nothing new needs inventing, only automating:
+
 | Object                    | Source                          | Purpose                                                    |
 |----------------------------|-----------------------------------|---------------------------------------------------------------|
-| `refresh_and_log(regclass)`  | Chapter 9                        | Scheduled hourly against `mv_sensor_daily`                     |
-| `jobs` / `dead_letter_jobs`   | Chapter 3                        | Scheduled dead-letter sweep target                             |
-| `sweep_stalled_jobs()`         | *(new)*                        | SQL port of `ch03_reclaim.py`'s stalled-job logic               |
+| `refresh_and_log(regclass)`  | Chapter 9                        | Keeps the public works dashboard's `mv_sensor_daily` rollup from going stale, without anyone running it by hand |
+| `jobs` / `dead_letter_jobs`   | Chapter 3                        | The permit queue itself — where a crashed worker's abandoned, still-`in_progress` job would otherwise sit forever |
+| `sweep_stalled_jobs()`         | *(new)*                        | SQL port of `ch03_reclaim.py`'s stalled-job logic, so the sweep can run unattended instead of by hand |
 | `guarded_demo_task()`           | *(new)*                        | Teaching-only procedure demonstrating advisory-lock overlap guards |
-| `businesses_archive`             | Chapter 17, `portsmith_legacy` | Target of `cron.schedule_in_database()`                          |
+| `businesses_archive`             | Chapter 17, `portsmith_legacy` | The rarely-touched archive table whose planner statistics need a scheduled `ANALYZE`, since ordinary traffic won't trigger one |
 
 ---
 
@@ -14877,7 +14968,8 @@ job that runs somewhere *other* than this one database.
 
 Chapter 9's `refresh_and_log()` procedure already does everything an
 hourly refresh needs — `pg_cron`'s job is just to call it on a
-schedule instead of by hand:
+schedule instead of leaving it to whoever on the public works team
+remembers to run it that day:
 
 ```sql
 SELECT cron.schedule('refresh-mv-sensor-daily', '0 * * * *',
@@ -15117,7 +15209,12 @@ Chapter 3 built `ch03_reclaim.py` to requeue stalled jobs and dead-letter
 the ones that exhausted their retries — run by hand, or "on a schedule
 (see Chapter 19)," per its own docstring at the time. That schedule is
 this exercise: the same logic, as a SQL function `pg_cron` can call
-directly, no external process required.
+directly, no external process required. Practically, this is the fix
+for the exact failure mode described in the Background: a permit
+worker crashes, its job is left `in_progress` with a heartbeat that
+stops updating, and without this sweep running on its own, nothing
+ever notices until the applicant calls asking why their permit hasn't
+moved in three weeks.
 
 **4.1 — Port the script's logic to SQL**
 
@@ -15213,7 +15310,11 @@ the same result as the manual call in 4.2, just unattended.
 lives there — every job scheduled with plain `cron.schedule()` runs
 against `portsmith` by definition. `cron.schedule_in_database()` is the
 escape hatch: a job that runs against a **different** database
-entirely, using the same underlying launcher.
+entirely, using the same underlying launcher. `businesses_archive` is
+exactly the kind of table this matters for: since Chapter 17, almost
+nothing writes to it directly, so it rarely crosses autovacuum's
+change-percentage threshold for an automatic `ANALYZE` on its own —
+left alone, its planner statistics just quietly drift out of date.
 
 ```sql
 SELECT cron.schedule_in_database('legacy-analyze', '0 4 * * *',
@@ -15886,6 +15987,17 @@ out, empirically, what the beta actually supports — which turned out to
 be a genuinely different (and smaller) feature than the placeholder
 outline assumed. That gap is most of this chapter's real content.
 
+This chapter's exercises were first verified against PostgreSQL 19
+beta2, then re-run in full against **beta3** once it was released —
+same container recipe, same rebuild, a fresh `pg_dropcluster`'d cluster
+underneath. Every finding held: the same two quantified-path forms
+still fail with byte-for-byte identical errors, and everything that
+worked in beta2 still works. Where the chapter shows a captured
+transcript below, it's beta3's output; anywhere the two betas diverged
+is called out explicitly. That the retest was this uneventful is itself
+the point worth taking away — for beta software, "still true" is a
+result you check, not one you assume.
+
 ---
 
 ## The Scenario
@@ -15916,9 +16028,10 @@ By the end of this chapter you will be able to:
 - Write `GRAPH_TABLE` pattern-matching queries, including undirected
   edge patterns.
 - Know precisely which of SQL/PGQ's standard-defined features are
-  actually implemented in PostgreSQL 19 beta2, versus which ones parse
-  as errors today — verified directly, not assumed from the standard.
-  Verified is not implied — the beta's own errors are the appendix.
+  actually implemented in PostgreSQL 19 (beta2, re-verified on beta3),
+  versus which ones parse as errors today — verified directly, not
+  assumed from the standard. Verified is not implied — the beta's own
+  errors are the appendix.
 - Decide, for a given traversal, whether `GRAPH_TABLE` is a genuine
   readability win today or whether Chapter 12's recursive CTE is still
   the only tool that actually works.
@@ -15988,12 +16101,20 @@ WARNING:  authenticated with an MD5-encrypted password
 DETAIL:  MD5 password support is deprecated and will be removed in a future release of PostgreSQL.
                                                      version
 ------------------------------------------------------------------------------------------------------------------
- PostgreSQL 19beta2 (Debian 19~beta2-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+ PostgreSQL 19beta3 (Debian 19~beta3-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
 ```
 
 That `MD5 password support is deprecated` warning is itself a small,
 real signal of what's coming in a future major version, seen live
-rather than read about in a release note.
+rather than read about in a release note — and it's still there
+verbatim in beta3, unchanged. Getting this far required no changes to
+`docker/ch21/Dockerfile` at all: it never pinned a specific beta, so
+rebuilding it with `docker compose build --no-cache` against the same
+PGDG `main 19` component simply picked up whatever PGDG was currently
+publishing there. Since a beta's on-disk format can change between
+pre-releases, the old cluster's data volume was dropped first
+(`docker compose down -v`) rather than reused — a fresh `initdb` under
+beta3's own binaries, not an upgrade attempt.
 
 **Getting Chapter 12's data across.** `intersections.geom` is a real
 PostGIS `GEOMETRY(POINT, 4326)` column, and PostGIS packages for a
@@ -16157,14 +16278,26 @@ ORDER BY employee;
  Marcus Reilly  | Patrol Captain                  | Diane Okonjo       | Coretta Vance
  Paula Mensah   | Records Sergeant                | Diane Okonjo       | Coretta Vance
  Ray Castellano | Building Inspector              | Helena Cross       | Coretta Vance
+ Renata Sikes   | City Accountant                 | Julian Ostrowski   | Coretta Vance
+ Tom Delgado    | Water & Sewer Supervisor        | Marcus Webb        | Coretta Vance
+ Zara Lindholm  | Systems Administrator           | Wendell Achebe     | Coretta Vance
 ```
 
 A self-join written by hand to answer this — `city_org a JOIN city_org b
 ON a.manager_id = b.id JOIN city_org c ON b.manager_id = c.id` — returns
-the identical rows. Whether the pattern-matching form is actually
-*more* readable than that join is genuinely a judgment call; it's at
-least no worse, and it stops looking like an accident of how the join
-happened to be written.
+the identical 11 rows on the same freshly-loaded data, confirmed
+directly during the beta3 retest. Whether the pattern-matching form is
+actually *more* readable than that join is genuinely a judgment call;
+it's at least no worse, and it stops looking like an accident of how
+the join happened to be written.
+
+*(This table originally showed 8 rows, missing Renata Sikes, Tom
+Delgado, and Zara Lindholm — not a beta-version difference, but the
+live `portsmith` database's `city_org` having drifted since this
+chapter's first capture. Re-exporting Chapter 12's data for the beta3
+retest pulled the current, correct tree — the same one Chapter 12
+itself documents — so the table above reflects that, not beta3
+behavior.)*
 
 ---
 
@@ -16174,8 +16307,7 @@ This is the exercise the original chapter outline assumed would work,
 and the actual finding worth this whole chapter existing: **SQL/PGQ's
 quantified path patterns — the `{m,n}` repetition syntax that makes
 "walk zero-or-more/one-or-more hops" possible — are not implemented in
-PostgreSQL 19 beta2.** Two different attempts, two different real
-errors:
+PostgreSQL 19.** Two different attempts, two different real errors:
 
 ```sql
 MATCH (a IS employee WHERE a.name = 'Leo Park') (-[IS reports_to]->(IS employee)){1,10} (root IS employee)
@@ -16189,18 +16321,23 @@ Both forms the SQL:2023 standard defines for repeating a path — a
 quantified nested group, and a quantifier directly on an edge pattern —
 are parsed far enough to be recognized and then explicitly rejected as
 unsupported. This isn't a syntax mistake on this book's part; it's a
-real, verified gap in what's shipped so far in this beta.
+real, verified gap in what's shipped so far.
+
+**Retested against beta3 after this chapter first shipped against
+beta2 — both errors came back character-for-character identical.**
+Nothing about this gap moved between the two betas; whatever's blocking
+quantified paths clearly wasn't on beta3's list of changes.
 
 The practical consequence: **Chapter 12's recursive CTEs are still the
-only tool in PostgreSQL 19 beta2 that can walk a graph to an unknown
-depth.** "Walk any node to the root," "find the shortest path with no
-upper bound on hops," and "detect a cycle by construction" — all three
-of Chapter 12's headline capabilities — have no `GRAPH_TABLE`
+only tool in PostgreSQL 19 (through beta3) that can walk a graph to an
+unknown depth.** "Walk any node to the root," "find the shortest path
+with no upper bound on hops," and "detect a cycle by construction" —
+all three of Chapter 12's headline capabilities — have no `GRAPH_TABLE`
 equivalent yet, no matter how the pattern is phrased. Whether that
-changes before PostgreSQL 19's actual GA release is worth checking
-directly against a later beta or release candidate, the same way this
-finding itself was reached: by running the query, not by reading the
-standard.
+changes before PostgreSQL 19's actual GA release is still worth
+checking directly against a later beta, a release candidate, or GA
+itself — the same way both findings so far were reached: by running the
+query, not by reading the standard.
 
 ---
 
@@ -16280,7 +16417,7 @@ This is Exercise 4's wall again, in a second dataset.
 
 ---
 
-## Decision Guide: Recursive CTE vs. `GRAPH_TABLE`, as of PostgreSQL 19 Beta2
+## Decision Guide: Recursive CTE vs. `GRAPH_TABLE`, as of PostgreSQL 19 Beta3
 
 | Need | Use |
 |---|---|
@@ -16289,20 +16426,22 @@ This is Exercise 4's wall again, in a second dataset.
 | Everything needs to stay inside one cluster, no new storage | Either — both query existing tables directly |
 | A workload that's *fundamentally* graph-shaped at production scale (millions of nodes, deep unbounded traversal as the primary access pattern) | Neither, necessarily — this is the point in the decision tree where a dedicated graph database (Neo4j and similar) starts to be worth the operational cost of running a second system, though nothing in this chapter's small, in-memory-sized dataset actually demonstrates that threshold being crossed |
 
-The honest summary: PostgreSQL 19 beta2 ships real, working
-infrastructure for declaring and pattern-matching property graphs, and
-for the specific class of fixed-depth queries it supports, it's a
-genuine readability improvement over hand-written joins. It does not
-yet replace recursive CTEs for anything Chapter 12 actually needed them
-for. That could easily change before general availability — quantified
-path patterns are explicitly part of the SQL:2023 standard this feature
-implements, and "not yet supported" read from a beta's own error
-message is a very different claim than "not supported," worth
-re-verifying against whatever release you're actually running.
+The honest summary: PostgreSQL 19 ships real, working infrastructure
+for declaring and pattern-matching property graphs, and for the
+specific class of fixed-depth queries it supports, it's a genuine
+readability improvement over hand-written joins. It does not yet
+replace recursive CTEs for anything Chapter 12 actually needed them
+for — true as of beta2, and, after an actual retest rather than an
+assumption, still true as of beta3. That could still change before
+general availability — quantified path patterns are explicitly part of
+the SQL:2023 standard this feature implements, and "not yet supported"
+read from a beta's own error message is a very different claim than
+"not supported," worth re-verifying again against whatever release
+you're actually running.
 
 ---
 
-<img src="imgs/ch21_query_model_wall.png" alt="Diagram contrasting two query models over the same city_org and road_segments tables. Left path: Chapter 12's WITH RECURSIVE CTE, unbounded depth, working today for walk-to-root, shortest-path, and cycle detection. Right path: PostgreSQL 19 beta2's CREATE PROPERTY GRAPH and GRAPH_TABLE, which succeeds for fixed-depth pattern matches and undirected edges, but hits a wall at quantified variable-length path patterns, marked with the two real captured errors: unsupported element pattern kind nested path pattern, and element pattern quantifier is not supported."/>
+<img src="imgs/ch21_query_model_wall.png" alt="Diagram contrasting two query models over the same city_org and road_segments tables. Left path: Chapter 12's WITH RECURSIVE CTE, unbounded depth, working today for walk-to-root, shortest-path, and cycle detection. Right path: PostgreSQL 19 beta3's CREATE PROPERTY GRAPH and GRAPH_TABLE, which succeeds for fixed-depth pattern matches and undirected edges, but hits a wall at quantified variable-length path patterns, marked with the two real captured errors: unsupported element pattern kind nested path pattern, and element pattern quantifier is not supported."/>
 
 ---
 
@@ -16313,9 +16452,9 @@ re-verifying against whatever release you're actually running.
 | `CREATE PROPERTY GRAPH` | Declares existing tables as a labeled graph — no new storage, a view over what you already have |
 | `GRAPH_TABLE` with fixed-depth patterns | A genuinely more declarative way to write a known-depth traversal or self-join |
 | `-[ ]-` (undirected edge pattern) | A real, clean replacement for a hand-written `UNION` of both directions |
-| Quantified path patterns (`{m,n}`) | Standard-defined, but **not implemented in PostgreSQL 19 beta2** — verified via two distinct real errors, not assumed |
+| Quantified path patterns (`{m,n}`) | Standard-defined, but **not implemented as of PostgreSQL 19 beta3** — verified via two distinct real errors, unchanged from beta2 on a full retest |
 | Chapter 12's `WITH RECURSIVE` | Still the only working tool in this release for any traversal of unknown or unbounded depth |
-| A second, disposable Docker cluster | The right way to try a beta major version without touching a cluster carrying real cumulative state |
+| A second, disposable Docker cluster | The right way to try a beta major version without touching a cluster carrying real cumulative state — and to retest cleanly against a newer beta later, since the Dockerfile has nothing pinned to un-pin |
 
 **The key design insight** from this chapter is less about SQL/PGQ
 itself than about how to evaluate a beta feature honestly: read what
@@ -16324,7 +16463,10 @@ really there, and report the difference plainly rather than writing the
 chapter the outline assumed would be true. Every other chapter in this
 book got to lean on a stable, GA PostgreSQL; this one is a reminder
 that "run the real thing" sometimes means the real thing tells you
-"not yet."
+"not yet." The beta3 retest adds the other half of that discipline:
+"not yet" isn't a one-time verdict either — it needs re-checking against
+each new pre-release, and this time re-checking it cost nothing more
+than a container rebuild and confirmed the same answer.
 
 ---
 
@@ -17368,12 +17510,627 @@ this book's own most useful moments came from checking the difference
 directly rather than assuming either one.*
 
 
+# Chapter 24 — `pgColumnar`: Native Columnar Storage vs. Parquet-on-S3
+
+> *A foreign data wrapper reaches out to a file that lives somewhere
+> else, every time it's asked. A table access method never leaves —
+> the columns just live in a different shape once they're inside.*
+
+---
+
+## Background
+
+Chapter 17 ended with a real, honest loose end. Exercise 6 exported
+`sensor_readings` to Parquet on MinIO — a genuinely measured 46x size
+reduction, 772 MB down to 16.7 MB — and then stopped short of the last
+piece: actually querying that Parquet data back *through PostgreSQL*,
+via `parquet_s3_fdw`. The extension was real, but hard enough to build
+from source that the chapter left it as "the pattern, discussed, not
+run" and moved on. That gap sat there through twenty-three more
+chapters.
+
+**`pgColumnar`** looked, on paper, like the tool to finally close it —
+and like something genuinely new besides. It's not one thing but two,
+bundled into a single MIT-licensed extension: a **native table access
+method** (`CREATE TABLE t (...) USING pgcolumnar`, columns actually
+stored column-wise inside PostgreSQL's own WAL-logged storage, no
+external file at all) and, separately, a **Parquet-reading layer** —
+`read_parquet()`, and a purpose-built `pgcolumnar_parquet` foreign data
+wrapper — that promises exactly what Chapter 17 never got to prove:
+row-group-level pruning of an external Parquet file, driven by the
+query's own `WHERE` clause, with `EXPLAIN` showing the skip happening.
+
+Getting there took a real detour first, worth knowing before you
+follow this chapter's own steps. The first attempt installed
+`pgColumnar` directly on the shared PostgreSQL 16 host every earlier
+chapter runs against — reasonable, since (unlike Chapters 21–23)
+nothing about `pgColumnar` requires beta software or a from-source Rust
+build; PG15 through 18 are all in its tested matrix. Appending it to
+`shared_preload_libraries` via `ALTER SYSTEM SET` looked routine — the
+exact pattern Chapters 19–20 already used for `pg_cron` and
+`pg_stat_statements`. It wasn't: `ALTER SYSTEM` silently wrote
+
+```
+shared_preload_libraries = '"pg_cron,pg_stat_statements,auto_explain,pgcolumnar"'
+```
+
+into `postgresql.auto.conf` — note the stray inner `"..."` wrapping the
+*entire* comma-joined value as one double-quoted identifier, rather
+than quoting each library name separately. On restart, PostgreSQL tried
+to `dlopen` a single library literally named
+`pg_cron,pg_stat_statements,auto_explain,pgcolumnar`, commas and all,
+and refused to start — taking down every database this book depends on,
+mid-book, for about twenty minutes while the actual `postgresql.auto.conf`
+(which, on Debian, lives in the *data* directory, not `/etc/postgresql/`
+— the same split Chapter 21 already documented) got tracked down and
+hand-edited back to a plain, correctly single-quoted list. Real, cited
+verbatim, not reconstructed: this is a genuine `ALTER SYSTEM` pitfall
+for `GUC_LIST_QUOTE` parameters like `shared_preload_libraries`, not a
+typo either of us made.
+
+That's the real reason this chapter follows Chapters 21–22's pattern
+and runs `pgColumnar` in an isolated container instead of the main
+cluster, even though nothing here is beta software — Chapters 21–22
+isolated *because* of beta/build risk they could only reason about in
+advance; this chapter isolates because of a production outage that
+already happened once, on this exact extension, on this exact book's
+infrastructure. See `docker/ch24/` and this chapter's own Environment
+Setup section.
+
+---
+
+## The Scenario
+
+| Object                          | Lives in                          | Purpose                                                         |
+|----------------------------------|--------------------------------------|---------------------------------------------------------------------|
+| `sensor_readings_columnar`         | `portsmith24` (PG18 container)       | Columnar copy of Chapter 8/17's `sensor_readings` — same table, same 9.6M+ rows, migrated across live |
+| `/tmp/sensor_readings_sorted.parquet` | Container filesystem              | Native `export_parquet()` output — the same data Chapter 17 exported by hand with pyarrow |
+| `sensor_readings_pq`                | `portsmith24`, via `pgcolumnar_parquet` | Foreign table over that Parquet file — the piece Chapter 17 Exercise 6.3 never finished |
+| `skip_repro` / `skip_repro_pq`       | `portsmith24`                        | A minimal, dataset-independent 1M-row table built specifically to file a clean upstream bug report |
+
+`sensor_readings` itself never moves — it stays exactly where Chapter 8
+built it, on the main PostgreSQL 16 cluster. Everything in this chapter
+is a live copy, migrated across with a plain `\copy` pipe, the same
+technique Chapter 21 used to get Chapter 12's data into its own
+isolated container.
+
+---
+
+## Exercise Goals
+
+By the end of this chapter you will be able to:
+
+- Stand up `pgColumnar` in an isolated PostgreSQL 18 container, and
+  understand — from a real incident, not a hypothetical — why a young
+  extension's `shared_preload_libraries` setting belongs in
+  `postgresql.conf` before the first start, not in a live `ALTER
+  SYSTEM SET`.
+- Create a native columnar table, load real data into it, and measure
+  what changes: storage size, and the shape of query speed, against
+  the exact same table as a heap.
+- Reproduce Chapter 20's central lesson in a new setting: an unsorted
+  columnar table's chunk-group skip can lose to a plain heap scan, and
+  sorting fixes it — at a real, measured cost to compression.
+- Export a columnar table to Parquet and know precisely what that
+  export does and doesn't preserve, compared to Chapter 17's hand-built
+  pyarrow pipeline.
+- Tell apart two different claims about reading external Parquet from
+  inside PostgreSQL — "decodes only the columns you ask for" versus
+  "skips whole row groups your `WHERE` clause rules out" — and verify,
+  with `EXPLAIN`, which one is actually true for which code path.
+- Build a minimal, reproducible failing case for a real finding, and
+  understand what it took to confirm it wasn't a fluke of this book's
+  own environment (retested clean on a second PostgreSQL major) before
+  reporting it upstream.
+
+---
+
+## Environment Setup — A Fourth Container
+
+`docker/ch24/` — the same three-file shape as Chapters 21 and 22's
+containers (`Dockerfile`, `entrypoint.sh`, `docker-compose.yml`), built
+on **PostgreSQL 18** (GA — `pgColumnar`'s own docs list 15 through 18 as
+tested, 19 only validated against beta, so 18 is the newest fully
+covered major, and the version this chapter's central finding was
+double-checked against after first surfacing on the host's PG16).
+
+```bash
+cd docker/ch24
+docker compose up --build
+```
+
+Listens on host port **5435** (5432 = main cluster, 5433 = Chapter 21,
+5434 = Chapters 22–23). Two real things worth knowing, both already
+folded into the Dockerfile:
+
+**1. `postgresql-server-dev-18` is not optional, and it's easy to miss.**
+`pgColumnar` builds via PGXS against an installed server's headers —
+`make PG_CONFIG=/path/to/pg_config` fails immediately with `fatal
+error: postgres.h: No such file or directory` without them. The plain
+`postgresql-18` package doesn't include them; the first attempt at this
+(on the host, before this container existed) hit exactly that error.
+
+```dockerfile
+RUN apt-get install -y --no-install-recommends \
+    postgresql-18 postgresql-client-18 postgresql-server-dev-18
+```
+
+**2. `shared_preload_libraries` goes into `postgresql.conf` before the
+first `pg_ctl start` — never as a live `ALTER SYSTEM SET` against a
+running server.** This is the Background section's incident, turned
+into a concrete rule: `entrypoint.sh` writes the setting directly into
+the fresh cluster's config file, before the cluster has ever accepted a
+connection, so there's no live GUC-list serialization step to get
+wrong in the first place.
+
+```bash
+# entrypoint.sh, before the first pg_ctl start
+echo "shared_preload_libraries = 'pgcolumnar'" >> "$PGDATA/postgresql.conf"
+```
+
+```
+$ psql -h localhost -p 5435 -U chris -d portsmith24 -c "SELECT version();"
+ PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+
+$ psql -h localhost -p 5435 -U chris -d portsmith24 -c "SELECT extname, extversion FROM pg_extension WHERE extname='pgcolumnar';"
+  extname   | extversion
+------------+------------
+ pgcolumnar | 1.0-alpha3
+```
+
+**Getting `sensor_readings` across.** No PostGIS, no generated columns
+to worry about here — unlike Chapter 21's `intersections`, this table
+travels as-is:
+
+```bash
+psql portsmith -t -A -c "\copy (SELECT id, sensor_id, sensor_type, reading_value, recorded_at FROM sensor_readings) TO STDOUT CSV" | \
+  psql -h localhost -p 5435 -U chris -d portsmith24 -c "\copy sensor_readings_columnar FROM STDIN CSV"
+```
+
+```
+COPY 9648001
+```
+
+A live pipe, host to container, no intermediate file — 9,648,001 rows
+in about 12 seconds.
+
+---
+
+## Exercises
+
+---
+
+### Exercise 1 — Native Storage: What Changes
+
+`sensor_readings_columnar` mirrors `sensor_readings` exactly, minus the
+PostGIS-free table's one generated column (`reading_date`, which
+`pgColumnar` doesn't need any more than a heap copy would):
+
+```sql
+CREATE TABLE sensor_readings_columnar (
+    id             bigint,
+    sensor_id      int,
+    sensor_type    text,
+    reading_value  double precision,
+    recorded_at    timestamptz
+) USING pgcolumnar;
+```
+
+No extra grant needed to create or use it — `USING pgcolumnar` is
+available to any role the moment the extension exists, the same as
+`USING heap` would be. (The `pgcolumnar.*` *maintenance* functions used
+later in this chapter are a separate story — Exercise 3.)
+
+**1.1 — Storage, real numbers**
+
+```sql
+SELECT pg_size_pretty(sum(pg_relation_size(inhrelid))) AS heap_table_only
+FROM pg_inherits WHERE inhparent = 'sensor_readings'::regclass;
+-- 708 MB   (742,481,920 bytes, table only, no indexes)
+
+SELECT pg_size_pretty(pg_total_relation_size('sensor_readings_columnar'));
+-- 18 MB    (18,374,656 bytes)
+```
+
+**708 MB down to 18 MB — a real, measured 40.4x**, on the exact table
+Chapter 17 got 46x on with hand-picked Snappy Parquet. Different
+mechanism, same order of magnitude, both real.
+
+**1.2 — `count(*)`: the case metadata alone answers**
+
+```sql
+EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings;         -- heap
+-- Execution Time: 562.731 ms   (parallel seq scan across 12 partitions)
+
+EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings_columnar; -- columnar
+```
+
+```
+ Custom Scan (PgColumnarScan)  (actual time=0.019..0.019 rows=1 loops=1)
+   Columnar Vectorized Aggregates: 1
+   Columnar Pushed-Down Filters: 0
+ Execution Time: 0.065 ms
+```
+
+**562.7 ms down to 0.065 ms — roughly 8,700x.** Not decoding, not
+scanning — `count(*)` with no filter is answered entirely from each
+chunk group's own row-count metadata, the same reason Chapter 9's
+materialized views win: the answer was already sitting there, computed
+once, not recomputed per query.
+
+---
+
+### Exercise 2 — The Filtered Case: A Real Echo of Chapter 20
+
+`count(*)` with no `WHERE` is the easy case. What happens with a real
+filter is where this chapter's most useful lesson lives — and it isn't
+"columnar is faster."
+
+**2.1 — Slower, at first**
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT count(*), avg(reading_value)
+FROM sensor_readings WHERE sensor_type = 'temperature';        -- heap
+-- Execution Time: 486.6 ms
+
+EXPLAIN (ANALYZE, BUFFERS) SELECT count(*), avg(reading_value)
+FROM sensor_readings_columnar WHERE sensor_type = 'temperature'; -- columnar
+```
+
+```
+ ->  Custom Scan (PgColumnarScan) on sensor_readings_columnar
+       Filter: (sensor_type = 'temperature'::text)
+       Columnar Chunk Groups Total: 65
+       Columnar Chunk Groups Removed by Filter: 0
+       Columnar Vectors Decoded: 965
+ Execution Time: 1459.5 ms
+```
+
+**The columnar table is slower — 1459.5 ms against the heap's 486.6
+ms.** Zero of 65 chunk groups got skipped. This is Chapter 20's
+`sensor_id`-scatter finding again, in a new engine: `sensor_type` is
+interleaved evenly through every chunk (confirmed directly — all 120
+distinct `sensor_id` values already show up within the *first*
+row-group-sized slice of rows), so every chunk group's min/max span the
+same full range as every other one, and there's nothing for a zone map
+to rule out.
+
+**2.2 — Sorting fixes it, and costs something real**
+
+```sql
+SELECT pgcolumnar.vacuum_sorted('sensor_readings_columnar', 'sensor_type');
+```
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT count(*), avg(reading_value)
+FROM sensor_readings_columnar WHERE sensor_type = 'temperature';
+```
+
+```
+ ->  Parallel Custom Scan (PgColumnarScan) on sensor_readings_columnar
+       Columnar Chunk Groups Total: 43
+       Columnar Chunk Groups Read: 11
+       Columnar Chunk Groups Removed by Filter: 32
+ Execution Time: 370.3 ms
+```
+
+**370.3 ms — now genuinely faster than the heap's 486.6 ms**, 32 of 43
+groups pruned. But check storage again:
+
+```sql
+SELECT pg_size_pretty(pg_total_relation_size('sensor_readings_columnar'));
+-- 27 MB   (up from 18 MB — ratio drops from 40.4x to 27.5x)
+```
+
+Sorting by `sensor_type` scrambled the time-ordering that made
+`recorded_at` compress so well in the first place — every column shares
+the same physical row order in a columnar table, so optimizing one
+column's skip quality can cost another column's compression. **This
+isn't a `pgColumnar` quirk — it's the same tradeoff Chapter 16's
+generated columns and Chapter 20's index choice both already made you
+confront: the "obvious" fix has a real cost, and the only way to know
+if it's worth paying is to measure both sides.**
+
+<img src="imgs/ch24_pgcolumnar_findings.png" alt="Two-column contrast: verified working — native columnar table achieves 40.4x compression, sub-millisecond metadata-only count, and real chunk-group skip after vacuum_sorted (32 of 43 groups pruned); verified broken or missing — export_parquet has no compression option and produces a much larger file than Chapter 17's hand-tuned Snappy export, read_parquet only does projection pushdown despite documentation suggesting predicate pushdown, and the pgcolumnar_parquet foreign data wrapper's row-group skip stays at zero even on fully sorted, correctly-typed data, filed upstream as issue 850"/>
+
+---
+
+### Exercise 3 — Exporting to Parquet: What's Actually Different From Chapter 17
+
+```sql
+SELECT pgcolumnar.export_parquet('sensor_readings_columnar', '/tmp/sensor_readings.parquet');
+-- 9648001
+```
+
+```bash
+$ ls -la /tmp/sensor_readings.parquet
+-rw------- 1 postgres postgres 405515796 sensor_readings.parquet
+```
+
+**405 MB.** Chapter 17's pyarrow script, exporting the same table,
+explicitly requesting Snappy compression, produced **16.7 MB**. The
+reason is in `pgcolumnar.export_parquet(rel, path)`'s own signature:
+**there's no compression argument at all** — unlike `import_parquet`,
+which reads Snappy/GZIP/ZSTD/LZ4_RAW pages, the export path writes
+Parquet with no codec option, full stop. The size checks out arithmetically
+too: roughly 9.6M rows × ~38 raw bytes/row lands right around 365–405
+MB — this looks like genuinely uncompressed output, not a bug so much
+as a real, undocumented asymmetry between what `pgColumnar` can *read*
+and what it can *write*.
+
+One more real, quiet difference, worth knowing if you round-trip
+timestamps: `parquet_schema()` reports `recorded_at` — a `timestamptz`
+in Postgres — as `timestamp without time zone` in the exported file.
+Parquet has no exact equivalent of PostgreSQL's session-relative
+`timestamptz`; the export just drops the distinction. Same running
+timezone-gotcha thread as Chapters 8, 9, 11, and 16 — one more format
+boundary where it quietly matters.
+
+---
+
+### Exercise 4 — Reading Parquet Back: Two Different Claims
+
+`pgColumnar` offers two distinct ways to read an external Parquet file
+without importing it, and they are **not** the same capability, however
+similar the documentation makes them sound at a glance.
+
+**4.1 — `read_parquet()`: projection pushdown only**
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT count(*)
+FROM pgcolumnar.read_parquet('/tmp/sensor_readings.parquet')
+  AS t(id bigint, sensor_id int, sensor_type text, reading_value double precision, recorded_at timestamptz)
+WHERE sensor_id = 1;
+```
+
+```
+ ->  Function Scan on read_parquet t
+       Filter: (sensor_id = 1)
+       Buffers: shared hit=12, temp read=63598 written=63598
+ Execution Time: 2628.1 ms
+```
+
+A plain `Function Scan`, `temp read/written` in the tens of thousands
+of pages — the *entire* file gets materialized into a tuplestore before
+the `WHERE` clause ever runs. This is architecturally unavoidable, not
+a bug: **PostgreSQL's planner never pushes a `WHERE` clause into an
+ordinary set-returning function.** The authoritative SQL reference
+actually says this precisely, once you read past the friendlier
+features page: `read_parquet()` does projection pushdown (decodes only
+the columns you declare) and nothing else. Predicate pushdown is a
+different feature, described for a different object.
+
+**4.2 — The `pgcolumnar_parquet` FDW: this is the one that matters**
+
+```sql
+CREATE SERVER pq FOREIGN DATA WRAPPER pgcolumnar_parquet;
+```
+
+```
+ERROR:  permission denied for foreign-data wrapper pgcolumnar_parquet
+```
+
+The same wall Chapter 17 documented for `postgres_fdw`/`file_fdw` — a
+fresh FDW needs explicit `USAGE` before a non-superuser can touch it:
+
+```sql
+GRANT USAGE ON FOREIGN DATA WRAPPER pgcolumnar_parquet TO chris;
+```
+
+```sql
+CREATE FOREIGN TABLE sensor_readings_pq
+  (id bigint, sensor_id int, sensor_type text, reading_value double precision, recorded_at timestamp)
+  SERVER pq OPTIONS (path '/tmp/sensor_readings.parquet');
+```
+
+Unlike the plain function, a foreign table *is* something the planner
+can push quals into — this is the actual analog of Chapter 17's unbuilt
+`parquet_s3_fdw`, and the documentation for it is explicit:
+"row groups whose min/max statistics exclude the query's predicate are
+skipped." `EXPLAIN` reports the counters directly:
+
+```sql
+EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM sensor_readings_pq WHERE sensor_id = 1;
+```
+
+```
+ ->  Foreign Scan on sensor_readings_pq
+       Filter: (sensor_id = 1)
+       Row Groups: 148
+       Row Groups Skipped: 0
+       Row Groups Decoded: 148
+ Execution Time: 1274.9 ms
+```
+
+Zero skipped — but `sensor_id` has the exact same scatter problem
+Exercise 2 already found for `sensor_type`, so this alone doesn't prove
+anything is wrong. The real test needs data that's *actually* clustered
+on the filtered column.
+
+---
+
+### Exercise 5 — The Wall: Row-Group Skip Doesn't Fire Even When It Should
+
+**5.1 — Build the fair test**
+
+Sort the columnar table by `id` — a real, verified, complete sort, not
+an assumption:
+
+```sql
+SELECT pgcolumnar.vacuum_sorted('sensor_readings_columnar', 'id');
+SELECT * FROM pgcolumnar.sort_status('sensor_readings_columnar');
+```
+
+```
+ sort_key | sorted_kind   | total_groups | sorted_groups | appended_groups
+----------+---------------+--------------+----------------+------------------
+ {id}     | lexicographic |           65 |             65 |                0
+```
+
+Fully sorted — no unsorted tail. Re-export, and confirm the file itself
+preserves that order:
+
+```sql
+SELECT pgcolumnar.export_parquet('sensor_readings_columnar', '/tmp/sensor_readings_sorted.parquet');
+```
+
+```sql
+SELECT id FROM sensor_readings_pq_sorted LIMIT 5;  -- 892801, 892802, 892803, 892804, 892805
+```
+
+**5.2 — The test that should work, and doesn't**
+
+```sql
+EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*)
+FROM sensor_readings_pq_sorted WHERE id < 942801::bigint;
+```
+
+```
+ ->  Foreign Scan on sensor_readings_pq_sorted
+       Filter: (id < '942801'::bigint)
+       Row Groups: 148
+       Row Groups Skipped: 0
+       Row Groups Decoded: 148
+ Execution Time: 1348.7 ms
+```
+
+Every documented condition is met: a genuinely, fully sorted `bigint`
+column, a plain `column < constant` comparison, the constant explicitly
+typed to match (`::bigint`, visible right there in the `Filter:` line —
+no cross-type mismatch hiding anywhere). **Zero row groups skipped
+anyway.**
+
+**5.3 — Ruling out "maybe this needs a newer PostgreSQL"**
+
+`pgColumnar`'s own docs gate several *other* features behind PostgreSQL
+17 — `read_stream` prefetch, `MERGE`'s `WHEN NOT MATCHED BY SOURCE`,
+`ALTER TABLE ... SET ACCESS METHOD` on a partitioned table. None of
+those notes actually mention the Parquet FDW's skip logic, but it was a
+reasonable hypothesis worth eliminating cheaply — which is exactly what
+this chapter's own container was built for. The identical test, run
+fresh on PostgreSQL 18.6 instead of the host's PostgreSQL 16, with a
+brand-new install and a freshly sorted, freshly exported file:
+
+```
+ Row Groups: 148
+ Row Groups Skipped: 0
+ Row Groups Decoded: 148
+ Execution Time: 1348.689 ms
+```
+
+**Identical result, both majors.** Not a PG16 artifact, not
+version-gated — a real gap between this build's own documentation and
+its own `EXPLAIN` output.
+
+**5.4 — A minimal repro, and reporting it**
+
+Chapter 17's 9.6-million-row table is not a fair thing to hand a
+maintainer as a bug report. A clean, dataset-independent repro, built
+and verified before filing anything:
+
+```sql
+CREATE TABLE skip_repro (id bigint, val int) USING pgcolumnar;
+INSERT INTO skip_repro SELECT g, (random()*1000)::int FROM generate_series(1, 1000000) g;
+SELECT pgcolumnar.vacuum_sorted('skip_repro', 'id');
+SELECT pgcolumnar.export_parquet('skip_repro', '/tmp/skip_repro.parquet');
+CREATE SERVER pq_repro FOREIGN DATA WRAPPER pgcolumnar_parquet;
+CREATE FOREIGN TABLE skip_repro_pq (id bigint, val int)
+  SERVER pq_repro OPTIONS (path '/tmp/skip_repro.parquet');
+```
+
+```sql
+-- control: the native table, same sorted data
+EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM skip_repro WHERE id < 5000::bigint;
+--   Columnar Chunk Groups Removed by Filter: 6 (of 7)
+--   Execution Time: 0.994 ms
+
+-- the FDW, identical predicate, exported moments earlier
+EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM skip_repro_pq WHERE id < 5000::bigint;
+--   Row Groups Skipped: 0 (of 16)
+--   Execution Time: 127.201 ms
+```
+
+The control proves the skip *machinery* works fine in this build — it's
+isolated to the external-Parquet read path specifically. A search
+across every open and closed issue in `commandprompt/pgcolumnar`
+(a genuinely fast-moving tracker — hundreds of issues, most opened and
+closed within hours) turned up close relatives — #620, an earlier
+"reads the whole file before returning any row" bug in this exact FDW,
+fixed well before this build — but nothing matching this specific
+symptom. Filed as
+**[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850)**,
+with this minimal repro, the sort-status proof, and the PG16/PG18
+cross-check.
+
+---
+
+## Decision Guide: Native Table vs. External Parquet, as Tested
+
+| Need | Use | Verified here |
+|---|---|---|
+| Fast, compressed, query-time analytics fully inside PostgreSQL | `pgColumnar` native table (`USING pgcolumnar`) | 40.4x compression, ~8,700x on unfiltered aggregates, real chunk-group skip once sorted |
+| Portable, engine-agnostic export other tools can read | Chapter 17's hand-rolled pyarrow + Snappy | 46x compression, genuinely smaller than `export_parquet()`'s uncompressed 405 MB output |
+| Querying an external Parquet file's *columns* without importing | `pgcolumnar.read_parquet()` | Works exactly as documented — projection pushdown only, reads the whole file every time |
+| Querying an external Parquet file with row-group-level `WHERE` pruning | `pgcolumnar_parquet` FDW | **Does not currently deliver this** — verified `Row Groups Skipped: 0` under textbook conditions, filed as #850 |
+
+The honest bottom line: `pgColumnar`'s native storage is the real,
+working half of this chapter's contrast with Chapter 17 — a genuinely
+different, faster tool for keeping compressed analytics inside
+PostgreSQL. Its Parquet-FDW half, the piece built specifically to
+finish what Chapter 17 left open, does not yet do what its own
+documentation says it does. Both conclusions came from running the
+same kind of test — create real data, sort it, measure it, read
+`EXPLAIN`'s own counters — not from trusting either the marketing page
+or the pessimistic assumption that "it's alpha, so it probably doesn't
+work."
+
+---
+
+## Summary — What You Should Now Know
+
+| Concept | What it does |
+|---------|----------------|
+| `CREATE TABLE ... USING pgcolumnar` | Native columnar storage inside PostgreSQL — real WAL, real MVCC, no external file |
+| `shared_preload_libraries` before first start | The safe way to load a new extension's library — a live `ALTER SYSTEM SET` on a `GUC_LIST_QUOTE` parameter can silently corrupt the whole list |
+| Chunk-group skip, unsorted vs. sorted | Scattered filter columns get zero benefit from zone maps, exactly like Chapter 20's b-tree finding — `vacuum_sorted` fixes it, at a real compression cost to other columns |
+| `pgcolumnar.export_parquet()` | No compression option — genuinely larger output than a deliberately-compressed hand-rolled export |
+| `read_parquet()` vs. `pgcolumnar_parquet` FDW | Projection-only vs. (documented, not yet delivered) predicate pushdown — a plain SQL function can never receive a pushed-down qual, a foreign table can |
+| `Row Groups Skipped` in `EXPLAIN` | The real, checkable proof of whether pruning happened — reads 0 here even on fully sorted, correctly-typed data (filed upstream, #850) |
+| Cross-version retest before reporting a bug | Confirmed the finding on both PostgreSQL 16 and 18 before filing, ruling out a version-gating explanation the docs made plausible |
+
+**The key design insight** from this chapter is the same discipline
+Chapters 21 and 22 already established for young software, applied
+this time to something with real production ambitions rather than
+research-beta uncertainty: a well-documented, MIT-licensed extension
+with an active issue tracker and hundreds of self-reported, fixed bugs
+is still worth exactly what you can verify about it yourself, feature
+by feature. `pgColumnar`'s native storage held up completely under
+direct measurement. Its promise to finish what Chapter 17 started did
+not — and the difference between those two verdicts was only visible
+because this chapter tested both halves separately instead of taking
+"it supports Parquet" as one claim.
+
+---
+
+*Going further: issue **#850** is open as of this writing — this
+chapter's finding, not yet resolved upstream. The retest is a queued,
+not-yet-done task: once the issue is closed (or the maintainer responds
+with a reason it isn't a bug), Exercise 5 should be re-run against
+whatever build fixes it, and this chapter's Decision Guide row for the
+Parquet FDW updated to match — the same "verify again against whatever
+release you're actually running" discipline Chapter 21 named explicitly
+for PostgreSQL 19's own beta gap. Until then, treat `pgcolumnar_parquet`
+as Chapter 17 Exercise 6.3 already implicitly did: a real, promising
+pattern, not yet something to depend on for row-group pruning in
+production.*
+
+
 # Appendix A — Environment Setup
 
 This book does not run on one PostgreSQL installation. It runs on
-**three**, and that split is itself a real finding worth understanding
+**four**, and that split is itself a real finding worth understanding
 before you set anything up, not an accident of how the book was
-written: Chapters 1–20 share one long-lived cluster; Chapters 21–23
+written: Chapters 1–20 share one long-lived cluster; Chapters 21–24
 each needed a separate, disposable one, for reasons specific to what
 each chapter was testing.
 
@@ -17382,8 +18139,9 @@ each chapter was testing.
 | Main cluster | 1–20 | PostgreSQL 16 | Installed directly on the host (`apt`) |
 | SQL/PGQ container | 21 | PostgreSQL 19 beta2 | `docker/ch21/` |
 | `pg-ripple` container | 22–23 | PostgreSQL 18 | `docker/ch22/` |
+| `pgColumnar` container | 24 | PostgreSQL 18 | `docker/ch24/` |
 
-## Why three, not one
+## Why four, not one
 
 The main cluster accumulates real, cumulative state across twenty
 chapters — roles, grants, two databases, rows mutated by earlier
@@ -17400,6 +18158,15 @@ matter in practice: Chapter 21's PostgreSQL 19 needed rebuilding from
 scratch after a packaging misconfiguration, and Chapter 22's container
 was restarted mid-chapter to fix a `shared_preload_libraries` setting.
 Neither touched the main cluster at all.
+
+Chapter 24 is the sharpest version of this lesson, because it isn't
+hypothetical: `pgColumnar` was tried against the main cluster *first* —
+reasonable, since it needs nothing beta or built from source — and a
+genuine `ALTER SYSTEM SET` bug (a `shared_preload_libraries` update
+silently mis-quoted into one broken value) took the entire cluster
+down for real, mid-book, before the fourth container replaced that
+attempt. Isolation here isn't precautionary; it's a direct response to
+an outage that already happened once on this exact extension.
 
 ## The main cluster (Chapters 1–20)
 
@@ -17480,18 +18247,41 @@ from its very first start to get `pg-ripple`'s background workers
 running (the same class of gotcha Chapters 19–20's `pg_cron`/
 `pg_stat_statements` needed on the main cluster).
 
-## Connecting to all three
+## The second PostgreSQL 18 container (Chapter 24)
+
+`docker/ch24/` — same three-file shape again, a second, separate
+PostgreSQL 18 container rather than reusing Chapter 22–23's (kept apart
+so a `pgColumnar` crash or a bad `docker compose down -v` can't take
+`pg-ripple`'s state with it, and vice versa).
+
+```bash
+cd docker/ch24
+docker compose up --build
+```
+
+Listens on host port **5435**. No beta packaging dance and no Rust
+build here — `pgColumnar` is a plain C extension built via PGXS against
+`postgresql-server-dev-18` — but two things still matter, both folded
+into this image directly: the dev headers are easy to forget (a bare
+`postgresql-18` package doesn't include them), and
+`shared_preload_libraries` is written into `postgresql.conf` *before*
+the first `pg_ctl start`, never as a live `ALTER SYSTEM SET` — see this
+appendix's own "Why four, not one" section for exactly what that
+setting broke when it was tried the other way.
+
+## Connecting to all four
 
 ```bash
 psql portsmith                                                       # main cluster, PG16
 psql -h localhost -p 5433 -U chris -d portsmith19                    # Chapter 21, PG19 beta2
 psql -h localhost -p 5434 -U chris -d portsmith22                    # Chapters 22-23, PG18
+psql -h localhost -p 5435 -U chris -d portsmith24                    # Chapter 24, PG18
 ```
 
-Both container passwords are set directly in their respective
-`docker-compose.yml` files (`ch21-scratch`, `ch22-scratch`) — these are
-throwaway scratch instances, not meant to hold anything you'd mind
-losing to a `docker compose down -v`.
+All container passwords are set directly in their respective
+`docker-compose.yml` files (`ch21-scratch`, `ch22-scratch`,
+`ch24-scratch`) — these are throwaway scratch instances, not meant to
+hold anything you'd mind losing to a `docker compose down -v`.
 
 ## A note for anyone continuing this book
 
@@ -17503,6 +18293,16 @@ real classification data with incorrect facts. Don't run it against
 data in that container you haven't already exported, and see Chapter
 23 Exercise 2 for the full, reproduced finding before relying on it for
 anything.
+
+**Chapter 24 has a standing, queued follow-up, not yet done:**
+`pgcolumnar_parquet`'s row-group skip was filed upstream as
+[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850)
+and is still open as of this writing. Anyone picking this chapter back
+up should check that issue first — if it's closed, Exercise 5 needs a
+full retest against the fixed build, and the Decision Guide's Parquet
+FDW row should be updated to match, the same way Chapter 21's own
+findings were framed as provisional to whatever beta was current at
+the time.
 
 
 # Appendix B — Synthetic Data Generation Scripts
@@ -17647,6 +18447,15 @@ chapter by chapter, on the main cluster:
   .pgpass` entry for the job-owning role's password, or every
   scheduled job fails with `connection failed` and no corresponding
   entry in the server log.
+- Chapter 24's `pgColumnar` needs its own `USAGE` grants beyond
+  installing the extension, twice: `GRANT USAGE ON SCHEMA pgcolumnar` +
+  `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pgcolumnar` before a
+  non-superuser role can call any `pgcolumnar.*` maintenance function
+  (creating and querying a table `USING pgcolumnar` needs neither), and
+  a second, separate `GRANT USAGE ON FOREIGN DATA WRAPPER
+  pgcolumnar_parquet` before that role can `CREATE SERVER` against it —
+  the same shape of gate Chapter 17 already documented for
+  `postgres_fdw`/`file_fdw`.
 
 None of this is unique to this book's exact setup — it's the general
 shape of PostgreSQL's privilege model, and the book's own experience
@@ -18143,5 +18952,34 @@ classification triples** with an incorrect self-type
 (`:business_N a :business_N`) and a spurious `a rdfs:Class`. Treat any
 `infer()` call with a built-in rule set as a real write against the
 whole default graph, not a safe query. Back up before running it.
+
+### Chapter 24 — `pgColumnar`
+
+```sql
+CREATE TABLE t (...) USING pgcolumnar;                        -- native columnar storage
+SELECT pgcolumnar.vacuum_sorted('t', 'col' [, 'col2', ...]);   -- physically sort, improves chunk-group skip
+SELECT * FROM pgcolumnar.sort_status('t');                     -- verify a table is actually sorted
+SELECT pgcolumnar.export_parquet('t', '/path/file.parquet');   -- no compression option -- see warning below
+SELECT * FROM pgcolumnar.read_parquet('/path/file.parquet')
+  AS t(col1 type1, col2 type2, ...);                           -- projection pushdown ONLY, see warning below
+
+CREATE SERVER pq FOREIGN DATA WRAPPER pgcolumnar_parquet;
+CREATE FOREIGN TABLE t (...) SERVER pq OPTIONS (path '/path/file.parquet');
+-- EXPLAIN ANALYZE reports: Row Groups, Row Groups Skipped, Row Groups Decoded
+```
+
+**⚠ verified gap:** `pgcolumnar.export_parquet()` takes no compression
+argument at all — output is markedly larger than a deliberately
+Snappy/ZSTD-compressed export (405 MB vs. Chapter 17's hand-tuned 16.7
+MB for the same table). `pgcolumnar.read_parquet()` does projection
+pushdown only — `EXPLAIN` shows a plain `Function Scan` that
+materializes the *entire* file before any `WHERE` clause runs, no
+matter how selective. And the `pgcolumnar_parquet` foreign data
+wrapper's row-group skip — the one place predicate pushdown is
+actually documented to happen — reported `Row Groups Skipped: 0` in
+every test this book ran, including a column verified fully sorted and
+correctly typed. Filed upstream as
+[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850);
+check that issue before depending on this FDW for pruning.
 
 

@@ -7,13 +7,42 @@
 
 ## Background
 
-Chapter 17 reached across to another database at query time, live,
-through `postgres_fdw` — every `SELECT` was a real network round-trip,
-answered fresh. **Logical replication** solves a different problem: it
-streams every row-level change out of PostgreSQL, continuously, so a
-second database ends up with its own independent, current copy —
-queryable locally, with its own indexes, at none of the join-time
-latency an FDW pays.
+Every business and permit in Portsmith lives in one place: `portsmith`,
+the operational database every clerk's terminal and every intake job
+reads and writes directly. That's exactly where it should live — until
+the city decides it also wants a public-facing **Business Finder**
+portal, so a resident can search "what's open in Old Town" or check
+whether their neighbor's demolition permit has cleared, without calling
+City Hall.
+
+Pointing the portal straight at `portsmith` — a live connection, or
+Chapter 17's `postgres_fdw` reaching across at query time — is the
+obvious first idea, and IT rejects it fast. A Saturday-morning traffic
+spike on the public site has no business competing for locks and
+connections with a clerk mid-edit on a permit. The portal also has no
+business seeing everything `portsmith` has: no PostGIS geometry, no
+internal search-ranking internals, and definitely nothing from
+businesses that have since closed. And a nightly export job — the
+other obvious idea — means a business that reopens Tuesday morning
+doesn't show as open on the portal until Wednesday's batch run, which
+isn't good enough for something citizens are expected to trust.
+
+What the city actually wants is a second, independent copy of just the
+public-facing slice of `businesses` and `jobs` — one the portal can hit
+as hard as it likes without touching the real system, that only ever
+shows currently-active businesses, and that updates itself the moment
+something changes upstream, with nobody babysitting a cron job.
+**Logical replication** is exactly that: it streams every row-level
+change out of PostgreSQL, continuously, so a second database ends up
+with its own current copy — queryable locally, with its own indexes,
+filtered down to only the columns and rows that copy is allowed to see.
+Experientially, once it's running, it disappears: a clerk approves a
+new registration in `portsmith`, and a moment later — no refresh
+button, no scheduled job, nobody polling anything — that business is
+searchable on the portal. This chapter builds the portal's copy as
+`portsmith_legacy`, the same second database Chapter 17 introduced,
+now playing a different role: instead of something `portsmith` reaches
+into, it's something `portsmith` continuously pushes into.
 
 The mechanism underneath is the same **write-ahead log (WAL)** every
 PostgreSQL install already produces for crash recovery, decoded into a
@@ -55,10 +84,11 @@ read directly from Python.
 | `data/ch18_replication_stream.py` | *(new)*                            | Consumes `demo_test_decoding` at the wire protocol level |
 
 `portsmith_legacy` is the same second database Chapter 17 created —
-reused here as the subscriber, on the same PostgreSQL instance as the
-publisher. That choice is convenient for a lab environment and, as
-Exercise 2 shows, not free: it creates a real deadlock a genuinely
-separate instance wouldn't.
+now standing in for the Business Finder portal's own database, on the
+same PostgreSQL instance as the publisher. That's convenient for a lab
+environment and, as Exercise 2 shows, not free: it creates a real
+deadlock a genuinely separate instance (which is what a real portal
+database would be) wouldn't.
 
 ---
 
@@ -195,7 +225,11 @@ CREATE PUBLICATION
 name a subset of a table's columns, not just a subset of its rows.
 Here that's what makes the narrower subscriber schema above valid at
 all: `geom` and `search_vector` are simply never offered, so
-`portsmith_legacy` never needs to know they exist.
+`portsmith_legacy` never needs to know they exist. Practically, this
+is the city deciding what the portal is *allowed* to see: internal
+geometry and search-ranking internals stay behind in `portsmith`,
+never even leaving the publisher's WAL decode step for this
+publication.
 
 ```sql
 SELECT pubname, puballtables FROM pg_publication;
@@ -363,10 +397,20 @@ SELECT id, name, employee_count FROM businesses WHERE name = 'Harbor Light Cafe'
 
 No polling, no manual refresh — the row is there because a walsender
 process pushed it the moment the `INSERT` committed on the publisher.
+This is the payoff the whole chapter is built around: a clerk enters
+Harbor Light Cafe's registration in `portsmith`, and — with nobody
+running a sync script, no nightly job, nothing on a timer — it's
+already sitting in the portal's own database, ready for the next
+citizen search.
 
 ---
 
 ### Exercise 3 — Inspecting Slot and Replication State
+
+This is the question an operator actually asks about the Business
+Finder portal: is it still current, or has it quietly fallen behind
+without anyone noticing? These two views are how you'd answer that —
+in a monitoring dashboard, not just by hand.
 
 ```sql
 -- in portsmith
@@ -422,6 +466,13 @@ this view for.
 ---
 
 ### Exercise 4 — Row-Filtered Publication: Active Businesses Only
+
+A citizen searching the Business Finder portal for a seafood restaurant
+in Old Town doesn't want three shuttered storefronts in the results.
+The column list in Exercise 1 controlled *what* the portal sees about
+each business; this exercise controls *which businesses* it sees at
+all — closed ones simply shouldn't exist as far as `portsmith_legacy`
+is concerned.
 
 **4.1 — Give `businesses` something to filter on**
 
@@ -571,8 +622,10 @@ SELECT id FROM businesses WHERE id = 49;
 ```
 
 Gone — correctly filtered out the moment `active` flipped, effectively
-replicated as a delete. Flipping a previously-closed business back to
-active does the reverse:
+replicated as a delete. That's the portal experience made concrete: a
+business owner closes up shop, a clerk flips one flag in `portsmith`,
+and the listing vanishes from public search — not tomorrow, right now.
+Flipping a previously-closed business back to active does the reverse:
 
 ```sql
 UPDATE businesses SET active = true WHERE id = 6;
@@ -607,6 +660,15 @@ client to read directly. Anything that wants to consume the *raw*
 change stream — a custom sync tool, or (Exercise 6) Debezium — talks
 the same underlying replication protocol, just with a different output
 plugin and its own logic for what to do with each change.
+
+Not every downstream consumer of Portsmith's data wants a full
+PostgreSQL database, though. Suppose IT also wants to keep a search
+index warm, or fire an internal Slack alert whenever a `jobs` row
+lands in `failed` — neither of those is "spin up another Postgres and
+`CREATE SUBSCRIPTION`," it's "run a lightweight process that reacts to
+each change." This exercise builds the simplest version of exactly
+that: reading the change stream directly, with nothing between it and
+the WAL.
 
 **5.1 — A second, independent slot**
 

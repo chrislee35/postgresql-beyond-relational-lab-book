@@ -8,16 +8,42 @@
 
 ## Background
 
-Every real system accumulates recurring maintenance: materialized
-views that need refreshing, stalled work that needs reclaiming, stale
-statistics that need updating. The traditional answer is an external
-scheduler — OS-level `cron`, a workflow tool, a sidecar container —
-that wakes up on its own timeline and connects in from outside.
-**`pg_cron`** takes a different position: it runs *inside* PostgreSQL,
-as a background process the postmaster manages like any other, reading
-its schedule from an ordinary table (`cron.job`) and writing its
-history to another (`cron.job_run_details`). Scheduling a job is a
-`SELECT`, not a deployment.
+By this point in the book, Portsmith has quietly accumulated three
+things that all need to happen on a schedule, and right now every one
+of them depends on a person remembering to do it. Chapter 9's
+`mv_sensor_daily` — the rollup the public works dashboard reads sensor
+trends from — only reflects reality as recently as whoever last ran
+`CALL refresh_and_log(...)` by hand thought to run it. Chapter 3's
+permit-processing workers occasionally crash mid-job without releasing
+what they were holding, and until someone remembers to re-run
+`ch03_reclaim.py`, that permit just sits `in_progress` forever, with no
+error, and no worker aware it's supposed to try again. And Chapter 17's
+`businesses_archive`, living quietly in `portsmith_legacy`, gets so
+little ordinary traffic that autovacuum's usual change-percentage
+triggers rarely fire on it — its planner statistics can go stale for
+months with nothing to notice.
+
+
+
+None of these are hypothetical. The specific version of this that
+actually happened while building this chapter's demo data: a stalled
+`in_progress` permit sat unprocessed for over half an hour before
+anything caught it, because nothing was watching — exactly the failure
+mode Exercise 4 reproduces on purpose. The pattern behind all three is
+the same one every real system eventually hits: recurring maintenance
+that depends on a human's memory degrades quietly, not loudly, and
+"someone should really schedule that" has a way of staying a to-do item
+for months.
+
+The traditional fix is an external scheduler — OS-level `cron`, a
+workflow tool, or a sidecar container — that wakes up on its own timeline
+and connects in from outside. **`pg_cron`** takes a different position:
+it runs *inside* PostgreSQL, as a background process the postmaster
+manages like any other, reading its schedule from an ordinary table
+(`cron.job`) and writing its history to another
+(`cron.job_run_details`). Scheduling Portsmith's daily refresh, its
+stalled-job sweep, and the archive database's `ANALYZE` all become a
+`SELECT`, not three separate deployments to babysit.
 
 That proximity is also exactly where this chapter's real gotchas come
 from: a job that "lives inside PostgreSQL" doesn't skip the parts of
@@ -30,13 +56,16 @@ connection needs one too, from somewhere.
 
 ## The Scenario
 
+Three of Portsmith's own real, already-built pieces become this
+chapter's scheduled jobs — nothing new needs inventing, only automating:
+
 | Object                    | Source                          | Purpose                                                    |
 |----------------------------|-----------------------------------|---------------------------------------------------------------|
-| `refresh_and_log(regclass)`  | Chapter 9                        | Scheduled hourly against `mv_sensor_daily`                     |
-| `jobs` / `dead_letter_jobs`   | Chapter 3                        | Scheduled dead-letter sweep target                             |
-| `sweep_stalled_jobs()`         | *(new)*                        | SQL port of `ch03_reclaim.py`'s stalled-job logic               |
+| `refresh_and_log(regclass)`  | Chapter 9                        | Keeps the public works dashboard's `mv_sensor_daily` rollup from going stale, without anyone running it by hand |
+| `jobs` / `dead_letter_jobs`   | Chapter 3                        | The permit queue itself — where a crashed worker's abandoned, still-`in_progress` job would otherwise sit forever |
+| `sweep_stalled_jobs()`         | *(new)*                        | SQL port of `ch03_reclaim.py`'s stalled-job logic, so the sweep can run unattended instead of by hand |
 | `guarded_demo_task()`           | *(new)*                        | Teaching-only procedure demonstrating advisory-lock overlap guards |
-| `businesses_archive`             | Chapter 17, `portsmith_legacy` | Target of `cron.schedule_in_database()`                          |
+| `businesses_archive`             | Chapter 17, `portsmith_legacy` | The rarely-touched archive table whose planner statistics need a scheduled `ANALYZE`, since ordinary traffic won't trigger one |
 
 ---
 
@@ -98,7 +127,8 @@ job that runs somewhere *other* than this one database.
 
 Chapter 9's `refresh_and_log()` procedure already does everything an
 hourly refresh needs — `pg_cron`'s job is just to call it on a
-schedule instead of by hand:
+schedule instead of leaving it to whoever on the public works team
+remembers to run it that day:
 
 ```sql
 SELECT cron.schedule('refresh-mv-sensor-daily', '0 * * * *',
@@ -338,7 +368,12 @@ Chapter 3 built `ch03_reclaim.py` to requeue stalled jobs and dead-letter
 the ones that exhausted their retries — run by hand, or "on a schedule
 (see Chapter 19)," per its own docstring at the time. That schedule is
 this exercise: the same logic, as a SQL function `pg_cron` can call
-directly, no external process required.
+directly, no external process required. Practically, this is the fix
+for the exact failure mode described in the Background: a permit
+worker crashes, its job is left `in_progress` with a heartbeat that
+stops updating, and without this sweep running on its own, nothing
+ever notices until the applicant calls asking why their permit hasn't
+moved in three weeks.
 
 **4.1 — Port the script's logic to SQL**
 
@@ -434,7 +469,11 @@ the same result as the manual call in 4.2, just unattended.
 lives there — every job scheduled with plain `cron.schedule()` runs
 against `portsmith` by definition. `cron.schedule_in_database()` is the
 escape hatch: a job that runs against a **different** database
-entirely, using the same underlying launcher.
+entirely, using the same underlying launcher. `businesses_archive` is
+exactly the kind of table this matters for: since Chapter 17, almost
+nothing writes to it directly, so it rarely crosses autovacuum's
+change-percentage threshold for an automatic `ANALYZE` on its own —
+left alone, its planner statistics just quietly drift out of date.
 
 ```sql
 SELECT cron.schedule_in_database('legacy-analyze', '0 4 * * *',

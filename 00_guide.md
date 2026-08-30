@@ -486,9 +486,70 @@ pairs (`residents.true_duplicate_of`) are reused, not re-seeded.
 
 ---
 
+### Chapter 24 — `pgColumnar`: Native Columnar Storage vs. Parquet-on-S3
+
+**Concept:** Return to Chapter 17's real, unfinished loose end —
+Exercise 6 exported `sensor_readings` to Parquet and stopped short of
+querying it back through PostgreSQL, since `parquet_s3_fdw` was too
+hard to build. `pgColumnar` looked like the tool to finish that: a
+native columnar table access method *and* a purpose-built
+`pgcolumnar_parquet` foreign data wrapper claiming exactly the
+row-group pruning Chapter 17 never proved. Written and verified live
+against a real `pgColumnar` 1.0-alpha3 build, first attempted directly
+on the shared PostgreSQL 16 host — where a genuine `ALTER SYSTEM SET`
+bug (a `GUC_LIST_QUOTE` parameter silently mis-quoted into one
+double-quoted identifier) took the entire cluster down, the concrete,
+lived reason this chapter follows Chapters 21-22 into an isolated
+container instead. The chapter's findings split cleanly: the native
+columnar table's compression (40.4x) and speed (up to ~8,700x on
+metadata-only aggregates) are real and reproduce Chapter 20's
+scatter-vs-sorted lesson in a new engine; the `pgcolumnar_parquet`
+FDW's row-group skip — the piece that would have actually closed
+Chapter 17's loop — does not fire under textbook-documented conditions,
+verified on both PostgreSQL 16 and 18, and filed upstream as
+[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850).
+Retesting once that issue resolves is a standing, queued task, not
+closed out by this chapter.
+
+**Synthetic data:** No new data — a live copy of Chapter 8/17's
+`sensor_readings` (9,648,001 rows as of this writing), piped directly
+from the main PostgreSQL 16 cluster into an isolated PostgreSQL 18
+container via `\copy`, the same migration technique Chapter 21 used.
+
+**Exercises:**
+1. Stand up `pgColumnar` in an isolated PostgreSQL 18 Docker container
+   (`docker/ch24/`) — real gotchas: `postgresql-server-dev-18` is
+   required and easy to miss, and `shared_preload_libraries` must be
+   written into `postgresql.conf` before the first start, never as a
+   live `ALTER SYSTEM SET`, per the Background section's real incident.
+2. Create a native columnar table, load `sensor_readings` into it, and
+   measure real storage (708 MB heap -> 18 MB columnar, 40.4x) and
+   `count(*)` speed (562.7ms -> 0.065ms, metadata-only).
+3. A filtered aggregate on unsorted columnar data is *slower* than the
+   heap (1459.5ms vs. 486.6ms, 0 of 65 chunk groups skipped) — the same
+   scatter problem Chapter 20 found for `sensor_id`, now in
+   `pgColumnar`'s own zone maps. `vacuum_sorted` fixes it (370.3ms, 32
+   of 43 groups skipped) at a real, measured compression cost (18MB ->
+   27MB).
+4. Export to Parquet with `export_parquet()`: a real, undocumented gap
+   — no compression parameter at all, producing 405MB against Chapter
+   17's deliberately-Snappy-compressed 16.7MB for the same table.
+5. Distinguish `read_parquet()` (projection pushdown only, confirmed via
+   `EXPLAIN` showing a plain `Function Scan` that materializes the
+   whole file first) from the `pgcolumnar_parquet` foreign data wrapper
+   (which *should* push predicates down per its own documentation).
+6. The chapter's central finding: even on a column verified fully
+   sorted (`pgcolumnar.sort_status`) and correctly typed
+   (`id < 942801::bigint`), the FDW's `Row Groups Skipped` stays at 0 —
+   confirmed identical on PostgreSQL 16 and 18, isolated with a minimal
+   dataset-independent repro, and filed as a new upstream issue after
+   confirming it wasn't already reported.
+
+---
+
 ## Appendices
 
-- **A — Environment Setup:** Three separate PostgreSQL environments, not one — Chapters 1-20 run against a single PostgreSQL 16 cluster with all required extensions pre-installed (`DOCKER-REQUIREMENTS.md` documents the full extension/config list); Chapter 21 needs an isolated PostgreSQL 19 beta2 container (`docker/ch21/`); Chapters 22-23 need an isolated PostgreSQL 18 container with `pg-ripple` built from source via Rust/`pgrx` (`docker/ch22/`). This appendix should document all three explicitly, including why the later two are kept separate from the main cluster (beta software and a from-source build, isolated from state the main cluster accumulates), rather than presenting a single Compose file as if one environment covered the whole book.
+- **A — Environment Setup:** Four separate PostgreSQL environments, not one — Chapters 1-20 run against a single PostgreSQL 16 cluster with all required extensions pre-installed (`DOCKER-REQUIREMENTS.md` documents the full extension/config list); Chapter 21 needs an isolated PostgreSQL 19 beta2 container (`docker/ch21/`); Chapters 22-23 need an isolated PostgreSQL 18 container with `pg-ripple` built from source via Rust/`pgrx` (`docker/ch22/`); Chapter 24 needs a second, separate PostgreSQL 18 container for `pgColumnar` (`docker/ch24/`), isolated after a real incident on the main cluster, not just a precaution. This appendix should document all four explicitly, including why the later three are kept separate from the main cluster, rather than presenting a single Compose file as if one environment covered the whole book.
 - **B — Synthetic Data Generation Scripts:** Documented `psql` and Python scripts for seeding each chapter's dataset.
 - **C — Extension Installation Reference:** `CREATE EXTENSION` commands and version notes for each extension used.
 - **D — Index Decision Guide:** A decision tree for choosing between B-tree, GIN, GiST, BRIN, and HNSW indexes.

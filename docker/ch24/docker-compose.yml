@@ -1,0 +1,14 @@
+services:
+  pg18:
+    build: .
+    environment:
+      POSTGRES_USER: chris
+      POSTGRES_PASSWORD: ch24-scratch
+      POSTGRES_DB: portsmith24
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg18-data:/var/lib/postgresql/18/main
+
+volumes:
+  pg18-data:
