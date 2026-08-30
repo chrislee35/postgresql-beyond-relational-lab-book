@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>The Portsmith Papers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #555555;
+    --accent: #2a6f97;
+    --card-bg: #f6f7f9;
+    --border: #e0e0e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --fg: #eaeaea;
+      --muted: #a9a9a9;
+      --accent: #6ec1ff;
+      --card-bg: #1e2126;
+      --border: #33373d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  main {
+    max-width: 46rem;
+    margin: 0 auto;
+  }
+  h1 {
+    font-weight: 600;
+    font-size: 2.2rem;
+    margin: 0 0 0.25rem;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 1.1rem;
+    margin: 0 0 1.5rem;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.2rem 0.8rem;
+    margin-bottom: 2rem;
+  }
+  p { margin: 1rem 0; }
+  .formats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .formats a {
+    display: block;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    text-decoration: none;
+    color: var(--fg);
+  }
+  .formats a:hover { border-color: var(--accent); }
+  .formats .fmt-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+  .formats .fmt-desc {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-top: 0.2rem;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  footer a { color: var(--accent); }
+  ul { padding-left: 1.3rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>The Portsmith Papers</h1>
+  <p class="subtitle">A Hands-On Tour of PostgreSQL Beyond the Relational Model</p>
+  <span class="badge">{{VERSION}} &middot; built {{DATE}}</span>
+
+  <p>Most PostgreSQL tutorials end where the interesting work begins.
+  Once you know how to <code>SELECT</code>, <code>JOIN</code>, and
+  <code>GROUP BY</code>, you've mastered perhaps twenty percent of what
+  PostgreSQL can do. The remaining eighty percent — geospatial queries,
+  semantic search, real-time notifications, fuzzy matching, vector
+  embeddings, distributed coordination, columnar storage, and more —
+  lives in an ecosystem of extensions, index types, and language
+  features most practitioners never discover.</p>
+
+  <p>This book is a guided, hands-on tour of that other eighty percent,
+  told through 24 chapters built around concrete engineering problems
+  faced by the fictional city of <strong>Portsmith</strong> and its
+  data platform team. Every chapter runs real exercises against real
+  synthetic data — not just reading, doing.</p>
+
+  <div class="formats">
+    <a href="psql-book.html">
+      <div class="fmt-name">Read online (HTML)</div>
+      <div class="fmt-desc">Full book, one page, in your browser</div>
+    </a>
+    <a href="psql-book.pdf">
+      <div class="fmt-name">Download PDF</div>
+      <div class="fmt-desc">Paginated, print-ready</div>
+    </a>
+    <a href="psql-book.epub">
+      <div class="fmt-name">Download EPUB</div>
+      <div class="fmt-desc">For e-readers and reading apps</div>
+    </a>
+  </div>
+
+  <footer>
+    <p>Chris Lee &middot; source and every chapter's data-generation
+    scripts on
+    <a href="https://github.com/chrislee35/postgresql-beyond-relational-lab-book">GitHub</a>.
+    This page is rebuilt automatically from the latest tagged release.</p>
+  </footer>
+</main>
+</body>
+</html>

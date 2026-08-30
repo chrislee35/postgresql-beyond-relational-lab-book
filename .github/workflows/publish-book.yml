@@ -1,0 +1,86 @@
+name: Build and Publish Book to Pages
+
+# Fires when a version tag (v1.0, v1.1.2, ...) is pushed. Tags aren't
+# scoped to a branch in git, but the intended flow is: tag a commit on
+# main, push the tag, this builds that commit and republishes Pages.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; don't cancel one that's already
+# live-deploying if a second tag lands while it's running.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The book build needs pandoc (Markdown -> HTML/PDF/EPUB),
+      # weasyprint (pandoc's PDF engine here), inkscape (hand-made
+      # SVG diagrams -> PNG for the PDF build), and make itself.
+      - name: Install system build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc weasyprint inkscape make
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # mermaidx (pip) renders every diagrams/*.mmd file to SVG/PNG,
+      # fully offline via a bundled quickjs backend -- no headless
+      # browser/Node toolchain needed. pipx keeps it isolated from
+      # the runner's system Python (PEP 668).
+      - name: Install mermaidx
+        run: pipx install mermaidx
+
+      - name: Build the book (HTML, PDF, EPUB)
+        run: make all
+
+      - name: Assemble Pages site
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          cp psql-book/psql-book.html site/
+          cp psql-book/psql-book.pdf site/
+          cp psql-book/psql-book.epub site/
+          cp -r psql-book/imgs site/
+          cp -r psql-book/css site/
+
+          BUILD_DATE="$(date -u +'%Y-%m-%d')"
+          sed -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{DATE}}/${BUILD_DATE}/g" \
+            .github/pages/index.template.html > site/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

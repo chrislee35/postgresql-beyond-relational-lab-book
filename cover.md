@@ -27,7 +27,7 @@ By the end, you will see PostgreSQL not as a place to store rows, but as a progr
 
 **What you will need:**
 
-- A working PostgreSQL 16 installation, plus two disposable Docker containers (PostgreSQL 19 and 18) for the final chapters — setup for all three covered in Appendix A
+- A working PostgreSQL 16 installation, plus three disposable Docker containers for the final chapters — PostgreSQL 19 beta, and two separate PostgreSQL 18 containers (one for `pg-ripple`, one for `pgColumnar`, kept apart so neither can affect the other) — setup for all four environments covered in Appendix A
 - Python 3.12+
 - A Debian-based Linux environment
 - Familiarity with basic SQL (`SELECT`, `INSERT`, `JOIN`, `GROUP BY`)
