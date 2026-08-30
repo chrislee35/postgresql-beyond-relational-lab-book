@@ -42,10 +42,18 @@ jobs:
 
       # mermaidx (pip) renders every diagrams/*.mmd file to SVG/PNG,
       # fully offline via a bundled quickjs backend -- no headless
-      # browser/Node toolchain needed. pipx keeps it isolated from
-      # the runner's system Python (PEP 668).
+      # browser/Node toolchain needed. A plain venv (same as this
+      # project's own local .venv) rather than pipx: pipx's dependency
+      # marker evaluation hit a real, unrelated crash on the runner's
+      # system Python (packaging.version.InvalidVersion: Invalid
+      # version: '') -- a venv sidesteps it entirely and matches how
+      # mermaidx is already installed for local builds.
       - name: Install mermaidx
-        run: pipx install mermaidx
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install mermaidx
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Build the book (HTML, PDF, EPUB)
         run: make all
