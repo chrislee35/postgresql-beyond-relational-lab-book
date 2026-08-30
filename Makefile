@@ -73,7 +73,7 @@ html: $(OUTPUT).md
 	pandoc $(OUTPUT).md -o $(OUTPUT).html \
 		--metadata title=$(TITLE) \
 		--css css/book.css \
-		--toc \
+		--toc --toc-depth=1 \
 		--standalone
 
 # Generate PDF
