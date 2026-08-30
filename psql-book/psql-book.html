@@ -1188,10 +1188,10 @@ id="toc-summary-what-you-should-now-know-22">Summary — What You Should
 Now Know</a></li>
 </ul></li>
 <li><a
-href="#chapter-24-pgcolumnar-native-columnar-storage-vs.-parquet-on-s3"
-id="toc-chapter-24-pgcolumnar-native-columnar-storage-vs.-parquet-on-s3">Chapter
-24 — <code>pgColumnar</code>: Native Columnar Storage
-vs. Parquet-on-S3</a>
+href="#chapter-24-pgcolumnar-storing-data-by-column-instead-of-by-row"
+id="toc-chapter-24-pgcolumnar-storing-data-by-column-instead-of-by-row">Chapter
+24 — <code>pgColumnar</code>: Storing Data by Column Instead of by
+Row</a>
 <ul>
 <li><a href="#background-23" id="toc-background-23">Background</a></li>
 <li><a href="#the-scenario-23" id="toc-the-scenario-23">The
@@ -1203,29 +1203,25 @@ id="toc-environment-setup-a-fourth-container">Environment Setup — A
 Fourth Container</a></li>
 <li><a href="#exercises-23" id="toc-exercises-23">Exercises</a>
 <ul>
-<li><a href="#exercise-1-native-storage-what-changes"
-id="toc-exercise-1-native-storage-what-changes">Exercise 1 — Native
-Storage: What Changes</a></li>
-<li><a href="#exercise-2-the-filtered-case-a-real-echo-of-chapter-20"
-id="toc-exercise-2-the-filtered-case-a-real-echo-of-chapter-20">Exercise
-2 — The Filtered Case: A Real Echo of Chapter 20</a></li>
-<li><a
-href="#exercise-3-exporting-to-parquet-whats-actually-different-from-chapter-17"
-id="toc-exercise-3-exporting-to-parquet-whats-actually-different-from-chapter-17">Exercise
-3 — Exporting to Parquet: What’s Actually Different From Chapter
-17</a></li>
-<li><a href="#exercise-4-reading-parquet-back-two-different-claims"
-id="toc-exercise-4-reading-parquet-back-two-different-claims">Exercise 4
-— Reading Parquet Back: Two Different Claims</a></li>
-<li><a
-href="#exercise-5-the-wall-row-group-skip-doesnt-fire-even-when-it-should"
-id="toc-exercise-5-the-wall-row-group-skip-doesnt-fire-even-when-it-should">Exercise
-5 — The Wall: Row-Group Skip Doesn’t Fire Even When It Should</a></li>
+<li><a href="#exercise-1-building-a-column-organized-copy"
+id="toc-exercise-1-building-a-column-organized-copy">Exercise 1 —
+Building a Column-Organized Copy</a></li>
+<li><a href="#exercise-2-the-easy-win-answering-without-reading"
+id="toc-exercise-2-the-easy-win-answering-without-reading">Exercise 2 —
+The Easy Win: Answering Without Reading</a></li>
+<li><a href="#exercise-3-a-realistic-query-why-faster-isnt-automatic"
+id="toc-exercise-3-a-realistic-query-why-faster-isnt-automatic">Exercise
+3 — A Realistic Query: Why “Faster” Isn’t Automatic</a></li>
+<li><a href="#exercise-4-fixing-it-and-what-it-costs"
+id="toc-exercise-4-fixing-it-and-what-it-costs">Exercise 4 — Fixing It,
+and What It Costs</a></li>
+<li><a href="#exercise-5-what-about-the-parquet-files-from-chapter-17"
+id="toc-exercise-5-what-about-the-parquet-files-from-chapter-17">Exercise
+5 — What About the Parquet Files From Chapter 17?</a></li>
 </ul></li>
-<li><a
-href="#decision-guide-native-table-vs.-external-parquet-as-tested"
-id="toc-decision-guide-native-table-vs.-external-parquet-as-tested">Decision
-Guide: Native Table vs. External Parquet, as Tested</a></li>
+<li><a href="#decision-guide-when-to-reach-for-pgcolumnar"
+id="toc-decision-guide-when-to-reach-for-pgcolumnar">Decision Guide:
+When to Reach for <code>pgColumnar</code></a></li>
 <li><a href="#summary-what-you-should-now-know-23"
 id="toc-summary-what-you-should-now-know-23">Summary — What You Should
 Now Know</a></li>
@@ -17728,71 +17724,85 @@ but installable was never the same claim as correct, and this book’s own
 most useful moments came from checking the difference directly rather
 than assuming either one.</em></p>
 <h1
-id="chapter-24-pgcolumnar-native-columnar-storage-vs.-parquet-on-s3">Chapter
-24 — <code>pgColumnar</code>: Native Columnar Storage
-vs. Parquet-on-S3</h1>
+id="chapter-24-pgcolumnar-storing-data-by-column-instead-of-by-row">Chapter
+24 — <code>pgColumnar</code>: Storing Data by Column Instead of by
+Row</h1>
 <blockquote>
-<p><em>A foreign data wrapper reaches out to a file that lives somewhere
-else, every time it’s asked. A table access method never leaves — the
-columns just live in a different shape once they’re inside.</em></p>
+<p><em>Ask a heap table to add up one column, and it still has to carry
+every other column past you on the way to the answer. A table built
+column by column only ever picks up the column you asked for.</em></p>
 </blockquote>
 <hr />
 <h2 id="background-23">Background</h2>
-<p>Chapter 17 ended with a real, honest loose end. Exercise 6 exported
-<code>sensor_readings</code> to Parquet on MinIO — a genuinely measured
-46x size reduction, 772 MB down to 16.7 MB — and then stopped short of
-the last piece: actually querying that Parquet data back <em>through
-PostgreSQL</em>, via <code>parquet_s3_fdw</code>. The extension was
-real, but hard enough to build from source that the chapter left it as
-“the pattern, discussed, not run” and moved on. That gap sat there
-through twenty-three more chapters.</p>
-<p><strong><code>pgColumnar</code></strong> looked, on paper, like the
-tool to finally close it — and like something genuinely new besides.
-It’s not one thing but two, bundled into a single MIT-licensed
-extension: a <strong>native table access method</strong>
-(<code>CREATE TABLE t (...) USING pgcolumnar</code>, columns actually
-stored column-wise inside PostgreSQL’s own WAL-logged storage, no
-external file at all) and, separately, a <strong>Parquet-reading
-layer</strong> — <code>read_parquet()</code>, and a purpose-built
-<code>pgcolumnar_parquet</code> foreign data wrapper — that promises
-exactly what Chapter 17 never got to prove: row-group-level pruning of
-an external Parquet file, driven by the query’s own <code>WHERE</code>
-clause, with <code>EXPLAIN</code> showing the skip happening.</p>
-<p>Getting there took a real detour first, worth knowing before you
-follow this chapter’s own steps. The first attempt installed
-<code>pgColumnar</code> directly on the shared PostgreSQL 16 host every
-earlier chapter runs against — reasonable, since (unlike Chapters 21–23)
-nothing about <code>pgColumnar</code> requires beta software or a
-from-source Rust build; PG15 through 18 are all in its tested matrix.
-Appending it to <code>shared_preload_libraries</code> via
-<code>ALTER SYSTEM SET</code> looked routine — the exact pattern
-Chapters 19–20 already used for <code>pg_cron</code> and
-<code>pg_stat_statements</code>. It wasn’t: <code>ALTER SYSTEM</code>
-silently wrote</p>
-<pre><code>shared_preload_libraries = &#39;&quot;pg_cron,pg_stat_statements,auto_explain,pgcolumnar&quot;&#39;</code></pre>
-<p>into <code>postgresql.auto.conf</code> — note the stray inner
-<code>"..."</code> wrapping the <em>entire</em> comma-joined value as
-one double-quoted identifier, rather than quoting each library name
-separately. On restart, PostgreSQL tried to <code>dlopen</code> a single
-library literally named
-<code>pg_cron,pg_stat_statements,auto_explain,pgcolumnar</code>, commas
-and all, and refused to start — taking down every database this book
-depends on, mid-book, for about twenty minutes while the actual
-<code>postgresql.auto.conf</code> (which, on Debian, lives in the
-<em>data</em> directory, not <code>/etc/postgresql/</code> — the same
-split Chapter 21 already documented) got tracked down and hand-edited
-back to a plain, correctly single-quoted list. Real, cited verbatim, not
-reconstructed: this is a genuine <code>ALTER SYSTEM</code> pitfall for
-<code>GUC_LIST_QUOTE</code> parameters like
-<code>shared_preload_libraries</code>, not a typo either of us made.</p>
-<p>That’s the real reason this chapter follows Chapters 21–22’s pattern
-and runs <code>pgColumnar</code> in an isolated container instead of the
-main cluster, even though nothing here is beta software — Chapters 21–22
-isolated <em>because</em> of beta/build risk they could only reason
-about in advance; this chapter isolates because of a production outage
-that already happened once, on this exact extension, on this exact
-book’s infrastructure. See <code>docker/ch24/</code> and this chapter’s
-own Environment Setup section.</p>
+<p>Since Chapter 8, Portsmith’s sensor network has been writing readings
+into <code>sensor_readings</code> — temperature, traffic counts, air
+quality — one row at a time, every few minutes, from well over a hundred
+sensors around the city. By now the table holds more than 9.6 million
+rows. That was always the right way to store it for <em>writing</em>: a
+new reading comes in, one row goes in, done.</p>
+<p>But lately the questions being asked of that table have changed
+shape. Public Works doesn’t want one row anymore — they want the big
+picture. “How many readings do we actually have?” “What’s the average
+air quality reading been, city-wide?” “Show me a monthly rollup for
+every sensor type.” Every one of those questions only really cares about
+one or two of the table’s five columns, but answering them today means
+PostgreSQL has to read through nearly 700 megabytes of row-by-row
+storage — every column of every row — to get there. The queries still
+work. They’ve just gotten slow enough that people notice.</p>
+<p><strong>Here’s the underlying idea worth having in your head before
+anything else in this chapter:</strong> think of
+<code>sensor_readings</code> as a filing cabinet of index cards, one
+card per reading, each card listing all five fields — sensor, type,
+value, time, id. Asking “what’s the average reading value?” means
+pulling out <em>every card</em> and reading past four fields you don’t
+care about just to get to the fifth. Now imagine instead you kept five
+separate folders — one holding nothing but every
+<code>reading_value</code> ever recorded, another holding nothing but
+every <code>sensor_type</code>, and so on. That same question now means
+opening exactly one folder. You never touch the other four at all. That
+second arrangement — organizing storage <strong>by column instead of by
+row</strong> — is what this chapter is about, and it’s a genuinely
+different tool from anything else in this book, not just a faster
+version of the same thing.</p>
+<p><strong><code>pgColumnar</code></strong> is a free, open-source
+extension that adds this second storage style directly inside
+PostgreSQL. Concretely, it adds a new <strong>table access
+method</strong> — PostgreSQL’s name for “the actual way a table’s rows
+are physically arranged on disk.” Every table you’ve built so far in
+this book used the default access method, called <code>heap</code>,
+which is the filing-cabinet arrangement above: each row’s values sit
+together, in insertion order. <code>pgColumnar</code> adds a second
+option, <code>USING pgcolumnar</code>, which stores the same data in the
+folder-by-column arrangement instead — still a real PostgreSQL table,
+still queried with ordinary <code>SELECT</code>, just organized
+differently underneath.</p>
+<p>It also has a second, separate feature: reading and writing files in
+<strong>Parquet</strong> format, the same file format Chapter 17
+exported <code>sensor_readings</code> into by hand. That looked, at
+first, like it might finally close a loose end Chapter 17 left open —
+Exercise 6 there stopped short of actually querying an exported Parquet
+file back <em>through</em> PostgreSQL, because the extension that would
+have done it was too hard to build from source. This chapter tries
+<code>pgColumnar</code>’s version of that instead. It’s worth one
+section later on, with an honest result — but it isn’t the main event
+here. The main event is the folder-by-column idea above, and whether it
+delivers for Portsmith in practice. It does, clearly and measurably, and
+that’s most of what follows.</p>
+<p>One real setup story, worth knowing before you follow this chapter’s
+own steps: the first attempt to install <code>pgColumnar</code> used the
+same <code>ALTER SYSTEM SET</code> approach Chapters 19–20 already used
+for <code>pg_cron</code> and <code>pg_stat_statements</code>, directly
+against the shared PostgreSQL 16 host every earlier chapter runs on. It
+went wrong in a way neither of us expected — <code>ALTER SYSTEM</code>
+silently wrote a corrupted value into PostgreSQL’s config, and the
+<em>entire</em> cluster refused to start afterward, taking down every
+chapter’s live data for about twenty minutes while it got diagnosed and
+fixed by hand. Nothing about <code>pgColumnar</code> itself caused that;
+it was a real, narrow PostgreSQL pitfall in how one specific kind of
+setting gets updated live. The practical upshot, and the reason this
+chapter runs in its own container instead: see this chapter’s
+Environment Setup section for exactly what happened and the one-line fix
+that avoids it entirely.</p>
 <hr />
 <h2 id="the-scenario-23">The Scenario</h2>
 <table>
@@ -17811,62 +17821,53 @@ own Environment Setup section.</p>
 <tbody>
 <tr class="odd">
 <td><code>sensor_readings_columnar</code></td>
-<td><code>portsmith24</code> (PG18 container)</td>
-<td>Columnar copy of Chapter 8/17’s <code>sensor_readings</code> — same
-table, same 9.6M+ rows, migrated across live</td>
+<td><code>portsmith24</code> (a new container)</td>
+<td>A column-organized copy of Chapter 8/17’s
+<code>sensor_readings</code> — same data, same 9.6M+ rows, stored the
+other way</td>
 </tr>
 <tr class="even">
-<td><code>/tmp/sensor_readings_sorted.parquet</code></td>
+<td><code>/tmp/sensor_readings.parquet</code></td>
 <td>Container filesystem</td>
-<td>Native <code>export_parquet()</code> output — the same data Chapter
-17 exported by hand with pyarrow</td>
+<td>A Parquet export of that same data, produced by
+<code>pgColumnar</code> itself, for the “what about Chapter 17’s files”
+section</td>
 </tr>
 <tr class="odd">
 <td><code>sensor_readings_pq</code></td>
-<td><code>portsmith24</code>, via <code>pgcolumnar_parquet</code></td>
-<td>Foreign table over that Parquet file — the piece Chapter 17 Exercise
-6.3 never finished</td>
-</tr>
-<tr class="even">
-<td><code>skip_repro</code> / <code>skip_repro_pq</code></td>
 <td><code>portsmith24</code></td>
-<td>A minimal, dataset-independent 1M-row table built specifically to
-file a clean upstream bug report</td>
+<td>A foreign table over that Parquet file — this chapter’s attempt to
+finish what Chapter 17 Exercise 6 left undone</td>
 </tr>
 </tbody>
 </table>
 <p><code>sensor_readings</code> itself never moves — it stays exactly
-where Chapter 8 built it, on the main PostgreSQL 16 cluster. Everything
-in this chapter is a live copy, migrated across with a plain
-<code>\copy</code> pipe, the same technique Chapter 21 used to get
-Chapter 12’s data into its own isolated container.</p>
+where Chapter 8 built it, on the main PostgreSQL 16 cluster, still the
+table every sensor keeps writing into. Everything in this chapter is a
+live copy, piped across for analysis, the same “keep the operational
+table alone, build a separate copy for reporting” instinct Chapter 9’s
+materialized views already taught.</p>
 <hr />
 <h2 id="exercise-goals-23">Exercise Goals</h2>
 <p>By the end of this chapter you will be able to:</p>
 <ul>
-<li>Stand up <code>pgColumnar</code> in an isolated PostgreSQL 18
-container, and understand — from a real incident, not a hypothetical —
-why a young extension’s <code>shared_preload_libraries</code> setting
-belongs in <code>postgresql.conf</code> before the first start, not in a
-live <code>ALTER   SYSTEM SET</code>.</li>
-<li>Create a native columnar table, load real data into it, and measure
-what changes: storage size, and the shape of query speed, against the
-exact same table as a heap.</li>
-<li>Reproduce Chapter 20’s central lesson in a new setting: an unsorted
-columnar table’s chunk-group skip can lose to a plain heap scan, and
-sorting fixes it — at a real, measured cost to compression.</li>
-<li>Export a columnar table to Parquet and know precisely what that
-export does and doesn’t preserve, compared to Chapter 17’s hand-built
-pyarrow pipeline.</li>
-<li>Tell apart two different claims about reading external Parquet from
-inside PostgreSQL — “decodes only the columns you ask for” versus “skips
-whole row groups your <code>WHERE</code> clause rules out” — and verify,
-with <code>EXPLAIN</code>, which one is actually true for which code
-path.</li>
-<li>Build a minimal, reproducible failing case for a real finding, and
-understand what it took to confirm it wasn’t a fluke of this book’s own
-environment (retested clean on a second PostgreSQL major) before
-reporting it upstream.</li>
+<li>Explain, in plain terms, the difference between row-organized and
+column-organized storage, and why one favors writing single records
+quickly while the other favors answering questions about millions of
+records at once.</li>
+<li>Create a column-organized copy of a real table with
+<code>pgColumnar</code>, and measure exactly what changes — both storage
+size and query speed — against the same data stored the ordinary
+way.</li>
+<li>Understand why a column-organized table isn’t automatically faster
+for every query, and what “sorting the data” actually buys you when it
+isn’t.</li>
+<li>Know, from a real incident, why a new extension’s startup
+configuration belongs in a config file before the database ever starts,
+not in a live command against a running one.</li>
+<li>Get an honest, tested answer to whether <code>pgColumnar</code> can
+also read Chapter 17’s exported Parquet files efficiently from inside
+PostgreSQL — and know exactly what it can and can’t do yet.</li>
 </ul>
 <hr />
 <h2 id="environment-setup-a-fourth-container">Environment Setup — A
@@ -17874,39 +17875,36 @@ Fourth Container</h2>
 <p><code>docker/ch24/</code> — the same three-file shape as Chapters 21
 and 22’s containers (<code>Dockerfile</code>,
 <code>entrypoint.sh</code>, <code>docker-compose.yml</code>), built on
-<strong>PostgreSQL 18</strong> (GA — <code>pgColumnar</code>’s own docs
-list 15 through 18 as tested, 19 only validated against beta, so 18 is
-the newest fully covered major, and the version this chapter’s central
-finding was double-checked against after first surfacing on the host’s
-PG16).</p>
-<div class="sourceCode" id="cb1027"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1027-1"><a href="#cb1027-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch24</span>
-<span id="cb1027-2"><a href="#cb1027-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+PostgreSQL 18.</p>
+<div class="sourceCode" id="cb1026"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1026-1"><a href="#cb1026-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch24</span>
+<span id="cb1026-2"><a href="#cb1026-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
 <p>Listens on host port <strong>5435</strong> (5432 = main cluster, 5433
-= Chapter 21, 5434 = Chapters 22–23). Two real things worth knowing,
-both already folded into the Dockerfile:</p>
-<p><strong>1. <code>postgresql-server-dev-18</code> is not optional, and
-it’s easy to miss.</strong> <code>pgColumnar</code> builds via PGXS
-against an installed server’s headers —
-<code>make PG_CONFIG=/path/to/pg_config</code> fails immediately with
-<code>fatal error: postgres.h: No such file or directory</code> without
-them. The plain <code>postgresql-18</code> package doesn’t include them;
-the first attempt at this (on the host, before this container existed)
-hit exactly that error.</p>
+= Chapter 21, 5434 = Chapters 22–23).</p>
+<p><strong>The real incident, in full, since it’s a useful lesson on its
+own.</strong> Loading a new extension into PostgreSQL requires listing
+it in a setting called <code>shared_preload_libraries</code> — a
+comma-separated list of libraries PostgreSQL loads the moment it starts.
+Chapters 19–20 added to this same list for <code>pg_cron</code> and
+<code>pg_stat_statements</code> with <code>ALTER SYSTEM SET</code>, run
+against an already-running server, and it worked fine both times. Doing
+the same thing for <code>pgcolumnar</code> didn’t:</p>
+<pre><code>shared_preload_libraries = &#39;&quot;pg_cron,pg_stat_statements,auto_explain,pgcolumnar&quot;&#39;</code></pre>
+<p>Look closely at that value: there’s an extra pair of quotation marks
+wrapped around the <em>whole</em> list. PostgreSQL read that as one
+single library literally named
+<code>pg_cron,pg_stat_statements,auto_explain,pgcolumnar</code> — commas
+and all — tried to load it, failed, and refused to start at all. The
+whole cluster was down until that stray pair of quotes was found and
+removed by hand. This is a real, narrow bug in how
+<code>ALTER SYSTEM SET</code> handles this particular kind of
+list-shaped setting — not something either of us mistyped.</p>
+<p>The fix this chapter’s container uses instead: write the setting
+straight into the config file <em>before</em> the database has ever
+started for the first time, so there’s no live update to get wrong:</p>
 <div class="sourceCode" id="cb1028"><pre
-class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb1028-1"><a href="#cb1028-1" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">apt-get</span> install <span class="at">-y</span> <span class="at">--no-install-recommends</span> <span class="dt">\</span></span>
-<span id="cb1028-2"><a href="#cb1028-2" aria-hidden="true" tabindex="-1"></a>    postgresql-18 postgresql-client-18 postgresql-server-dev-18</span></code></pre></div>
-<p><strong>2. <code>shared_preload_libraries</code> goes into
-<code>postgresql.conf</code> before the first <code>pg_ctl start</code>
-— never as a live <code>ALTER SYSTEM SET</code> against a running
-server.</strong> This is the Background section’s incident, turned into
-a concrete rule: <code>entrypoint.sh</code> writes the setting directly
-into the fresh cluster’s config file, before the cluster has ever
-accepted a connection, so there’s no live GUC-list serialization step to
-get wrong in the first place.</p>
-<div class="sourceCode" id="cb1029"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1029-1"><a href="#cb1029-1" aria-hidden="true" tabindex="-1"></a><span class="co"># entrypoint.sh, before the first pg_ctl start</span></span>
-<span id="cb1029-2"><a href="#cb1029-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;shared_preload_libraries = &#39;pgcolumnar&#39;&quot;</span> <span class="op">&gt;&gt;</span> <span class="st">&quot;</span><span class="va">$PGDATA</span><span class="st">/postgresql.conf&quot;</span></span></code></pre></div>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1028-1"><a href="#cb1028-1" aria-hidden="true" tabindex="-1"></a><span class="co"># entrypoint.sh, before the first pg_ctl start</span></span>
+<span id="cb1028-2"><a href="#cb1028-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;shared_preload_libraries = &#39;pgcolumnar&#39;&quot;</span> <span class="op">&gt;&gt;</span> <span class="st">&quot;</span><span class="va">$PGDATA</span><span class="st">/postgresql.conf&quot;</span></span></code></pre></div>
 <pre><code>$ psql -h localhost -p 5435 -U chris -d portsmith24 -c &quot;SELECT version();&quot;
  PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
 
@@ -17914,355 +17912,223 @@ $ psql -h localhost -p 5435 -U chris -d portsmith24 -c &quot;SELECT extname, ext
   extname   | extversion
 ------------+------------
  pgcolumnar | 1.0-alpha3</code></pre>
+<p>One more small prerequisite, easy to miss: building
+<code>pgColumnar</code> needs PostgreSQL’s <em>development headers</em>
+(<code>postgresql-server-dev-18</code>), not just the plain server
+package — without them the build fails immediately looking for a missing
+file, <code>postgres.h</code>. Already handled in
+<code>docker/ch24/Dockerfile</code>.</p>
 <p><strong>Getting <code>sensor_readings</code> across.</strong> No
-PostGIS, no generated columns to worry about here — unlike Chapter 21’s
-<code>intersections</code>, this table travels as-is:</p>
-<div class="sourceCode" id="cb1031"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1031-1"><a href="#cb1031-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith <span class="at">-t</span> <span class="at">-A</span> <span class="at">-c</span> <span class="st">&quot;\copy (SELECT id, sensor_id, sensor_type, reading_value, recorded_at FROM sensor_readings) TO STDOUT CSV&quot;</span> <span class="kw">|</span> <span class="dt">\</span></span>
-<span id="cb1031-2"><a href="#cb1031-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5435 <span class="at">-U</span> chris <span class="at">-d</span> portsmith24 <span class="at">-c</span> <span class="st">&quot;\copy sensor_readings_columnar FROM STDIN CSV&quot;</span></span></code></pre></div>
+PostGIS, no generated columns to worry about here:</p>
+<div class="sourceCode" id="cb1030"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1030-1"><a href="#cb1030-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith <span class="at">-t</span> <span class="at">-A</span> <span class="at">-c</span> <span class="st">&quot;\copy (SELECT id, sensor_id, sensor_type, reading_value, recorded_at FROM sensor_readings) TO STDOUT CSV&quot;</span> <span class="kw">|</span> <span class="dt">\</span></span>
+<span id="cb1030-2"><a href="#cb1030-2" aria-hidden="true" tabindex="-1"></a>  <span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5435 <span class="at">-U</span> chris <span class="at">-d</span> portsmith24 <span class="at">-c</span> <span class="st">&quot;\copy sensor_readings_columnar FROM STDIN CSV&quot;</span></span></code></pre></div>
 <pre><code>COPY 9648001</code></pre>
 <p>A live pipe, host to container, no intermediate file — 9,648,001 rows
 in about 12 seconds.</p>
 <hr />
 <h2 id="exercises-23">Exercises</h2>
 <hr />
-<h3 id="exercise-1-native-storage-what-changes">Exercise 1 — Native
-Storage: What Changes</h3>
-<p><code>sensor_readings_columnar</code> mirrors
-<code>sensor_readings</code> exactly, minus the PostGIS-free table’s one
-generated column (<code>reading_date</code>, which
-<code>pgColumnar</code> doesn’t need any more than a heap copy
-would):</p>
+<h3 id="exercise-1-building-a-column-organized-copy">Exercise 1 —
+Building a Column-Organized Copy</h3>
+<div class="sourceCode" id="cb1032"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1032-1"><a href="#cb1032-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_columnar (</span>
+<span id="cb1032-2"><a href="#cb1032-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             bigint,</span>
+<span id="cb1032-3"><a href="#cb1032-3" aria-hidden="true" tabindex="-1"></a>    sensor_id      <span class="dt">int</span>,</span>
+<span id="cb1032-4"><a href="#cb1032-4" aria-hidden="true" tabindex="-1"></a>    sensor_type    text,</span>
+<span id="cb1032-5"><a href="#cb1032-5" aria-hidden="true" tabindex="-1"></a>    reading_value  <span class="dt">double</span> <span class="dt">precision</span>,</span>
+<span id="cb1032-6"><a href="#cb1032-6" aria-hidden="true" tabindex="-1"></a>    recorded_at    timestamptz</span>
+<span id="cb1032-7"><a href="#cb1032-7" aria-hidden="true" tabindex="-1"></a>) <span class="kw">USING</span> pgcolumnar;</span></code></pre></div>
+<p>That <code>USING pgcolumnar</code> is the entire difference from
+every <code>CREATE TABLE</code> earlier in this book — everything else
+about the table (its columns, its types, how you <code>INSERT</code> and
+<code>SELECT</code> from it) works exactly the same. No extra permission
+needed to create or use it, either; it’s available the moment the
+extension exists.</p>
+<p><strong>Storage, measured directly:</strong></p>
 <div class="sourceCode" id="cb1033"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1033-1"><a href="#cb1033-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_columnar (</span>
-<span id="cb1033-2"><a href="#cb1033-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             bigint,</span>
-<span id="cb1033-3"><a href="#cb1033-3" aria-hidden="true" tabindex="-1"></a>    sensor_id      <span class="dt">int</span>,</span>
-<span id="cb1033-4"><a href="#cb1033-4" aria-hidden="true" tabindex="-1"></a>    sensor_type    text,</span>
-<span id="cb1033-5"><a href="#cb1033-5" aria-hidden="true" tabindex="-1"></a>    reading_value  <span class="dt">double</span> <span class="dt">precision</span>,</span>
-<span id="cb1033-6"><a href="#cb1033-6" aria-hidden="true" tabindex="-1"></a>    recorded_at    timestamptz</span>
-<span id="cb1033-7"><a href="#cb1033-7" aria-hidden="true" tabindex="-1"></a>) <span class="kw">USING</span> pgcolumnar;</span></code></pre></div>
-<p>No extra grant needed to create or use it —
-<code>USING pgcolumnar</code> is available to any role the moment the
-extension exists, the same as <code>USING heap</code> would be. (The
-<code>pgcolumnar.*</code> <em>maintenance</em> functions used later in
-this chapter are a separate story — Exercise 3.)</p>
-<p><strong>1.1 — Storage, real numbers</strong></p>
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1033-1"><a href="#cb1033-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(<span class="fu">sum</span>(pg_relation_size(inhrelid))) <span class="kw">AS</span> heap_table_only</span>
+<span id="cb1033-2"><a href="#cb1033-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pg_inherits <span class="kw">WHERE</span> inhparent <span class="op">=</span> <span class="st">&#39;sensor_readings&#39;</span>:<span class="ch">:regclass</span>;</span>
+<span id="cb1033-3"><a href="#cb1033-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- 708 MB</span></span>
+<span id="cb1033-4"><a href="#cb1033-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1033-5"><a href="#cb1033-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(pg_total_relation_size(<span class="st">&#39;sensor_readings_columnar&#39;</span>));</span>
+<span id="cb1033-6"><a href="#cb1033-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- 18 MB</span></span></code></pre></div>
+<p><strong>708 MB down to 18 MB — a real, measured 40x smaller</strong>,
+for exactly the same 9,648,001 rows. Two things make that possible:
+values from the same column tend to look alike (a
+<code>sensor_type</code> column only ever holds one of three words),
+which compresses well once they’re grouped together — and, just as
+important, the folder-by-column layout means a query never has to
+<em>read</em> the columns it doesn’t need in the first place, which is
+what the next exercise measures.</p>
+<hr />
+<h3 id="exercise-2-the-easy-win-answering-without-reading">Exercise 2 —
+The Easy Win: Answering Without Reading</h3>
+<p>The simplest possible question — “how many readings do we have?” —
+turns out to be the clearest demonstration of what column storage buys
+you.</p>
 <div class="sourceCode" id="cb1034"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1034-1"><a href="#cb1034-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(<span class="fu">sum</span>(pg_relation_size(inhrelid))) <span class="kw">AS</span> heap_table_only</span>
-<span id="cb1034-2"><a href="#cb1034-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pg_inherits <span class="kw">WHERE</span> inhparent <span class="op">=</span> <span class="st">&#39;sensor_readings&#39;</span>:<span class="ch">:regclass</span>;</span>
-<span id="cb1034-3"><a href="#cb1034-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- 708 MB   (742,481,920 bytes, table only, no indexes)</span></span>
-<span id="cb1034-4"><a href="#cb1034-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1034-5"><a href="#cb1034-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(pg_total_relation_size(<span class="st">&#39;sensor_readings_columnar&#39;</span>));</span>
-<span id="cb1034-6"><a href="#cb1034-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- 18 MB    (18,374,656 bytes)</span></span></code></pre></div>
-<p><strong>708 MB down to 18 MB — a real, measured 40.4x</strong>, on
-the exact table Chapter 17 got 46x on with hand-picked Snappy Parquet.
-Different mechanism, same order of magnitude, both real.</p>
-<p><strong>1.2 — <code>count(*)</code>: the case metadata alone
-answers</strong></p>
-<div class="sourceCode" id="cb1035"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1035-1"><a href="#cb1035-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings;         <span class="co">-- heap</span></span>
-<span id="cb1035-2"><a href="#cb1035-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- Execution Time: 562.731 ms   (parallel seq scan across 12 partitions)</span></span>
-<span id="cb1035-3"><a href="#cb1035-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1035-4"><a href="#cb1035-4" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings_columnar; <span class="co">-- columnar</span></span></code></pre></div>
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1034-1"><a href="#cb1034-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings;          <span class="co">-- the original, row-organized table</span></span>
+<span id="cb1034-2"><a href="#cb1034-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- Execution Time: 562.7 ms</span></span>
+<span id="cb1034-3"><a href="#cb1034-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1034-4"><a href="#cb1034-4" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings_columnar; <span class="co">-- the column-organized copy</span></span></code></pre></div>
 <pre><code> Custom Scan (PgColumnarScan)  (actual time=0.019..0.019 rows=1 loops=1)
    Columnar Vectorized Aggregates: 1
-   Columnar Pushed-Down Filters: 0
  Execution Time: 0.065 ms</code></pre>
-<p><strong>562.7 ms down to 0.065 ms — roughly 8,700x.</strong> Not
-decoding, not scanning — <code>count(*)</code> with no filter is
-answered entirely from each chunk group’s own row-count metadata, the
-same reason Chapter 9’s materialized views win: the answer was already
-sitting there, computed once, not recomputed per query.</p>
+<p><strong>562.7 ms down to 0.065 ms — roughly 8,700 times
+faster.</strong> Nothing was decoded and nothing was scanned.
+<code>pgColumnar</code> keeps a running row count for each stored group
+of data as a side note, the way a librarian might keep a running tally
+of how many books are on a shelf instead of counting them fresh every
+time someone asks. <code>count(*)</code> with no filter is answered
+straight from that tally — the same reason Chapter 9’s materialized
+views win: the answer was already sitting there, computed once, not
+recomputed from scratch on every query.</p>
 <hr />
-<h3 id="exercise-2-the-filtered-case-a-real-echo-of-chapter-20">Exercise
-2 — The Filtered Case: A Real Echo of Chapter 20</h3>
-<p><code>count(*)</code> with no <code>WHERE</code> is the easy case.
-What happens with a real filter is where this chapter’s most useful
-lesson lives — and it isn’t “columnar is faster.”</p>
-<p><strong>2.1 — Slower, at first</strong></p>
-<div class="sourceCode" id="cb1037"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1037-1"><a href="#cb1037-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
-<span id="cb1037-2"><a href="#cb1037-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>;        <span class="co">-- heap</span></span>
-<span id="cb1037-3"><a href="#cb1037-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- Execution Time: 486.6 ms</span></span>
-<span id="cb1037-4"><a href="#cb1037-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1037-5"><a href="#cb1037-5" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
-<span id="cb1037-6"><a href="#cb1037-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings_columnar <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>; <span class="co">-- columnar</span></span></code></pre></div>
+<h3 id="exercise-3-a-realistic-query-why-faster-isnt-automatic">Exercise
+3 — A Realistic Query: Why “Faster” Isn’t Automatic</h3>
+<p>Public Works rarely wants a citywide total — they want it broken
+down. “What’s the average reading from our <em>temperature</em>
+sensors?” is a much more typical question, and this is where column
+storage stops being an automatic win.</p>
+<div class="sourceCode" id="cb1036"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1036-1"><a href="#cb1036-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
+<span id="cb1036-2"><a href="#cb1036-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>;          <span class="co">-- original table</span></span>
+<span id="cb1036-3"><a href="#cb1036-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- Execution Time: 486.6 ms</span></span>
+<span id="cb1036-4"><a href="#cb1036-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1036-5"><a href="#cb1036-5" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
+<span id="cb1036-6"><a href="#cb1036-6" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings_columnar <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>; <span class="co">-- columnar copy</span></span></code></pre></div>
 <pre><code> -&gt;  Custom Scan (PgColumnarScan) on sensor_readings_columnar
        Filter: (sensor_type = &#39;temperature&#39;::text)
        Columnar Chunk Groups Total: 65
        Columnar Chunk Groups Removed by Filter: 0
-       Columnar Vectors Decoded: 965
  Execution Time: 1459.5 ms</code></pre>
-<p><strong>The columnar table is slower — 1459.5 ms against the heap’s
-486.6 ms.</strong> Zero of 65 chunk groups got skipped. This is Chapter
-20’s <code>sensor_id</code>-scatter finding again, in a new engine:
-<code>sensor_type</code> is interleaved evenly through every chunk
-(confirmed directly — all 120 distinct <code>sensor_id</code> values
-already show up within the <em>first</em> row-group-sized slice of
-rows), so every chunk group’s min/max span the same full range as every
-other one, and there’s nothing for a zone map to rule out.</p>
-<p><strong>2.2 — Sorting fixes it, and costs something real</strong></p>
+<p><strong>The columnar copy is slower here — 1459.5 ms against the
+original’s 486.6 ms.</strong> <code>pgColumnar</code> stores rows in
+large batches called <strong>chunk groups</strong> (think: which folder
+each index card’s fields ended up filed into, in the order they
+arrived), and it keeps a note of the lowest and highest value each chunk
+group holds for each column — a <strong>zone map</strong> — so it can
+sometimes skip a whole chunk group without reading it, if the value
+you’re filtering for can’t possibly be in that range. Here,
+<code>"Columnar Chunk Groups Removed by Filter: 0"</code> — none were
+skipped. Readings from every sensor type arrive continuously, all day,
+every day, so a chunk group built from “whatever came in this hour” ends
+up with temperature, traffic, <em>and</em> air-quality readings mixed
+together — every group’s range looks the same as every other group’s, so
+the zone map has nothing useful to rule out.</p>
+<hr />
+<h3 id="exercise-4-fixing-it-and-what-it-costs">Exercise 4 — Fixing It,
+and What It Costs</h3>
+<p><code>pgColumnar</code> can physically re-sort a table’s stored data
+around a chosen column, which rebuilds those chunk groups so each one
+holds a narrower range of values instead of an even mix:</p>
+<div class="sourceCode" id="cb1038"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1038-1"><a href="#cb1038-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;sensor_type&#39;</span>);</span></code></pre></div>
 <div class="sourceCode" id="cb1039"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1039-1"><a href="#cb1039-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;sensor_type&#39;</span>);</span></code></pre></div>
-<div class="sourceCode" id="cb1040"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1040-1"><a href="#cb1040-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
-<span id="cb1040-2"><a href="#cb1040-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings_columnar <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>;</span></code></pre></div>
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1039-1"><a href="#cb1039-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>), <span class="fu">avg</span>(reading_value)</span>
+<span id="cb1039-2"><a href="#cb1039-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings_columnar <span class="kw">WHERE</span> sensor_type <span class="op">=</span> <span class="st">&#39;temperature&#39;</span>;</span></code></pre></div>
 <pre><code> -&gt;  Parallel Custom Scan (PgColumnarScan) on sensor_readings_columnar
        Columnar Chunk Groups Total: 43
        Columnar Chunk Groups Read: 11
        Columnar Chunk Groups Removed by Filter: 32
  Execution Time: 370.3 ms</code></pre>
-<p><strong>370.3 ms — now genuinely faster than the heap’s 486.6
-ms</strong>, 32 of 43 groups pruned. But check storage again:</p>
+<p><strong>370.3 ms — now genuinely faster than the original table’s
+486.6 ms</strong>, with 32 of 43 chunk groups skipped entirely. But
+storage moved too:</p>
+<div class="sourceCode" id="cb1041"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1041-1"><a href="#cb1041-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(pg_total_relation_size(<span class="st">&#39;sensor_readings_columnar&#39;</span>));</span>
+<span id="cb1041-2"><a href="#cb1041-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- 27 MB   (up from 18 MB)</span></span></code></pre></div>
+<p>Sorting by <code>sensor_type</code> shuffled the arrival-time order
+that made <code>recorded_at</code> compress so well in Exercise 1 —
+every column shares the same physical row order in a column-organized
+table, so improving one column’s ability to skip data can cost another
+column’s compression. <strong>This is the same lesson Chapter 20 already
+taught with an ordinary index: the “obvious” fix isn’t free, and the
+only way to know whether it’s worth the tradeoff is to measure both
+sides — which is exactly what deciding whether, and how, to sort a real
+<code>pgColumnar</code> table for Public Works’ actual dashboard queries
+would require.</strong></p>
+<p><img src="imgs/ch24_pgcolumnar_findings.svg" alt="Side-by-side comparison: the original heap-organized sensor_readings table at 708 megabytes, where every column of every row is stored together, taking 562.7 milliseconds to count all rows and 486.6 milliseconds to average a filtered subset; against the columnar copy at 18 to 27 megabytes, where each column is stored and compressed separately, answering an unfiltered count in 0.065 milliseconds from metadata alone and a filtered, sorted average in 370.3 milliseconds by skipping most of the data entirely"/></p>
+<hr />
+<h3
+id="exercise-5-what-about-the-parquet-files-from-chapter-17">Exercise 5
+— What About the Parquet Files From Chapter 17?</h3>
+<p><code>pgColumnar</code> can also export a table to Parquet, and read
+Parquet files back — the same file format Chapter 17 used, and worth
+checking honestly, since it’s the closest thing this book has found yet
+to finishing Chapter 17 Exercise 6’s unfinished last step.</p>
 <div class="sourceCode" id="cb1042"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1042-1"><a href="#cb1042-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_size_pretty(pg_total_relation_size(<span class="st">&#39;sensor_readings_columnar&#39;</span>));</span>
-<span id="cb1042-2"><a href="#cb1042-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- 27 MB   (up from 18 MB — ratio drops from 40.4x to 27.5x)</span></span></code></pre></div>
-<p>Sorting by <code>sensor_type</code> scrambled the time-ordering that
-made <code>recorded_at</code> compress so well in the first place —
-every column shares the same physical row order in a columnar table, so
-optimizing one column’s skip quality can cost another column’s
-compression. <strong>This isn’t a <code>pgColumnar</code> quirk — it’s
-the same tradeoff Chapter 16’s generated columns and Chapter 20’s index
-choice both already made you confront: the “obvious” fix has a real
-cost, and the only way to know if it’s worth paying is to measure both
-sides.</strong></p>
-<p><img src="imgs/ch24_pgcolumnar_findings.svg" alt="Two-column contrast: verified working — native columnar table achieves 40.4x compression, sub-millisecond metadata-only count, and real chunk-group skip after vacuum_sorted (32 of 43 groups pruned); verified broken or missing — export_parquet has no compression option and produces a much larger file than Chapter 17's hand-tuned Snappy export, read_parquet only does projection pushdown despite documentation suggesting predicate pushdown, and the pgcolumnar_parquet foreign data wrapper's row-group skip stays at zero even on fully sorted, correctly-typed data, filed upstream as issue 850"/></p>
-<hr />
-<h3
-id="exercise-3-exporting-to-parquet-whats-actually-different-from-chapter-17">Exercise
-3 — Exporting to Parquet: What’s Actually Different From Chapter 17</h3>
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1042-1"><a href="#cb1042-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;/tmp/sensor_readings.parquet&#39;</span>);</span></code></pre></div>
 <div class="sourceCode" id="cb1043"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1043-1"><a href="#cb1043-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;/tmp/sensor_readings.parquet&#39;</span>);</span>
-<span id="cb1043-2"><a href="#cb1043-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- 9648001</span></span></code></pre></div>
-<div class="sourceCode" id="cb1044"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1044-1"><a href="#cb1044-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> ls <span class="at">-la</span> /tmp/sensor_readings.parquet</span>
-<span id="cb1044-2"><a href="#cb1044-2" aria-hidden="true" tabindex="-1"></a><span class="ex">-rw-------</span> 1 postgres postgres 405515796 sensor_readings.parquet</span></code></pre></div>
-<p><strong>405 MB.</strong> Chapter 17’s pyarrow script, exporting the
-same table, explicitly requesting Snappy compression, produced
-<strong>16.7 MB</strong>. The reason is in
-<code>pgcolumnar.export_parquet(rel, path)</code>’s own signature:
-<strong>there’s no compression argument at all</strong> — unlike
-<code>import_parquet</code>, which reads Snappy/GZIP/ZSTD/LZ4_RAW pages,
-the export path writes Parquet with no codec option, full stop. The size
-checks out arithmetically too: roughly 9.6M rows × ~38 raw bytes/row
-lands right around 365–405 MB — this looks like genuinely uncompressed
-output, not a bug so much as a real, undocumented asymmetry between what
-<code>pgColumnar</code> can <em>read</em> and what it can
-<em>write</em>.</p>
-<p>One more real, quiet difference, worth knowing if you round-trip
-timestamps: <code>parquet_schema()</code> reports
-<code>recorded_at</code> — a <code>timestamptz</code> in Postgres — as
-<code>timestamp without time zone</code> in the exported file. Parquet
-has no exact equivalent of PostgreSQL’s session-relative
-<code>timestamptz</code>; the export just drops the distinction. Same
-running timezone-gotcha thread as Chapters 8, 9, 11, and 16 — one more
-format boundary where it quietly matters.</p>
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1043-1"><a href="#cb1043-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> ls <span class="at">-la</span> /tmp/sensor_readings.parquet</span>
+<span id="cb1043-2"><a href="#cb1043-2" aria-hidden="true" tabindex="-1"></a><span class="ex">-rw-------</span> 1 postgres postgres 405515796 sensor_readings.parquet   <span class="at">--</span> 405 MB</span></code></pre></div>
+<p>That’s noticeably bigger than Chapter 17’s hand-built export of the
+same table (16.7 MB) — the export function here doesn’t compress the
+file at all, unlike the compression <code>pgColumnar</code>’s own
+storage uses. Worth knowing if you’re choosing between the two: this
+export is fast and simple, but Chapter 17’s more deliberate, hand-tuned
+pyarrow script still makes the smaller file.</p>
+<p>Reading a Parquet file back works two ways.
+<code>read_parquet()</code> reads the whole file every time, decoding
+only the columns you ask for — a real, useful savings, but it doesn’t
+skip rows based on a <code>WHERE</code> clause, so it isn’t a substitute
+for an index or a zone map. A second way, a proper foreign table
+(<code>CREATE SERVER ... FOREIGN DATA WRAPPER pgcolumnar_parquet</code>),
+is documented to skip whole chunks of the file when a filter rules them
+out — the exact capability that would finish Chapter 17’s story. Testing
+it directly, on data confirmed sorted the same way Exercise 4 sorted it,
+that skipping didn’t happen in the version tested here:
+<code>EXPLAIN</code> reported reading every chunk of the file regardless
+of the filter, on both PostgreSQL 16 and a fresh PostgreSQL 18
+install.</p>
+<p><strong>The honest takeaway: <code>pgColumnar</code>’s own storage —
+everything Exercises 1 through 4 just measured — is the real, working
+half of this chapter. Its ability to efficiently query Chapter 17’s
+exported files is not there yet</strong>, at least not in the version
+tested. That’s a fine place to leave it — Chapter 17’s pattern (export
+to Parquet, read it with a tool built for that job, like DuckDB) is
+still the dependable path for that specific need.</p>
 <hr />
-<h3 id="exercise-4-reading-parquet-back-two-different-claims">Exercise 4
-— Reading Parquet Back: Two Different Claims</h3>
-<p><code>pgColumnar</code> offers two distinct ways to read an external
-Parquet file without importing it, and they are <strong>not</strong> the
-same capability, however similar the documentation makes them sound at a
-glance.</p>
-<p><strong>4.1 — <code>read_parquet()</code>: projection pushdown
-only</strong></p>
-<div class="sourceCode" id="cb1045"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1045-1"><a href="#cb1045-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>)</span>
-<span id="cb1045-2"><a href="#cb1045-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pgcolumnar.read_parquet(<span class="st">&#39;/tmp/sensor_readings.parquet&#39;</span>)</span>
-<span id="cb1045-3"><a href="#cb1045-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">AS</span> t(<span class="kw">id</span> bigint, sensor_id <span class="dt">int</span>, sensor_type text, reading_value <span class="dt">double</span> <span class="dt">precision</span>, recorded_at timestamptz)</span>
-<span id="cb1045-4"><a href="#cb1045-4" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> sensor_id <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
-<pre><code> -&gt;  Function Scan on read_parquet t
-       Filter: (sensor_id = 1)
-       Buffers: shared hit=12, temp read=63598 written=63598
- Execution Time: 2628.1 ms</code></pre>
-<p>A plain <code>Function Scan</code>, <code>temp read/written</code> in
-the tens of thousands of pages — the <em>entire</em> file gets
-materialized into a tuplestore before the <code>WHERE</code> clause ever
-runs. This is architecturally unavoidable, not a bug:
-<strong>PostgreSQL’s planner never pushes a <code>WHERE</code> clause
-into an ordinary set-returning function.</strong> The authoritative SQL
-reference actually says this precisely, once you read past the
-friendlier features page: <code>read_parquet()</code> does projection
-pushdown (decodes only the columns you declare) and nothing else.
-Predicate pushdown is a different feature, described for a different
-object.</p>
-<p><strong>4.2 — The <code>pgcolumnar_parquet</code> FDW: this is the
-one that matters</strong></p>
-<div class="sourceCode" id="cb1047"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1047-1"><a href="#cb1047-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SERVER pq <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER pgcolumnar_parquet;</span></code></pre></div>
-<pre><code>ERROR:  permission denied for foreign-data wrapper pgcolumnar_parquet</code></pre>
-<p>The same wall Chapter 17 documented for
-<code>postgres_fdw</code>/<code>file_fdw</code> — a fresh FDW needs
-explicit <code>USAGE</code> before a non-superuser can touch it:</p>
-<div class="sourceCode" id="cb1049"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1049-1"><a href="#cb1049-1" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> <span class="kw">USAGE</span> <span class="kw">ON</span> <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER pgcolumnar_parquet <span class="kw">TO</span> chris;</span></code></pre></div>
-<div class="sourceCode" id="cb1050"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1050-1"><a href="#cb1050-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FOREIGN</span> <span class="kw">TABLE</span> sensor_readings_pq</span>
-<span id="cb1050-2"><a href="#cb1050-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">id</span> bigint, sensor_id <span class="dt">int</span>, sensor_type text, reading_value <span class="dt">double</span> <span class="dt">precision</span>, recorded_at <span class="dt">timestamp</span>)</span>
-<span id="cb1050-3"><a href="#cb1050-3" aria-hidden="true" tabindex="-1"></a>  SERVER pq OPTIONS (path <span class="st">&#39;/tmp/sensor_readings.parquet&#39;</span>);</span></code></pre></div>
-<p>Unlike the plain function, a foreign table <em>is</em> something the
-planner can push quals into — this is the actual analog of Chapter 17’s
-unbuilt <code>parquet_s3_fdw</code>, and the documentation for it is
-explicit: “row groups whose min/max statistics exclude the query’s
-predicate are skipped.” <code>EXPLAIN</code> reports the counters
-directly:</p>
-<div class="sourceCode" id="cb1051"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1051-1"><a href="#cb1051-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, COSTS <span class="kw">OFF</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> sensor_readings_pq <span class="kw">WHERE</span> sensor_id <span class="op">=</span> <span class="dv">1</span>;</span></code></pre></div>
-<pre><code> -&gt;  Foreign Scan on sensor_readings_pq
-       Filter: (sensor_id = 1)
-       Row Groups: 148
-       Row Groups Skipped: 0
-       Row Groups Decoded: 148
- Execution Time: 1274.9 ms</code></pre>
-<p>Zero skipped — but <code>sensor_id</code> has the exact same scatter
-problem Exercise 2 already found for <code>sensor_type</code>, so this
-alone doesn’t prove anything is wrong. The real test needs data that’s
-<em>actually</em> clustered on the filtered column.</p>
-<hr />
-<h3
-id="exercise-5-the-wall-row-group-skip-doesnt-fire-even-when-it-should">Exercise
-5 — The Wall: Row-Group Skip Doesn’t Fire Even When It Should</h3>
-<p><strong>5.1 — Build the fair test</strong></p>
-<p>Sort the columnar table by <code>id</code> — a real, verified,
-complete sort, not an assumption:</p>
-<div class="sourceCode" id="cb1053"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1053-1"><a href="#cb1053-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;id&#39;</span>);</span>
-<span id="cb1053-2"><a href="#cb1053-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pgcolumnar.sort_status(<span class="st">&#39;sensor_readings_columnar&#39;</span>);</span></code></pre></div>
-<pre><code> sort_key | sorted_kind   | total_groups | sorted_groups | appended_groups
-----------+---------------+--------------+----------------+------------------
- {id}     | lexicographic |           65 |             65 |                0</code></pre>
-<p>Fully sorted — no unsorted tail. Re-export, and confirm the file
-itself preserves that order:</p>
-<div class="sourceCode" id="cb1055"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1055-1"><a href="#cb1055-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;sensor_readings_columnar&#39;</span>, <span class="st">&#39;/tmp/sensor_readings_sorted.parquet&#39;</span>);</span></code></pre></div>
-<div class="sourceCode" id="cb1056"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1056-1"><a href="#cb1056-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">id</span> <span class="kw">FROM</span> sensor_readings_pq_sorted <span class="kw">LIMIT</span> <span class="dv">5</span>;  <span class="co">-- 892801, 892802, 892803, 892804, 892805</span></span></code></pre></div>
-<p><strong>5.2 — The test that should work, and doesn’t</strong></p>
-<div class="sourceCode" id="cb1057"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1057-1"><a href="#cb1057-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, COSTS <span class="kw">OFF</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>)</span>
-<span id="cb1057-2"><a href="#cb1057-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings_pq_sorted <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">&lt;</span> <span class="dv">942801</span>:<span class="ch">:bigint</span>;</span></code></pre></div>
-<pre><code> -&gt;  Foreign Scan on sensor_readings_pq_sorted
-       Filter: (id &lt; &#39;942801&#39;::bigint)
-       Row Groups: 148
-       Row Groups Skipped: 0
-       Row Groups Decoded: 148
- Execution Time: 1348.7 ms</code></pre>
-<p>Every documented condition is met: a genuinely, fully sorted
-<code>bigint</code> column, a plain <code>column &lt; constant</code>
-comparison, the constant explicitly typed to match
-(<code>::bigint</code>, visible right there in the <code>Filter:</code>
-line — no cross-type mismatch hiding anywhere). <strong>Zero row groups
-skipped anyway.</strong></p>
-<p><strong>5.3 — Ruling out “maybe this needs a newer
-PostgreSQL”</strong></p>
-<p><code>pgColumnar</code>’s own docs gate several <em>other</em>
-features behind PostgreSQL 17 — <code>read_stream</code> prefetch,
-<code>MERGE</code>’s <code>WHEN NOT MATCHED BY SOURCE</code>,
-<code>ALTER TABLE ... SET ACCESS METHOD</code> on a partitioned table.
-None of those notes actually mention the Parquet FDW’s skip logic, but
-it was a reasonable hypothesis worth eliminating cheaply — which is
-exactly what this chapter’s own container was built for. The identical
-test, run fresh on PostgreSQL 18.6 instead of the host’s PostgreSQL 16,
-with a brand-new install and a freshly sorted, freshly exported
-file:</p>
-<pre><code> Row Groups: 148
- Row Groups Skipped: 0
- Row Groups Decoded: 148
- Execution Time: 1348.689 ms</code></pre>
-<p><strong>Identical result, both majors.</strong> Not a PG16 artifact,
-not version-gated — a real gap between this build’s own documentation
-and its own <code>EXPLAIN</code> output.</p>
-<p><strong>5.4 — A minimal repro, and reporting it</strong></p>
-<p>Chapter 17’s 9.6-million-row table is not a fair thing to hand a
-maintainer as a bug report. A clean, dataset-independent repro, built
-and verified before filing anything:</p>
-<div class="sourceCode" id="cb1060"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1060-1"><a href="#cb1060-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> skip_repro (<span class="kw">id</span> bigint, val <span class="dt">int</span>) <span class="kw">USING</span> pgcolumnar;</span>
-<span id="cb1060-2"><a href="#cb1060-2" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> skip_repro <span class="kw">SELECT</span> g, (<span class="kw">random</span>()<span class="op">*</span><span class="dv">1000</span>):<span class="ch">:int</span> <span class="kw">FROM</span> generate_series(<span class="dv">1</span>, <span class="dv">1000000</span>) g;</span>
-<span id="cb1060-3"><a href="#cb1060-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;skip_repro&#39;</span>, <span class="st">&#39;id&#39;</span>);</span>
-<span id="cb1060-4"><a href="#cb1060-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;skip_repro&#39;</span>, <span class="st">&#39;/tmp/skip_repro.parquet&#39;</span>);</span>
-<span id="cb1060-5"><a href="#cb1060-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SERVER pq_repro <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER pgcolumnar_parquet;</span>
-<span id="cb1060-6"><a href="#cb1060-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FOREIGN</span> <span class="kw">TABLE</span> skip_repro_pq (<span class="kw">id</span> bigint, val <span class="dt">int</span>)</span>
-<span id="cb1060-7"><a href="#cb1060-7" aria-hidden="true" tabindex="-1"></a>  SERVER pq_repro OPTIONS (path <span class="st">&#39;/tmp/skip_repro.parquet&#39;</span>);</span></code></pre></div>
-<div class="sourceCode" id="cb1061"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1061-1"><a href="#cb1061-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- control: the native table, same sorted data</span></span>
-<span id="cb1061-2"><a href="#cb1061-2" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, COSTS <span class="kw">OFF</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> skip_repro <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">&lt;</span> <span class="dv">5000</span>:<span class="ch">:bigint</span>;</span>
-<span id="cb1061-3"><a href="#cb1061-3" aria-hidden="true" tabindex="-1"></a><span class="co">--   Columnar Chunk Groups Removed by Filter: 6 (of 7)</span></span>
-<span id="cb1061-4"><a href="#cb1061-4" aria-hidden="true" tabindex="-1"></a><span class="co">--   Execution Time: 0.994 ms</span></span>
-<span id="cb1061-5"><a href="#cb1061-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1061-6"><a href="#cb1061-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- the FDW, identical predicate, exported moments earlier</span></span>
-<span id="cb1061-7"><a href="#cb1061-7" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, COSTS <span class="kw">OFF</span>) <span class="kw">SELECT</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">FROM</span> skip_repro_pq <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">&lt;</span> <span class="dv">5000</span>:<span class="ch">:bigint</span>;</span>
-<span id="cb1061-8"><a href="#cb1061-8" aria-hidden="true" tabindex="-1"></a><span class="co">--   Row Groups Skipped: 0 (of 16)</span></span>
-<span id="cb1061-9"><a href="#cb1061-9" aria-hidden="true" tabindex="-1"></a><span class="co">--   Execution Time: 127.201 ms</span></span></code></pre></div>
-<p>The control proves the skip <em>machinery</em> works fine in this
-build — it’s isolated to the external-Parquet read path specifically. A
-search across every open and closed issue in
-<code>commandprompt/pgcolumnar</code> (a genuinely fast-moving tracker —
-hundreds of issues, most opened and closed within hours) turned up close
-relatives — #620, an earlier “reads the whole file before returning any
-row” bug in this exact FDW, fixed well before this build — but nothing
-matching this specific symptom. Filed as <strong><a
-href="https://github.com/commandprompt/pgcolumnar/issues/850">commandprompt/pgcolumnar#850</a></strong>,
-with this minimal repro, the sort-status proof, and the PG16/PG18
-cross-check.</p>
-<hr />
-<h2
-id="decision-guide-native-table-vs.-external-parquet-as-tested">Decision
-Guide: Native Table vs. External Parquet, as Tested</h2>
+<h2 id="decision-guide-when-to-reach-for-pgcolumnar">Decision Guide:
+When to Reach for <code>pgColumnar</code></h2>
 <table>
 <colgroup>
-<col style="width: 33%" />
-<col style="width: 33%" />
-<col style="width: 33%" />
+<col style="width: 50%" />
+<col style="width: 50%" />
 </colgroup>
 <thead>
 <tr class="header">
-<th>Need</th>
-<th>Use</th>
-<th>Verified here</th>
+<th>Situation</th>
+<th>What to use</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Fast, compressed, query-time analytics fully inside PostgreSQL</td>
-<td><code>pgColumnar</code> native table
-(<code>USING pgcolumnar</code>)</td>
-<td>40.4x compression, ~8,700x on unfiltered aggregates, real
-chunk-group skip once sorted</td>
+<td>A table gets written to constantly, one row at a time (sensors,
+permit applications, orders)</td>
+<td>An ordinary heap table — this is what it’s built for</td>
 </tr>
 <tr class="even">
-<td>Portable, engine-agnostic export other tools can read</td>
-<td>Chapter 17’s hand-rolled pyarrow + Snappy</td>
-<td>46x compression, genuinely smaller than
-<code>export_parquet()</code>’s uncompressed 405 MB output</td>
+<td>Big-picture questions over millions of existing rows — totals,
+averages, monthly rollups</td>
+<td>A <code>pgColumnar</code> copy: real, measured wins here (40x
+smaller, up to ~8,700x faster on the right query)</td>
 </tr>
 <tr class="odd">
-<td>Querying an external Parquet file’s <em>columns</em> without
-importing</td>
-<td><code>pgcolumnar.read_parquet()</code></td>
-<td>Works exactly as documented — projection pushdown only, reads the
-whole file every time</td>
+<td>You know which column you’ll usually filter by</td>
+<td>Sort the columnar copy on that column (<code>vacuum_sorted</code>) —
+but expect a real compression tradeoff, and measure before assuming it’s
+worth it</td>
 </tr>
 <tr class="even">
-<td>Querying an external Parquet file with row-group-level
-<code>WHERE</code> pruning</td>
-<td><code>pgcolumnar_parquet</code> FDW</td>
-<td><strong>Does not currently deliver this</strong> — verified
-<code>Row Groups Skipped: 0</code> under textbook conditions, filed as
-#850</td>
+<td>Reading a Parquet file exported elsewhere, efficiently, from inside
+PostgreSQL</td>
+<td>Not yet dependable here — use Chapter 17’s
+export-and-read-with-DuckDB pattern instead</td>
 </tr>
 </tbody>
 </table>
-<p>The honest bottom line: <code>pgColumnar</code>’s native storage is
-the real, working half of this chapter’s contrast with Chapter 17 — a
-genuinely different, faster tool for keeping compressed analytics inside
-PostgreSQL. Its Parquet-FDW half, the piece built specifically to finish
-what Chapter 17 left open, does not yet do what its own documentation
-says it does. Both conclusions came from running the same kind of test —
-create real data, sort it, measure it, read <code>EXPLAIN</code>’s own
-counters — not from trusting either the marketing page or the
-pessimistic assumption that “it’s alpha, so it probably doesn’t
-work.”</p>
 <hr />
 <h2 id="summary-what-you-should-now-know-23">Summary — What You Should
 Now Know</h2>
@@ -18279,69 +18145,66 @@ Now Know</h2>
 </thead>
 <tbody>
 <tr class="odd">
+<td>Row storage vs. column storage</td>
+<td>Row storage (the default) keeps a record’s fields together — good
+for writing one row at a time. Column storage keeps each field together
+across every record — good for questions that only touch a few columns
+out of many</td>
+</tr>
+<tr class="even">
 <td><code>CREATE TABLE ... USING pgcolumnar</code></td>
-<td>Native columnar storage inside PostgreSQL — real WAL, real MVCC, no
-external file</td>
+<td>Adds a column-organized copy of a table, right inside PostgreSQL —
+no separate warehouse system</td>
+</tr>
+<tr class="odd">
+<td>Real, measured wins</td>
+<td>708 MB → 18 MB (40x smaller); <code>count(*)</code> 562.7 ms → 0.065
+ms (~8,700x)</td>
+</tr>
+<tr class="even">
+<td>Chunk groups and zone maps</td>
+<td>Data is stored in batches, each with a note of its min/max values
+per column — lets a query skip a whole batch it can’t match, but only if
+the filtered column is actually grouped that way</td>
+</tr>
+<tr class="odd">
+<td><code>vacuum_sorted</code></td>
+<td>Physically re-sorts a table around one column, so its zone maps
+become useful — at a real cost to how well <em>other</em> columns
+compress</td>
 </tr>
 <tr class="even">
 <td><code>shared_preload_libraries</code> before first start</td>
-<td>The safe way to load a new extension’s library — a live
-<code>ALTER SYSTEM SET</code> on a <code>GUC_LIST_QUOTE</code> parameter
-can silently corrupt the whole list</td>
+<td>The safe way to load a new extension — a live
+<code>ALTER SYSTEM SET</code> on this particular kind of setting can
+silently corrupt the whole list</td>
 </tr>
 <tr class="odd">
-<td>Chunk-group skip, unsorted vs. sorted</td>
-<td>Scattered filter columns get zero benefit from zone maps, exactly
-like Chapter 20’s b-tree finding — <code>vacuum_sorted</code> fixes it,
-at a real compression cost to other columns</td>
-</tr>
-<tr class="even">
-<td><code>pgcolumnar.export_parquet()</code></td>
-<td>No compression option — genuinely larger output than a
-deliberately-compressed hand-rolled export</td>
-</tr>
-<tr class="odd">
-<td><code>read_parquet()</code> vs. <code>pgcolumnar_parquet</code>
-FDW</td>
-<td>Projection-only vs. (documented, not yet delivered) predicate
-pushdown — a plain SQL function can never receive a pushed-down qual, a
-foreign table can</td>
-</tr>
-<tr class="even">
-<td><code>Row Groups Skipped</code> in <code>EXPLAIN</code></td>
-<td>The real, checkable proof of whether pruning happened — reads 0 here
-even on fully sorted, correctly-typed data (filed upstream, #850)</td>
-</tr>
-<tr class="odd">
-<td>Cross-version retest before reporting a bug</td>
-<td>Confirmed the finding on both PostgreSQL 16 and 18 before filing,
-ruling out a version-gating explanation the docs made plausible</td>
+<td>Reading Chapter 17’s Parquet files back</td>
+<td>Not yet a strength of this extension — its own native storage is the
+part worth using today</td>
 </tr>
 </tbody>
 </table>
-<p><strong>The key design insight</strong> from this chapter is the same
-discipline Chapters 21 and 22 already established for young software,
-applied this time to something with real production ambitions rather
-than research-beta uncertainty: a well-documented, MIT-licensed
-extension with an active issue tracker and hundreds of self-reported,
-fixed bugs is still worth exactly what you can verify about it yourself,
-feature by feature. <code>pgColumnar</code>’s native storage held up
-completely under direct measurement. Its promise to finish what Chapter
-17 started did not — and the difference between those two verdicts was
-only visible because this chapter tested both halves separately instead
-of taking “it supports Parquet” as one claim.</p>
+<p><strong>The key design insight</strong> from this chapter is the one
+Public Works actually needed answered: keep writing sensor readings the
+ordinary way, one row at a time, and keep a second, column-organized
+copy around specifically for the big questions. Neither storage style is
+better in general — a heap table is still the right choice for
+<code>sensor_readings</code> itself, exactly as Chapter 8 built it, and
+a <code>pgColumnar</code> copy is the right choice for the reporting
+queries layered on top of it. That’s the same instinct behind Chapter
+9’s materialized views, applied one level deeper: sometimes the fastest
+way to answer a different <em>kind</em> of question isn’t a smarter
+query — it’s storing the same data a second way.</p>
 <hr />
-<p><em>Going further: issue <strong>#850</strong> is open as of this
-writing — this chapter’s finding, not yet resolved upstream. The retest
-is a queued, not-yet-done task: once the issue is closed (or the
-maintainer responds with a reason it isn’t a bug), Exercise 5 should be
-re-run against whatever build fixes it, and this chapter’s Decision
-Guide row for the Parquet FDW updated to match — the same “verify again
-against whatever release you’re actually running” discipline Chapter 21
-named explicitly for PostgreSQL 19’s own beta gap. Until then, treat
-<code>pgcolumnar_parquet</code> as Chapter 17 Exercise 6.3 already
-implicitly did: a real, promising pattern, not yet something to depend
-on for row-group pruning in production.</em></p>
+<p><em>Going further: the Parquet-reading gap noted in Exercise 5 is
+worth revisiting later, since <code>pgColumnar</code> is young, actively
+developed software — what didn’t work during this chapter’s testing may
+well work in a newer release. If you pick this chapter back up, it’s
+worth checking whether a newer <code>pgColumnar</code> version closes
+that gap before assuming Chapter 17’s DuckDB-based pattern is still the
+only option.</em></p>
 <h1 id="appendix-a-environment-setup">Appendix A — Environment
 Setup</h1>
 <p>This book does not run on one PostgreSQL installation. It runs on
@@ -18422,8 +18285,8 @@ once on this exact extension.</p>
 <p>Installed directly, not in a container — every extension in the table
 below is a plain <code>apt install</code> against a single PostgreSQL 16
 server.</p>
-<div class="sourceCode" id="cb1062"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1062-1"><a href="#cb1062-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16 postgresql-client-16</span></code></pre></div>
+<div class="sourceCode" id="cb1044"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1044-1"><a href="#cb1044-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="at">-y</span> postgresql-16 postgresql-client-16</span></code></pre></div>
 <p>Two databases exist on it by the end of Chapter 20:</p>
 <ul>
 <li><code>portsmith</code> — the primary database essentially every
@@ -18442,9 +18305,9 @@ beta2 container (Chapter 21)</h2>
 <p><code>docker/ch21/</code> — <code>Dockerfile</code>,
 <code>entrypoint.sh</code>, <code>docker-compose.yml</code>. Bring it
 up:</p>
-<div class="sourceCode" id="cb1063"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1063-1"><a href="#cb1063-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch21</span>
-<span id="cb1063-2"><a href="#cb1063-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+<div class="sourceCode" id="cb1045"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1045-1"><a href="#cb1045-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch21</span>
+<span id="cb1045-2"><a href="#cb1045-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
 <p>Listens on host port <strong>5433</strong> (5432 is the main
 cluster). Two real build problems, both explained in full in Chapter
 21’s own Environment Setup section, worth knowing before you rebuild
@@ -18471,9 +18334,9 @@ container, built on PostgreSQL 18 (GA, not 19 — <code>pg-ripple</code>’s
 own documentation targets 18, and there was no reason to stack
 PostgreSQL 19’s own beta uncertainty on top of an already-real-risk Rust
 build).</p>
-<div class="sourceCode" id="cb1064"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1064-1"><a href="#cb1064-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch22</span>
-<span id="cb1064-2"><a href="#cb1064-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+<div class="sourceCode" id="cb1046"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1046-1"><a href="#cb1046-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch22</span>
+<span id="cb1046-2"><a href="#cb1046-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
 <p>Listens on host port <strong>5434</strong>. <code>pg-ripple</code> is
 compiled from source via Rust/<code>pgrx</code>, not installed as a
 package — the real, non-obvious trap here: <code>cargo-pgrx</code>’s own
@@ -18484,8 +18347,8 @@ semver range. <code>cargo install cargo-pgrx --version "^0.18"</code>
 resolves to whatever the newest <code>0.18.x</code> happens to be, and
 <code>cargo-pgrx</code> refuses to build against a mismatched version
 with a clear, specific error — the fix is pinning the exact version:</p>
-<div class="sourceCode" id="cb1065"><pre
-class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb1065-1"><a href="#cb1065-1" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">cargo</span> install <span class="at">--locked</span> cargo-pgrx <span class="at">--version</span> <span class="st">&quot;0.18.0&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb1047"><pre
+class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb1047-1"><a href="#cb1047-1" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">cargo</span> install <span class="at">--locked</span> cargo-pgrx <span class="at">--version</span> <span class="st">&quot;0.18.0&quot;</span></span></code></pre></div>
 <p>Chapter 22’s environment setup covers the rest, including the
 <code>shared_preload_libraries = 'pg_ripple'</code> setting this
 container needs from its very first start to get
@@ -18499,9 +18362,9 @@ separate PostgreSQL 18 container rather than reusing Chapter 22–23’s
 (kept apart so a <code>pgColumnar</code> crash or a bad
 <code>docker compose down -v</code> can’t take <code>pg-ripple</code>’s
 state with it, and vice versa).</p>
-<div class="sourceCode" id="cb1066"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1066-1"><a href="#cb1066-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch24</span>
-<span id="cb1066-2"><a href="#cb1066-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
+<div class="sourceCode" id="cb1048"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1048-1"><a href="#cb1048-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> docker/ch24</span>
+<span id="cb1048-2"><a href="#cb1048-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> compose up <span class="at">--build</span></span></code></pre></div>
 <p>Listens on host port <strong>5435</strong>. No beta packaging dance
 and no Rust build here — <code>pgColumnar</code> is a plain C extension
 built via PGXS against <code>postgresql-server-dev-18</code> — but two
@@ -18513,11 +18376,11 @@ written into <code>postgresql.conf</code> <em>before</em> the first
 — see this appendix’s own “Why four, not one” section for exactly what
 that setting broke when it was tried the other way.</p>
 <h2 id="connecting-to-all-four">Connecting to all four</h2>
-<div class="sourceCode" id="cb1067"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1067-1"><a href="#cb1067-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith                                                       <span class="co"># main cluster, PG16</span></span>
-<span id="cb1067-2"><a href="#cb1067-2" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5433 <span class="at">-U</span> chris <span class="at">-d</span> portsmith19                    <span class="co"># Chapter 21, PG19 beta2</span></span>
-<span id="cb1067-3"><a href="#cb1067-3" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5434 <span class="at">-U</span> chris <span class="at">-d</span> portsmith22                    <span class="co"># Chapters 22-23, PG18</span></span>
-<span id="cb1067-4"><a href="#cb1067-4" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5435 <span class="at">-U</span> chris <span class="at">-d</span> portsmith24                    <span class="co"># Chapter 24, PG18</span></span></code></pre></div>
+<div class="sourceCode" id="cb1049"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1049-1"><a href="#cb1049-1" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> portsmith                                                       <span class="co"># main cluster, PG16</span></span>
+<span id="cb1049-2"><a href="#cb1049-2" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5433 <span class="at">-U</span> chris <span class="at">-d</span> portsmith19                    <span class="co"># Chapter 21, PG19 beta2</span></span>
+<span id="cb1049-3"><a href="#cb1049-3" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5434 <span class="at">-U</span> chris <span class="at">-d</span> portsmith22                    <span class="co"># Chapters 22-23, PG18</span></span>
+<span id="cb1049-4"><a href="#cb1049-4" aria-hidden="true" tabindex="-1"></a><span class="ex">psql</span> <span class="at">-h</span> localhost <span class="at">-p</span> 5435 <span class="at">-U</span> chris <span class="at">-d</span> portsmith24                    <span class="co"># Chapter 24, PG18</span></span></code></pre></div>
 <p>All container passwords are set directly in their respective
 <code>docker-compose.yml</code> files (<code>ch21-scratch</code>,
 <code>ch22-scratch</code>, <code>ch24-scratch</code>) — these are
@@ -18533,16 +18396,15 @@ overwrite real classification data with incorrect facts. Don’t run it
 against data in that container you haven’t already exported, and see
 Chapter 23 Exercise 2 for the full, reproduced finding before relying on
 it for anything.</p>
-<p><strong>Chapter 24 has a standing, queued follow-up, not yet
-done:</strong> <code>pgcolumnar_parquet</code>’s row-group skip was
-filed upstream as <a
-href="https://github.com/commandprompt/pgcolumnar/issues/850">commandprompt/pgcolumnar#850</a>
-and is still open as of this writing. Anyone picking this chapter back
-up should check that issue first — if it’s closed, Exercise 5 needs a
-full retest against the fixed build, and the Decision Guide’s Parquet
-FDW row should be updated to match, the same way Chapter 21’s own
-findings were framed as provisional to whatever beta was current at the
-time.</p>
+<p><strong>Chapter 24’s container is worth a quick recheck if you pick
+it back up.</strong> Its central exercises (the native columnar storage
+— real, measured compression and speed wins) don’t depend on anything
+likely to change. Its shorter closing section, on reading Chapter 17’s
+exported Parquet files back through <code>pgColumnar</code> itself,
+tested against a specific, young alpha release — worth confirming
+against whatever version you’re actually running before assuming that
+part’s conclusion still holds, the same “verify again” habit Chapter
+21’s own findings needed for its beta.</p>
 <h1 id="appendix-b-synthetic-data-generation-scripts">Appendix B —
 Synthetic Data Generation Scripts</h1>
 <p>Every chapter in this book follows the same rule: real,
@@ -19403,212 +19265,212 @@ something doesn’t work as documented, it’s flagged <strong>⚠ verified
 broken/unsupported</strong> right here, not just buried in that
 chapter’s prose — don’t copy those forms expecting them to work.</p>
 <h3 id="chapter-1-jsonb">Chapter 1 — JSONB</h3>
-<div class="sourceCode" id="cb1069"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1069-1"><a href="#cb1069-1" aria-hidden="true" tabindex="-1"></a>details <span class="op">-&gt;</span> <span class="st">&#39;key&#39;</span>            <span class="co">-- get JSON value (as jsonb)</span></span>
-<span id="cb1069-2"><a href="#cb1069-2" aria-hidden="true" tabindex="-1"></a>details <span class="op">-&gt;&gt;</span> <span class="st">&#39;key&#39;</span>           <span class="co">-- get JSON value (as text)</span></span>
-<span id="cb1069-3"><a href="#cb1069-3" aria-hidden="true" tabindex="-1"></a>details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{a,b}&#39;</span>         <span class="co">-- get nested value by path (as text)</span></span>
-<span id="cb1069-4"><a href="#cb1069-4" aria-hidden="true" tabindex="-1"></a>details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;k&quot;:&quot;v&quot;}&#39;</span>      <span class="co">-- containment</span></span>
-<span id="cb1069-5"><a href="#cb1069-5" aria-hidden="true" tabindex="-1"></a>details ? <span class="st">&#39;key&#39;</span>             <span class="co">-- key exists</span></span>
-<span id="cb1069-6"><a href="#cb1069-6" aria-hidden="true" tabindex="-1"></a>jsonb_set(details, <span class="st">&#39;{k}&#39;</span>, <span class="st">&#39;&quot;v&quot;&#39;</span>)</span>
-<span id="cb1069-7"><a href="#cb1069-7" aria-hidden="true" tabindex="-1"></a>jsonb_insert(details, <span class="st">&#39;{arr,0}&#39;</span>, <span class="st">&#39;&quot;v&quot;&#39;</span>)</span>
-<span id="cb1069-8"><a href="#cb1069-8" aria-hidden="true" tabindex="-1"></a>jsonb_array_elements(details <span class="op">-&gt;</span> <span class="st">&#39;tags&#39;</span>)</span>
-<span id="cb1069-9"><a href="#cb1069-9" aria-hidden="true" tabindex="-1"></a>jsonb_path_query(details, <span class="st">&#39;$.hours[*] ? (@.day == &quot;sun&quot;)&#39;</span>)</span>
-<span id="cb1069-10"><a href="#cb1069-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (details);</span>
-<span id="cb1069-11"><a href="#cb1069-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (details jsonb_path_ops);</span></code></pre></div>
+<div class="sourceCode" id="cb1051"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1051-1"><a href="#cb1051-1" aria-hidden="true" tabindex="-1"></a>details <span class="op">-&gt;</span> <span class="st">&#39;key&#39;</span>            <span class="co">-- get JSON value (as jsonb)</span></span>
+<span id="cb1051-2"><a href="#cb1051-2" aria-hidden="true" tabindex="-1"></a>details <span class="op">-&gt;&gt;</span> <span class="st">&#39;key&#39;</span>           <span class="co">-- get JSON value (as text)</span></span>
+<span id="cb1051-3"><a href="#cb1051-3" aria-hidden="true" tabindex="-1"></a>details #<span class="op">&gt;&gt;</span> <span class="st">&#39;{a,b}&#39;</span>         <span class="co">-- get nested value by path (as text)</span></span>
+<span id="cb1051-4"><a href="#cb1051-4" aria-hidden="true" tabindex="-1"></a>details @<span class="op">&gt;</span> <span class="st">&#39;{&quot;k&quot;:&quot;v&quot;}&#39;</span>      <span class="co">-- containment</span></span>
+<span id="cb1051-5"><a href="#cb1051-5" aria-hidden="true" tabindex="-1"></a>details ? <span class="st">&#39;key&#39;</span>             <span class="co">-- key exists</span></span>
+<span id="cb1051-6"><a href="#cb1051-6" aria-hidden="true" tabindex="-1"></a>jsonb_set(details, <span class="st">&#39;{k}&#39;</span>, <span class="st">&#39;&quot;v&quot;&#39;</span>)</span>
+<span id="cb1051-7"><a href="#cb1051-7" aria-hidden="true" tabindex="-1"></a>jsonb_insert(details, <span class="st">&#39;{arr,0}&#39;</span>, <span class="st">&#39;&quot;v&quot;&#39;</span>)</span>
+<span id="cb1051-8"><a href="#cb1051-8" aria-hidden="true" tabindex="-1"></a>jsonb_array_elements(details <span class="op">-&gt;</span> <span class="st">&#39;tags&#39;</span>)</span>
+<span id="cb1051-9"><a href="#cb1051-9" aria-hidden="true" tabindex="-1"></a>jsonb_path_query(details, <span class="st">&#39;$.hours[*] ? (@.day == &quot;sun&quot;)&#39;</span>)</span>
+<span id="cb1051-10"><a href="#cb1051-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (details);</span>
+<span id="cb1051-11"><a href="#cb1051-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (details jsonb_path_ops);</span></code></pre></div>
 <h3 id="chapter-2-postgis">Chapter 2 — PostGIS</h3>
-<div class="sourceCode" id="cb1070"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1070-1"><a href="#cb1070-1" aria-hidden="true" tabindex="-1"></a>ST_GeomFromText(<span class="st">&#39;POINT(-1.1 50.8)&#39;</span>, <span class="dv">4326</span>)</span>
-<span id="cb1070-2"><a href="#cb1070-2" aria-hidden="true" tabindex="-1"></a>ST_DWithin(a.geom, b.geom, <span class="dv">500</span>)          <span class="co">-- meters, if geography-cast</span></span>
-<span id="cb1070-3"><a href="#cb1070-3" aria-hidden="true" tabindex="-1"></a>ST_Within(point_geom, polygon_geom)</span>
-<span id="cb1070-4"><a href="#cb1070-4" aria-hidden="true" tabindex="-1"></a>ST_Contains(polygon_geom, point_geom)</span>
-<span id="cb1070-5"><a href="#cb1070-5" aria-hidden="true" tabindex="-1"></a>ST_Area(geom:<span class="ch">:geography</span>)</span>
-<span id="cb1070-6"><a href="#cb1070-6" aria-hidden="true" tabindex="-1"></a>ST_Distance(a.geom, b.geom)</span>
-<span id="cb1070-7"><a href="#cb1070-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (geom);</span></code></pre></div>
+<div class="sourceCode" id="cb1052"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1052-1"><a href="#cb1052-1" aria-hidden="true" tabindex="-1"></a>ST_GeomFromText(<span class="st">&#39;POINT(-1.1 50.8)&#39;</span>, <span class="dv">4326</span>)</span>
+<span id="cb1052-2"><a href="#cb1052-2" aria-hidden="true" tabindex="-1"></a>ST_DWithin(a.geom, b.geom, <span class="dv">500</span>)          <span class="co">-- meters, if geography-cast</span></span>
+<span id="cb1052-3"><a href="#cb1052-3" aria-hidden="true" tabindex="-1"></a>ST_Within(point_geom, polygon_geom)</span>
+<span id="cb1052-4"><a href="#cb1052-4" aria-hidden="true" tabindex="-1"></a>ST_Contains(polygon_geom, point_geom)</span>
+<span id="cb1052-5"><a href="#cb1052-5" aria-hidden="true" tabindex="-1"></a>ST_Area(geom:<span class="ch">:geography</span>)</span>
+<span id="cb1052-6"><a href="#cb1052-6" aria-hidden="true" tabindex="-1"></a>ST_Distance(a.geom, b.geom)</span>
+<span id="cb1052-7"><a href="#cb1052-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (geom);</span></code></pre></div>
 <h3 id="chapter-3-job-queues">Chapter 3 — Job Queues</h3>
-<div class="sourceCode" id="cb1071"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1071-1"><a href="#cb1071-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> jobs</span>
-<span id="cb1071-2"><a href="#cb1071-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
-<span id="cb1071-3"><a href="#cb1071-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority <span class="kw">DESC</span>, created_at</span>
-<span id="cb1071-4"><a href="#cb1071-4" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
-<span id="cb1071-5"><a href="#cb1071-5" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span> <span class="dv">1</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb1053"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1053-1"><a href="#cb1053-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> jobs</span>
+<span id="cb1053-2"><a href="#cb1053-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WHERE</span> status <span class="op">=</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb1053-3"><a href="#cb1053-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ORDER</span> <span class="kw">BY</span> priority <span class="kw">DESC</span>, created_at</span>
+<span id="cb1053-4"><a href="#cb1053-4" aria-hidden="true" tabindex="-1"></a><span class="cf">FOR</span> <span class="kw">UPDATE</span> <span class="kw">SKIP</span> <span class="kw">LOCKED</span></span>
+<span id="cb1053-5"><a href="#cb1053-5" aria-hidden="true" tabindex="-1"></a><span class="kw">LIMIT</span> <span class="dv">1</span>;</span></code></pre></div>
 <h3 id="chapter-4-full-text-search">Chapter 4 — Full-Text Search</h3>
-<div class="sourceCode" id="cb1072"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1072-1"><a href="#cb1072-1" aria-hidden="true" tabindex="-1"></a>to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>)</span>
-<span id="cb1072-2"><a href="#cb1072-2" aria-hidden="true" tabindex="-1"></a>to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;budget &amp; housing&#39;</span>)</span>
-<span id="cb1072-3"><a href="#cb1072-3" aria-hidden="true" tabindex="-1"></a>plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;budget housing&#39;</span>)</span>
-<span id="cb1072-4"><a href="#cb1072-4" aria-hidden="true" tabindex="-1"></a>ts_rank(search_vector, <span class="kw">query</span>)</span>
-<span id="cb1072-5"><a href="#cb1072-5" aria-hidden="true" tabindex="-1"></a>ts_rank_cd(search_vector, <span class="kw">query</span>)</span>
-<span id="cb1072-6"><a href="#cb1072-6" aria-hidden="true" tabindex="-1"></a>ts_headline(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>, <span class="kw">query</span>)</span>
-<span id="cb1072-7"><a href="#cb1072-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEXT SEARCH CONFIGURATION portsmith (<span class="kw">COPY</span> <span class="op">=</span> english);</span>
-<span id="cb1072-8"><a href="#cb1072-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (search_vector);</span></code></pre></div>
+<div class="sourceCode" id="cb1054"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1054-1"><a href="#cb1054-1" aria-hidden="true" tabindex="-1"></a>to_tsvector(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>)</span>
+<span id="cb1054-2"><a href="#cb1054-2" aria-hidden="true" tabindex="-1"></a>to_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;budget &amp; housing&#39;</span>)</span>
+<span id="cb1054-3"><a href="#cb1054-3" aria-hidden="true" tabindex="-1"></a>plainto_tsquery(<span class="st">&#39;english&#39;</span>, <span class="st">&#39;budget housing&#39;</span>)</span>
+<span id="cb1054-4"><a href="#cb1054-4" aria-hidden="true" tabindex="-1"></a>ts_rank(search_vector, <span class="kw">query</span>)</span>
+<span id="cb1054-5"><a href="#cb1054-5" aria-hidden="true" tabindex="-1"></a>ts_rank_cd(search_vector, <span class="kw">query</span>)</span>
+<span id="cb1054-6"><a href="#cb1054-6" aria-hidden="true" tabindex="-1"></a>ts_headline(<span class="st">&#39;english&#39;</span>, <span class="kw">body</span>, <span class="kw">query</span>)</span>
+<span id="cb1054-7"><a href="#cb1054-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> TEXT SEARCH CONFIGURATION portsmith (<span class="kw">COPY</span> <span class="op">=</span> english);</span>
+<span id="cb1054-8"><a href="#cb1054-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (search_vector);</span></code></pre></div>
 <h3 id="chapter-5-fuzzy-matching">Chapter 5 — Fuzzy Matching</h3>
-<div class="sourceCode" id="cb1073"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1073-1"><a href="#cb1073-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION pg_trgm;</span>
-<span id="cb1073-2"><a href="#cb1073-2" aria-hidden="true" tabindex="-1"></a>similarity(<span class="st">&#39;a&#39;</span>, <span class="st">&#39;b&#39;</span>)</span>
-<span id="cb1073-3"><a href="#cb1073-3" aria-hidden="true" tabindex="-1"></a>word_similarity(<span class="st">&#39;needle&#39;</span>, <span class="st">&#39;haystack containing needle&#39;</span>)</span>
-<span id="cb1073-4"><a href="#cb1073-4" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;query&#39;</span> % <span class="kw">column</span>                          <span class="co">-- similarity above pg_trgm.similarity_threshold</span></span>
-<span id="cb1073-5"><a href="#cb1073-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (name gin_trgm_ops);</span>
-<span id="cb1073-6"><a href="#cb1073-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (name gist_trgm_ops);</span></code></pre></div>
+<div class="sourceCode" id="cb1055"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1055-1"><a href="#cb1055-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION pg_trgm;</span>
+<span id="cb1055-2"><a href="#cb1055-2" aria-hidden="true" tabindex="-1"></a>similarity(<span class="st">&#39;a&#39;</span>, <span class="st">&#39;b&#39;</span>)</span>
+<span id="cb1055-3"><a href="#cb1055-3" aria-hidden="true" tabindex="-1"></a>word_similarity(<span class="st">&#39;needle&#39;</span>, <span class="st">&#39;haystack containing needle&#39;</span>)</span>
+<span id="cb1055-4"><a href="#cb1055-4" aria-hidden="true" tabindex="-1"></a><span class="st">&#39;query&#39;</span> % <span class="kw">column</span>                          <span class="co">-- similarity above pg_trgm.similarity_threshold</span></span>
+<span id="cb1055-5"><a href="#cb1055-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIN (name gin_trgm_ops);</span>
+<span id="cb1055-6"><a href="#cb1055-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (name gist_trgm_ops);</span></code></pre></div>
 <h3 id="chapter-6-pgvector">Chapter 6 — pgvector</h3>
-<div class="sourceCode" id="cb1074"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1074-1"><a href="#cb1074-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION vector;</span>
-<span id="cb1074-2"><a href="#cb1074-2" aria-hidden="true" tabindex="-1"></a>embedding vector(<span class="dv">384</span>)</span>
-<span id="cb1074-3"><a href="#cb1074-3" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;-&gt;</span> query_vec      <span class="co">-- L2 distance</span></span>
-<span id="cb1074-4"><a href="#cb1074-4" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;</span>#<span class="op">&gt;</span> query_vec      <span class="co">-- negative inner product</span></span>
-<span id="cb1074-5"><a href="#cb1074-5" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;=&gt;</span> query_vec      <span class="co">-- cosine distance</span></span>
-<span id="cb1074-6"><a href="#cb1074-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> ivfflat (embedding vector_cosine_ops) <span class="kw">WITH</span> (lists <span class="op">=</span> <span class="dv">100</span>);</span>
-<span id="cb1074-7"><a href="#cb1074-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> hnsw (embedding vector_cosine_ops);</span></code></pre></div>
+<div class="sourceCode" id="cb1056"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1056-1"><a href="#cb1056-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION vector;</span>
+<span id="cb1056-2"><a href="#cb1056-2" aria-hidden="true" tabindex="-1"></a>embedding vector(<span class="dv">384</span>)</span>
+<span id="cb1056-3"><a href="#cb1056-3" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;-&gt;</span> query_vec      <span class="co">-- L2 distance</span></span>
+<span id="cb1056-4"><a href="#cb1056-4" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;</span>#<span class="op">&gt;</span> query_vec      <span class="co">-- negative inner product</span></span>
+<span id="cb1056-5"><a href="#cb1056-5" aria-hidden="true" tabindex="-1"></a>embedding <span class="op">&lt;=&gt;</span> query_vec      <span class="co">-- cosine distance</span></span>
+<span id="cb1056-6"><a href="#cb1056-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> ivfflat (embedding vector_cosine_ops) <span class="kw">WITH</span> (lists <span class="op">=</span> <span class="dv">100</span>);</span>
+<span id="cb1056-7"><a href="#cb1056-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> hnsw (embedding vector_cosine_ops);</span></code></pre></div>
 <h3 id="chapter-7-ipnetwork-ip4r">Chapter 7 — IP/Network
 (<code>ip4r</code>)</h3>
-<div class="sourceCode" id="cb1075"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1075-1"><a href="#cb1075-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION ip4r;</span>
-<span id="cb1075-2"><a href="#cb1075-2" aria-hidden="true" tabindex="-1"></a>ip <span class="st">&#39;10.0.0.5&#39;</span> <span class="op">&lt;&lt;=</span> cidr <span class="st">&#39;10.0.0.0/24&#39;</span>      <span class="co">-- contained by</span></span>
-<span id="cb1075-3"><a href="#cb1075-3" aria-hidden="true" tabindex="-1"></a>cidr <span class="op">&gt;&gt;</span> ip                                 <span class="co">-- contains</span></span>
-<span id="cb1075-4"><a href="#cb1075-4" aria-hidden="true" tabindex="-1"></a><span class="kw">network</span>(addr), masklen(addr)</span>
-<span id="cb1075-5"><a href="#cb1075-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (cidr_range);</span></code></pre></div>
+<div class="sourceCode" id="cb1057"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1057-1"><a href="#cb1057-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION ip4r;</span>
+<span id="cb1057-2"><a href="#cb1057-2" aria-hidden="true" tabindex="-1"></a>ip <span class="st">&#39;10.0.0.5&#39;</span> <span class="op">&lt;&lt;=</span> cidr <span class="st">&#39;10.0.0.0/24&#39;</span>      <span class="co">-- contained by</span></span>
+<span id="cb1057-3"><a href="#cb1057-3" aria-hidden="true" tabindex="-1"></a>cidr <span class="op">&gt;&gt;</span> ip                                 <span class="co">-- contains</span></span>
+<span id="cb1057-4"><a href="#cb1057-4" aria-hidden="true" tabindex="-1"></a><span class="kw">network</span>(addr), masklen(addr)</span>
+<span id="cb1057-5"><a href="#cb1057-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> GIST (cidr_range);</span></code></pre></div>
 <h3 id="chapter-8-partitioning-brin">Chapter 8 — Partitioning &amp;
 BRIN</h3>
-<div class="sourceCode" id="cb1076"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1076-1"><a href="#cb1076-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings (<span class="op">..</span>.) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
-<span id="cb1076-2"><a href="#cb1076-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_01 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings</span>
-<span id="cb1076-3"><a href="#cb1076-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-01-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-02-01&#39;</span>);</span>
-<span id="cb1076-4"><a href="#cb1076-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings DETACH <span class="kw">PARTITION</span> sensor_readings_2024_01;</span>
-<span id="cb1076-5"><a href="#cb1076-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> BRIN (recorded_at);</span></code></pre></div>
+<div class="sourceCode" id="cb1058"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1058-1"><a href="#cb1058-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings (<span class="op">..</span>.) <span class="kw">PARTITION</span> <span class="kw">BY</span> <span class="kw">RANGE</span> (recorded_at);</span>
+<span id="cb1058-2"><a href="#cb1058-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> sensor_readings_2024_01 <span class="kw">PARTITION</span> <span class="kw">OF</span> sensor_readings</span>
+<span id="cb1058-3"><a href="#cb1058-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">FOR</span> <span class="kw">VALUES</span> <span class="kw">FROM</span> (<span class="st">&#39;2024-01-01&#39;</span>) <span class="kw">TO</span> (<span class="st">&#39;2024-02-01&#39;</span>);</span>
+<span id="cb1058-4"><a href="#cb1058-4" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings DETACH <span class="kw">PARTITION</span> sensor_readings_2024_01;</span>
+<span id="cb1058-5"><a href="#cb1058-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> <span class="op">..</span>. <span class="kw">USING</span> BRIN (recorded_at);</span></code></pre></div>
 <h3 id="chapter-9-materialized-views">Chapter 9 — Materialized
 Views</h3>
-<div class="sourceCode" id="cb1077"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1077-1"><a href="#cb1077-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> mv_sensor_daily <span class="kw">AS</span> <span class="kw">SELECT</span> <span class="op">..</span>.;</span>
-<span id="cb1077-2"><a href="#cb1077-2" aria-hidden="true" tabindex="-1"></a><span class="kw">REFRESH</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> mv_sensor_daily;</span>
-<span id="cb1077-3"><a href="#cb1077-3" aria-hidden="true" tabindex="-1"></a><span class="kw">REFRESH</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> CONCURRENTLY mv_sensor_daily;  <span class="co">-- needs a unique index first</span></span></code></pre></div>
+<div class="sourceCode" id="cb1059"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1059-1"><a href="#cb1059-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> mv_sensor_daily <span class="kw">AS</span> <span class="kw">SELECT</span> <span class="op">..</span>.;</span>
+<span id="cb1059-2"><a href="#cb1059-2" aria-hidden="true" tabindex="-1"></a><span class="kw">REFRESH</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> mv_sensor_daily;</span>
+<span id="cb1059-3"><a href="#cb1059-3" aria-hidden="true" tabindex="-1"></a><span class="kw">REFRESH</span> <span class="kw">MATERIALIZED</span> <span class="kw">VIEW</span> CONCURRENTLY mv_sensor_daily;  <span class="co">-- needs a unique index first</span></span></code></pre></div>
 <h3 id="chapter-10-postgrest">Chapter 10 — PostgREST</h3>
-<div class="sourceCode" id="cb1078"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1078-1"><a href="#cb1078-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">ROLE</span> web_anon NOLOGIN;</span>
-<span id="cb1078-2"><a href="#cb1078-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">ROLE</span> authenticator NOINHERIT LOGIN <span class="kw">PASSWORD</span> <span class="st">&#39;...&#39;</span>;</span>
-<span id="cb1078-3"><a href="#cb1078-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> web_anon <span class="kw">TO</span> authenticator;</span>
-<span id="cb1078-4"><a href="#cb1078-4" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> <span class="kw">SELECT</span> <span class="kw">ON</span> api.businesses <span class="kw">TO</span> web_anon;</span>
-<span id="cb1078-5"><a href="#cb1078-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> POLICY resident_self_only <span class="kw">ON</span> residents <span class="cf">FOR</span> <span class="kw">SELECT</span></span>
-<span id="cb1078-6"><a href="#cb1078-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> (<span class="kw">id</span> <span class="op">=</span> current_setting(<span class="st">&#39;request.jwt.claims&#39;</span>, <span class="kw">true</span>):<span class="ch">:json</span> <span class="op">-&gt;&gt;</span> <span class="st">&#39;resident_id&#39;</span>);</span></code></pre></div>
-<div class="sourceCode" id="cb1079"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb1079-1"><a href="#cb1079-1" aria-hidden="true" tabindex="-1"></a><span class="ex">postgrest</span> postgrest.conf</span></code></pre></div>
+<div class="sourceCode" id="cb1060"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1060-1"><a href="#cb1060-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">ROLE</span> web_anon NOLOGIN;</span>
+<span id="cb1060-2"><a href="#cb1060-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">ROLE</span> authenticator NOINHERIT LOGIN <span class="kw">PASSWORD</span> <span class="st">&#39;...&#39;</span>;</span>
+<span id="cb1060-3"><a href="#cb1060-3" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> web_anon <span class="kw">TO</span> authenticator;</span>
+<span id="cb1060-4"><a href="#cb1060-4" aria-hidden="true" tabindex="-1"></a><span class="kw">GRANT</span> <span class="kw">SELECT</span> <span class="kw">ON</span> api.businesses <span class="kw">TO</span> web_anon;</span>
+<span id="cb1060-5"><a href="#cb1060-5" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> POLICY resident_self_only <span class="kw">ON</span> residents <span class="cf">FOR</span> <span class="kw">SELECT</span></span>
+<span id="cb1060-6"><a href="#cb1060-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">USING</span> (<span class="kw">id</span> <span class="op">=</span> current_setting(<span class="st">&#39;request.jwt.claims&#39;</span>, <span class="kw">true</span>):<span class="ch">:json</span> <span class="op">-&gt;&gt;</span> <span class="st">&#39;resident_id&#39;</span>);</span></code></pre></div>
+<div class="sourceCode" id="cb1061"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1061-1"><a href="#cb1061-1" aria-hidden="true" tabindex="-1"></a><span class="ex">postgrest</span> postgrest.conf</span></code></pre></div>
 <h3 id="chapter-11-window-functions">Chapter 11 — Window Functions</h3>
-<div class="sourceCode" id="cb1080"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1080-1"><a href="#cb1080-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_id, recorded_at,</span>
-<span id="cb1080-2"><a href="#cb1080-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">AVG</span>(<span class="fu">value</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> sensor_id <span class="kw">ORDER</span> <span class="kw">BY</span> recorded_at</span>
-<span id="cb1080-3"><a href="#cb1080-3" aria-hidden="true" tabindex="-1"></a>                         <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="dv">4</span> <span class="kw">PRECEDING</span> <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span>) <span class="kw">AS</span> rolling_avg,</span>
-<span id="cb1080-4"><a href="#cb1080-4" aria-hidden="true" tabindex="-1"></a>       <span class="fu">RANK</span>() <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> sensor_id <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="fu">value</span> <span class="kw">DESC</span>) <span class="kw">AS</span> rnk</span>
-<span id="cb1080-5"><a href="#cb1080-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings;</span></code></pre></div>
+<div class="sourceCode" id="cb1062"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1062-1"><a href="#cb1062-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> sensor_id, recorded_at,</span>
+<span id="cb1062-2"><a href="#cb1062-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">AVG</span>(<span class="fu">value</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> sensor_id <span class="kw">ORDER</span> <span class="kw">BY</span> recorded_at</span>
+<span id="cb1062-3"><a href="#cb1062-3" aria-hidden="true" tabindex="-1"></a>                         <span class="kw">ROWS</span> <span class="kw">BETWEEN</span> <span class="dv">4</span> <span class="kw">PRECEDING</span> <span class="kw">AND</span> <span class="kw">CURRENT</span> <span class="kw">ROW</span>) <span class="kw">AS</span> rolling_avg,</span>
+<span id="cb1062-4"><a href="#cb1062-4" aria-hidden="true" tabindex="-1"></a>       <span class="fu">RANK</span>() <span class="kw">OVER</span> (<span class="kw">PARTITION</span> <span class="kw">BY</span> sensor_id <span class="kw">ORDER</span> <span class="kw">BY</span> <span class="fu">value</span> <span class="kw">DESC</span>) <span class="kw">AS</span> rnk</span>
+<span id="cb1062-5"><a href="#cb1062-5" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> sensor_readings;</span></code></pre></div>
 <h3 id="chapter-12-recursive-ctes">Chapter 12 — Recursive CTEs</h3>
-<div class="sourceCode" id="cb1081"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1081-1"><a href="#cb1081-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE reports <span class="kw">AS</span> (</span>
-<span id="cb1081-2"><a href="#cb1081-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span> <span class="kw">FROM</span> city_org <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb1081-3"><a href="#cb1081-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
-<span id="cb1081-4"><a href="#cb1081-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> c.<span class="kw">id</span>, c.manager_id, r.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb1081-5"><a href="#cb1081-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span> city_org c <span class="kw">JOIN</span> reports r <span class="kw">ON</span> c.manager_id <span class="op">=</span> r.<span class="kw">id</span></span>
-<span id="cb1081-6"><a href="#cb1081-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1081-7"><a href="#cb1081-7" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> reports;</span>
-<span id="cb1081-8"><a href="#cb1081-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1081-9"><a href="#cb1081-9" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE walk <span class="kw">AS</span> (</span>
-<span id="cb1081-10"><a href="#cb1081-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span>.</span>
-<span id="cb1081-11"><a href="#cb1081-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">CYCLE</span> <span class="kw">id</span> <span class="kw">SET</span> is_cycle <span class="kw">USING</span> path</span>
-<span id="cb1081-12"><a href="#cb1081-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1081-13"><a href="#cb1081-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> walk;</span></code></pre></div>
+<div class="sourceCode" id="cb1063"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1063-1"><a href="#cb1063-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE reports <span class="kw">AS</span> (</span>
+<span id="cb1063-2"><a href="#cb1063-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="kw">id</span>, manager_id, <span class="dv">0</span> <span class="kw">AS</span> <span class="fu">depth</span> <span class="kw">FROM</span> city_org <span class="kw">WHERE</span> <span class="kw">id</span> <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb1063-3"><a href="#cb1063-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNION</span> <span class="kw">ALL</span></span>
+<span id="cb1063-4"><a href="#cb1063-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">SELECT</span> c.<span class="kw">id</span>, c.manager_id, r.<span class="fu">depth</span> <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb1063-5"><a href="#cb1063-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">FROM</span> city_org c <span class="kw">JOIN</span> reports r <span class="kw">ON</span> c.manager_id <span class="op">=</span> r.<span class="kw">id</span></span>
+<span id="cb1063-6"><a href="#cb1063-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1063-7"><a href="#cb1063-7" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> reports;</span>
+<span id="cb1063-8"><a href="#cb1063-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1063-9"><a href="#cb1063-9" aria-hidden="true" tabindex="-1"></a><span class="kw">WITH</span> RECURSIVE walk <span class="kw">AS</span> (</span>
+<span id="cb1063-10"><a href="#cb1063-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span>.</span>
+<span id="cb1063-11"><a href="#cb1063-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">CYCLE</span> <span class="kw">id</span> <span class="kw">SET</span> is_cycle <span class="kw">USING</span> path</span>
+<span id="cb1063-12"><a href="#cb1063-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1063-13"><a href="#cb1063-13" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> walk;</span></code></pre></div>
 <h3 id="chapter-13-listennotify">Chapter 13 —
 <code>LISTEN</code>/<code>NOTIFY</code></h3>
-<div class="sourceCode" id="cb1082"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1082-1"><a href="#cb1082-1" aria-hidden="true" tabindex="-1"></a>LISTEN permit_updates;</span>
-<span id="cb1082-2"><a href="#cb1082-2" aria-hidden="true" tabindex="-1"></a>NOTIFY permit_updates, <span class="st">&#39;{&quot;job_id&quot;: 42}&#39;</span>;</span>
-<span id="cb1082-3"><a href="#cb1082-3" aria-hidden="true" tabindex="-1"></a>pg_notify(<span class="st">&#39;permit_updates&#39;</span>, payload);</span>
-<span id="cb1082-4"><a href="#cb1082-4" aria-hidden="true" tabindex="-1"></a>UNLISTEN permit_updates;</span></code></pre></div>
+<div class="sourceCode" id="cb1064"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1064-1"><a href="#cb1064-1" aria-hidden="true" tabindex="-1"></a>LISTEN permit_updates;</span>
+<span id="cb1064-2"><a href="#cb1064-2" aria-hidden="true" tabindex="-1"></a>NOTIFY permit_updates, <span class="st">&#39;{&quot;job_id&quot;: 42}&#39;</span>;</span>
+<span id="cb1064-3"><a href="#cb1064-3" aria-hidden="true" tabindex="-1"></a>pg_notify(<span class="st">&#39;permit_updates&#39;</span>, payload);</span>
+<span id="cb1064-4"><a href="#cb1064-4" aria-hidden="true" tabindex="-1"></a>UNLISTEN permit_updates;</span></code></pre></div>
 <h3 id="chapter-14-advisory-locks">Chapter 14 — Advisory Locks</h3>
-<div class="sourceCode" id="cb1083"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1083-1"><a href="#cb1083-1" aria-hidden="true" tabindex="-1"></a>pg_try_advisory_lock(hashtext(<span class="st">&#39;demolition_permit&#39;</span>))</span>
-<span id="cb1083-2"><a href="#cb1083-2" aria-hidden="true" tabindex="-1"></a>pg_advisory_lock(<span class="kw">key</span>)          <span class="co">-- session-level, must be explicitly unlocked</span></span>
-<span id="cb1083-3"><a href="#cb1083-3" aria-hidden="true" tabindex="-1"></a>pg_advisory_unlock(<span class="kw">key</span>)</span>
-<span id="cb1083-4"><a href="#cb1083-4" aria-hidden="true" tabindex="-1"></a>pg_advisory_xact_lock(<span class="kw">key</span>)     <span class="co">-- transaction-level, auto-released on commit/rollback</span></span>
-<span id="cb1083-5"><a href="#cb1083-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_locks <span class="kw">WHERE</span> locktype <span class="op">=</span> <span class="st">&#39;advisory&#39;</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb1065"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1065-1"><a href="#cb1065-1" aria-hidden="true" tabindex="-1"></a>pg_try_advisory_lock(hashtext(<span class="st">&#39;demolition_permit&#39;</span>))</span>
+<span id="cb1065-2"><a href="#cb1065-2" aria-hidden="true" tabindex="-1"></a>pg_advisory_lock(<span class="kw">key</span>)          <span class="co">-- session-level, must be explicitly unlocked</span></span>
+<span id="cb1065-3"><a href="#cb1065-3" aria-hidden="true" tabindex="-1"></a>pg_advisory_unlock(<span class="kw">key</span>)</span>
+<span id="cb1065-4"><a href="#cb1065-4" aria-hidden="true" tabindex="-1"></a>pg_advisory_xact_lock(<span class="kw">key</span>)     <span class="co">-- transaction-level, auto-released on commit/rollback</span></span>
+<span id="cb1065-5"><a href="#cb1065-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_locks <span class="kw">WHERE</span> locktype <span class="op">=</span> <span class="st">&#39;advisory&#39;</span>;</span></code></pre></div>
 <h3 id="chapter-15-custom-types-domains-enums">Chapter 15 — Custom
 Types, Domains, Enums</h3>
-<div class="sourceCode" id="cb1084"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1084-1"><a href="#cb1084-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> job_status <span class="kw">AS</span> ENUM (<span class="st">&#39;queued&#39;</span>,<span class="st">&#39;on_hold&#39;</span>,<span class="st">&#39;in_progress&#39;</span>,<span class="st">&#39;completed&#39;</span>,<span class="st">&#39;failed&#39;</span>,<span class="st">&#39;cancelled&#39;</span>);</span>
-<span id="cb1084-2"><a href="#cb1084-2" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TYPE</span> job_status <span class="kw">ADD</span> <span class="fu">VALUE</span> <span class="st">&#39;on_hold&#39;</span> <span class="kw">AFTER</span> <span class="st">&#39;queued&#39;</span>;</span>
-<span id="cb1084-3"><a href="#cb1084-3" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">DOMAIN</span> positive_integer <span class="kw">AS</span> <span class="dt">INTEGER</span> <span class="kw">CHECK</span> (<span class="fu">VALUE</span> <span class="op">&gt;</span> <span class="dv">0</span>);</span>
-<span id="cb1084-4"><a href="#cb1084-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> contact_info <span class="kw">AS</span> (phone TEXT, postcode uk_postcode);</span></code></pre></div>
+<div class="sourceCode" id="cb1066"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1066-1"><a href="#cb1066-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> job_status <span class="kw">AS</span> ENUM (<span class="st">&#39;queued&#39;</span>,<span class="st">&#39;on_hold&#39;</span>,<span class="st">&#39;in_progress&#39;</span>,<span class="st">&#39;completed&#39;</span>,<span class="st">&#39;failed&#39;</span>,<span class="st">&#39;cancelled&#39;</span>);</span>
+<span id="cb1066-2"><a href="#cb1066-2" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TYPE</span> job_status <span class="kw">ADD</span> <span class="fu">VALUE</span> <span class="st">&#39;on_hold&#39;</span> <span class="kw">AFTER</span> <span class="st">&#39;queued&#39;</span>;</span>
+<span id="cb1066-3"><a href="#cb1066-3" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">DOMAIN</span> positive_integer <span class="kw">AS</span> <span class="dt">INTEGER</span> <span class="kw">CHECK</span> (<span class="fu">VALUE</span> <span class="op">&gt;</span> <span class="dv">0</span>);</span>
+<span id="cb1066-4"><a href="#cb1066-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> contact_info <span class="kw">AS</span> (phone TEXT, postcode uk_postcode);</span></code></pre></div>
 <h3 id="chapter-16-generated-columns-1">Chapter 16 — Generated
 Columns</h3>
-<div class="sourceCode" id="cb1085"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1085-1"><a href="#cb1085-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings</span>
-<span id="cb1085-2"><a href="#cb1085-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ADD</span> <span class="kw">COLUMN</span> reading_date <span class="dt">DATE</span></span>
-<span id="cb1085-3"><a href="#cb1085-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> ((recorded_at <span class="kw">AT</span> <span class="dt">TIME</span> <span class="dt">ZONE</span> <span class="st">&#39;UTC&#39;</span>):<span class="ch">:date</span>) STORED;</span>
-<span id="cb1085-4"><a href="#cb1085-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- bare ::date on a timestamptz fails: &quot;generation expression is not immutable&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb1067"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1067-1"><a href="#cb1067-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> sensor_readings</span>
+<span id="cb1067-2"><a href="#cb1067-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ADD</span> <span class="kw">COLUMN</span> reading_date <span class="dt">DATE</span></span>
+<span id="cb1067-3"><a href="#cb1067-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> ((recorded_at <span class="kw">AT</span> <span class="dt">TIME</span> <span class="dt">ZONE</span> <span class="st">&#39;UTC&#39;</span>):<span class="ch">:date</span>) STORED;</span>
+<span id="cb1067-4"><a href="#cb1067-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- bare ::date on a timestamptz fails: &quot;generation expression is not immutable&quot;</span></span></code></pre></div>
 <h3 id="chapter-17-foreign-data-wrappers">Chapter 17 — Foreign Data
 Wrappers</h3>
-<div class="sourceCode" id="cb1086"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1086-1"><a href="#cb1086-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION postgres_fdw;</span>
-<span id="cb1086-2"><a href="#cb1086-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SERVER legacy_srv <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER postgres_fdw</span>
-<span id="cb1086-3"><a href="#cb1086-3" aria-hidden="true" tabindex="-1"></a>    OPTIONS (host <span class="st">&#39;localhost&#39;</span>, dbname <span class="st">&#39;portsmith_legacy&#39;</span>);</span>
-<span id="cb1086-4"><a href="#cb1086-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="fu">USER</span> MAPPING <span class="cf">FOR</span> chris SERVER legacy_srv</span>
-<span id="cb1086-5"><a href="#cb1086-5" aria-hidden="true" tabindex="-1"></a>    OPTIONS (<span class="fu">user</span> <span class="st">&#39;chris&#39;</span>, <span class="kw">password</span> <span class="st">&#39;fdw-demo-password&#39;</span>);</span>
-<span id="cb1086-6"><a href="#cb1086-6" aria-hidden="true" tabindex="-1"></a>IMPORT <span class="kw">FOREIGN</span> <span class="kw">SCHEMA</span> <span class="kw">public</span> <span class="kw">FROM</span> SERVER legacy_srv <span class="kw">INTO</span> <span class="kw">public</span>;</span>
-<span id="cb1086-7"><a href="#cb1086-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1086-8"><a href="#cb1086-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION file_fdw;</span>
-<span id="cb1086-9"><a href="#cb1086-9" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FOREIGN</span> <span class="kw">TABLE</span> census_raw (<span class="op">..</span>.) SERVER file_srv</span>
-<span id="cb1086-10"><a href="#cb1086-10" aria-hidden="true" tabindex="-1"></a>    OPTIONS (filename <span class="st">&#39;/tmp/census.csv&#39;</span>, format <span class="st">&#39;csv&#39;</span>, <span class="kw">header</span> <span class="st">&#39;true&#39;</span>);</span></code></pre></div>
+<div class="sourceCode" id="cb1068"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1068-1"><a href="#cb1068-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION postgres_fdw;</span>
+<span id="cb1068-2"><a href="#cb1068-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SERVER legacy_srv <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER postgres_fdw</span>
+<span id="cb1068-3"><a href="#cb1068-3" aria-hidden="true" tabindex="-1"></a>    OPTIONS (host <span class="st">&#39;localhost&#39;</span>, dbname <span class="st">&#39;portsmith_legacy&#39;</span>);</span>
+<span id="cb1068-4"><a href="#cb1068-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="fu">USER</span> MAPPING <span class="cf">FOR</span> chris SERVER legacy_srv</span>
+<span id="cb1068-5"><a href="#cb1068-5" aria-hidden="true" tabindex="-1"></a>    OPTIONS (<span class="fu">user</span> <span class="st">&#39;chris&#39;</span>, <span class="kw">password</span> <span class="st">&#39;fdw-demo-password&#39;</span>);</span>
+<span id="cb1068-6"><a href="#cb1068-6" aria-hidden="true" tabindex="-1"></a>IMPORT <span class="kw">FOREIGN</span> <span class="kw">SCHEMA</span> <span class="kw">public</span> <span class="kw">FROM</span> SERVER legacy_srv <span class="kw">INTO</span> <span class="kw">public</span>;</span>
+<span id="cb1068-7"><a href="#cb1068-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1068-8"><a href="#cb1068-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION file_fdw;</span>
+<span id="cb1068-9"><a href="#cb1068-9" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FOREIGN</span> <span class="kw">TABLE</span> census_raw (<span class="op">..</span>.) SERVER file_srv</span>
+<span id="cb1068-10"><a href="#cb1068-10" aria-hidden="true" tabindex="-1"></a>    OPTIONS (filename <span class="st">&#39;/tmp/census.csv&#39;</span>, format <span class="st">&#39;csv&#39;</span>, <span class="kw">header</span> <span class="st">&#39;true&#39;</span>);</span></code></pre></div>
 <h3 id="chapter-18-logical-replication">Chapter 18 — Logical
 Replication</h3>
-<div class="sourceCode" id="cb1087"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1087-1"><a href="#cb1087-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">SYSTEM</span> <span class="kw">SET</span> wal_level <span class="op">=</span> <span class="st">&#39;logical&#39;</span>;  <span class="co">-- own -c call, needs restart</span></span>
-<span id="cb1087-2"><a href="#cb1087-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> PUBLICATION portsmith_pub <span class="cf">FOR</span> <span class="kw">TABLE</span> businesses (<span class="kw">id</span>, name, <span class="op">..</span>.) <span class="kw">WHERE</span> (active <span class="op">=</span> <span class="kw">true</span>);</span>
-<span id="cb1087-3"><a href="#cb1087-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_create_logical_replication_slot(<span class="st">&#39;portsmith_slot&#39;</span>, <span class="st">&#39;pgoutput&#39;</span>);</span>
-<span id="cb1087-4"><a href="#cb1087-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SUBSCRIPTION portsmith_sub CONNECTION <span class="st">&#39;...&#39;</span> PUBLICATION portsmith_pub</span>
-<span id="cb1087-5"><a href="#cb1087-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WITH</span> (create_slot <span class="op">=</span> <span class="kw">false</span>, slot_name <span class="op">=</span> <span class="st">&#39;portsmith_slot&#39;</span>);</span>
-<span id="cb1087-6"><a href="#cb1087-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> businesses REPLICA IDENTITY <span class="kw">USING</span> <span class="kw">INDEX</span> idx_businesses_replident;</span></code></pre></div>
+<div class="sourceCode" id="cb1069"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1069-1"><a href="#cb1069-1" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">SYSTEM</span> <span class="kw">SET</span> wal_level <span class="op">=</span> <span class="st">&#39;logical&#39;</span>;  <span class="co">-- own -c call, needs restart</span></span>
+<span id="cb1069-2"><a href="#cb1069-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> PUBLICATION portsmith_pub <span class="cf">FOR</span> <span class="kw">TABLE</span> businesses (<span class="kw">id</span>, name, <span class="op">..</span>.) <span class="kw">WHERE</span> (active <span class="op">=</span> <span class="kw">true</span>);</span>
+<span id="cb1069-3"><a href="#cb1069-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_create_logical_replication_slot(<span class="st">&#39;portsmith_slot&#39;</span>, <span class="st">&#39;pgoutput&#39;</span>);</span>
+<span id="cb1069-4"><a href="#cb1069-4" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SUBSCRIPTION portsmith_sub CONNECTION <span class="st">&#39;...&#39;</span> PUBLICATION portsmith_pub</span>
+<span id="cb1069-5"><a href="#cb1069-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">WITH</span> (create_slot <span class="op">=</span> <span class="kw">false</span>, slot_name <span class="op">=</span> <span class="st">&#39;portsmith_slot&#39;</span>);</span>
+<span id="cb1069-6"><a href="#cb1069-6" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> businesses REPLICA IDENTITY <span class="kw">USING</span> <span class="kw">INDEX</span> idx_businesses_replident;</span></code></pre></div>
 <h3 id="chapter-19-pg_cron">Chapter 19 — <code>pg_cron</code></h3>
-<div class="sourceCode" id="cb1088"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1088-1"><a href="#cb1088-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION pg_cron;</span>
-<span id="cb1088-2"><a href="#cb1088-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> cron.schedule(<span class="st">&#39;refresh-mv-sensor-daily&#39;</span>, <span class="st">&#39;0 * * * *&#39;</span>, $$CALL refresh_and_log(<span class="st">&#39;mv_sensor_daily&#39;</span>)$$);</span>
-<span id="cb1088-3"><a href="#cb1088-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> cron.schedule_in_database(<span class="st">&#39;legacy-analyze&#39;</span>, <span class="st">&#39;0 4 * * *&#39;</span>, <span class="st">&#39;ANALYZE businesses_archive&#39;</span>, <span class="st">&#39;portsmith_legacy&#39;</span>);</span>
-<span id="cb1088-4"><a href="#cb1088-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> cron.job_run_details <span class="kw">ORDER</span> <span class="kw">BY</span> start_time <span class="kw">DESC</span> <span class="kw">NULLS</span> <span class="fu">LAST</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb1070"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1070-1"><a href="#cb1070-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION pg_cron;</span>
+<span id="cb1070-2"><a href="#cb1070-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> cron.schedule(<span class="st">&#39;refresh-mv-sensor-daily&#39;</span>, <span class="st">&#39;0 * * * *&#39;</span>, $$CALL refresh_and_log(<span class="st">&#39;mv_sensor_daily&#39;</span>)$$);</span>
+<span id="cb1070-3"><a href="#cb1070-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> cron.schedule_in_database(<span class="st">&#39;legacy-analyze&#39;</span>, <span class="st">&#39;0 4 * * *&#39;</span>, <span class="st">&#39;ANALYZE businesses_archive&#39;</span>, <span class="st">&#39;portsmith_legacy&#39;</span>);</span>
+<span id="cb1070-4"><a href="#cb1070-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> cron.job_run_details <span class="kw">ORDER</span> <span class="kw">BY</span> start_time <span class="kw">DESC</span> <span class="kw">NULLS</span> <span class="fu">LAST</span>;</span></code></pre></div>
 <h3 id="chapter-20-pg_stat_statements-explain">Chapter 20 —
 <code>pg_stat_statements</code> / <code>EXPLAIN</code></h3>
-<div class="sourceCode" id="cb1089"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1089-1"><a href="#cb1089-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="op">..</span>.;</span>
-<span id="cb1089-2"><a href="#cb1089-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">query</span>, calls, total_exec_time, mean_exec_time</span>
-<span id="cb1089-3"><a href="#cb1089-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pg_stat_statements <span class="kw">ORDER</span> <span class="kw">BY</span> total_exec_time <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="dv">10</span>;</span>
-<span id="cb1089-4"><a href="#cb1089-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_stat_statements_reset();</span>
-<span id="cb1089-5"><a href="#cb1089-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">SYSTEM</span> <span class="kw">SET</span> auto_explain.log_min_duration <span class="op">=</span> <span class="dv">200</span>;</span>
-<span id="cb1089-6"><a href="#cb1089-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_reload_conf();</span></code></pre></div>
+<div class="sourceCode" id="cb1071"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1071-1"><a href="#cb1071-1" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, BUFFERS) <span class="kw">SELECT</span> <span class="op">..</span>.;</span>
+<span id="cb1071-2"><a href="#cb1071-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="kw">query</span>, calls, total_exec_time, mean_exec_time</span>
+<span id="cb1071-3"><a href="#cb1071-3" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> pg_stat_statements <span class="kw">ORDER</span> <span class="kw">BY</span> total_exec_time <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="dv">10</span>;</span>
+<span id="cb1071-4"><a href="#cb1071-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_stat_statements_reset();</span>
+<span id="cb1071-5"><a href="#cb1071-5" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">SYSTEM</span> <span class="kw">SET</span> auto_explain.log_min_duration <span class="op">=</span> <span class="dv">200</span>;</span>
+<span id="cb1071-6"><a href="#cb1071-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_reload_conf();</span></code></pre></div>
 <h3 id="chapter-21-sqlpgq-postgresql-19-beta2">Chapter 21 — SQL/PGQ
 (PostgreSQL 19 beta2)</h3>
-<div class="sourceCode" id="cb1090"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1090-1"><a href="#cb1090-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> PROPERTY GRAPH city_org_graph</span>
-<span id="cb1090-2"><a href="#cb1090-2" aria-hidden="true" tabindex="-1"></a>    VERTEX <span class="kw">TABLES</span> ( city_org <span class="kw">KEY</span> (<span class="kw">id</span>) <span class="kw">LABEL</span> employee PROPERTIES <span class="kw">ALL</span> <span class="kw">COLUMNS</span> )</span>
-<span id="cb1090-3"><a href="#cb1090-3" aria-hidden="true" tabindex="-1"></a>    EDGE <span class="kw">TABLES</span> (</span>
-<span id="cb1090-4"><a href="#cb1090-4" aria-hidden="true" tabindex="-1"></a>        city_org <span class="kw">AS</span> reports_to <span class="kw">KEY</span> (<span class="kw">id</span>)</span>
-<span id="cb1090-5"><a href="#cb1090-5" aria-hidden="true" tabindex="-1"></a>            <span class="kw">SOURCE</span> <span class="kw">KEY</span> (<span class="kw">id</span>) <span class="kw">REFERENCES</span> city_org (<span class="kw">id</span>)</span>
-<span id="cb1090-6"><a href="#cb1090-6" aria-hidden="true" tabindex="-1"></a>            DESTINATION <span class="kw">KEY</span> (manager_id) <span class="kw">REFERENCES</span> city_org (<span class="kw">id</span>)</span>
-<span id="cb1090-7"><a href="#cb1090-7" aria-hidden="true" tabindex="-1"></a>            <span class="kw">LABEL</span> reports_to <span class="kw">NO</span> PROPERTIES</span>
-<span id="cb1090-8"><a href="#cb1090-8" aria-hidden="true" tabindex="-1"></a>    );</span>
-<span id="cb1090-9"><a href="#cb1090-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1090-10"><a href="#cb1090-10" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> GRAPH_TABLE (city_org_graph</span>
-<span id="cb1090-11"><a href="#cb1090-11" aria-hidden="true" tabindex="-1"></a>    MATCH (a <span class="kw">IS</span> employee) <span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span> (b <span class="kw">IS</span> employee)</span>
-<span id="cb1090-12"><a href="#cb1090-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">COLUMNS</span> (a.name, b.name)</span>
-<span id="cb1090-13"><a href="#cb1090-13" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<div class="sourceCode" id="cb1072"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1072-1"><a href="#cb1072-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> PROPERTY GRAPH city_org_graph</span>
+<span id="cb1072-2"><a href="#cb1072-2" aria-hidden="true" tabindex="-1"></a>    VERTEX <span class="kw">TABLES</span> ( city_org <span class="kw">KEY</span> (<span class="kw">id</span>) <span class="kw">LABEL</span> employee PROPERTIES <span class="kw">ALL</span> <span class="kw">COLUMNS</span> )</span>
+<span id="cb1072-3"><a href="#cb1072-3" aria-hidden="true" tabindex="-1"></a>    EDGE <span class="kw">TABLES</span> (</span>
+<span id="cb1072-4"><a href="#cb1072-4" aria-hidden="true" tabindex="-1"></a>        city_org <span class="kw">AS</span> reports_to <span class="kw">KEY</span> (<span class="kw">id</span>)</span>
+<span id="cb1072-5"><a href="#cb1072-5" aria-hidden="true" tabindex="-1"></a>            <span class="kw">SOURCE</span> <span class="kw">KEY</span> (<span class="kw">id</span>) <span class="kw">REFERENCES</span> city_org (<span class="kw">id</span>)</span>
+<span id="cb1072-6"><a href="#cb1072-6" aria-hidden="true" tabindex="-1"></a>            DESTINATION <span class="kw">KEY</span> (manager_id) <span class="kw">REFERENCES</span> city_org (<span class="kw">id</span>)</span>
+<span id="cb1072-7"><a href="#cb1072-7" aria-hidden="true" tabindex="-1"></a>            <span class="kw">LABEL</span> reports_to <span class="kw">NO</span> PROPERTIES</span>
+<span id="cb1072-8"><a href="#cb1072-8" aria-hidden="true" tabindex="-1"></a>    );</span>
+<span id="cb1072-9"><a href="#cb1072-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1072-10"><a href="#cb1072-10" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> GRAPH_TABLE (city_org_graph</span>
+<span id="cb1072-11"><a href="#cb1072-11" aria-hidden="true" tabindex="-1"></a>    MATCH (a <span class="kw">IS</span> employee) <span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span> (b <span class="kw">IS</span> employee)</span>
+<span id="cb1072-12"><a href="#cb1072-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">COLUMNS</span> (a.name, b.name)</span>
+<span id="cb1072-13"><a href="#cb1072-13" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
 <p><strong>⚠ verified broken/unsupported (beta2):</strong></p>
-<div class="sourceCode" id="cb1091"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1091-1"><a href="#cb1091-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- quantified path patterns -- both forms rejected:</span></span>
-<span id="cb1091-2"><a href="#cb1091-2" aria-hidden="true" tabindex="-1"></a>MATCH (a) (<span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span>(b)){<span class="dv">1</span>,<span class="dv">10</span>} (root)     <span class="co">-- &quot;unsupported element pattern kind&quot;</span></span>
-<span id="cb1091-3"><a href="#cb1091-3" aria-hidden="true" tabindex="-1"></a>MATCH (a) <span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span>{<span class="dv">1</span>,<span class="dv">10</span>} (root)          <span class="co">-- &quot;element pattern quantifier is not supported&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb1073"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1073-1"><a href="#cb1073-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- quantified path patterns -- both forms rejected:</span></span>
+<span id="cb1073-2"><a href="#cb1073-2" aria-hidden="true" tabindex="-1"></a>MATCH (a) (<span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span>(b)){<span class="dv">1</span>,<span class="dv">10</span>} (root)     <span class="co">-- &quot;unsupported element pattern kind&quot;</span></span>
+<span id="cb1073-3"><a href="#cb1073-3" aria-hidden="true" tabindex="-1"></a>MATCH (a) <span class="op">-</span>[<span class="kw">IS</span> reports_to]<span class="op">-&gt;</span>{<span class="dv">1</span>,<span class="dv">10</span>} (root)          <span class="co">-- &quot;element pattern quantifier is not supported&quot;</span></span></code></pre></div>
 <p>No working substitute exists in this release — use Chapter 12’s
 <code>WITH RECURSIVE</code> for anything of unbounded/unknown depth.</p>
 <h3 id="chapter-22-rdf-pg-ripple">Chapter 22 — RDF /
 <code>pg-ripple</code></h3>
-<div class="sourceCode" id="cb1092"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1092-1"><a href="#cb1092-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_turtle(turtle_text, <span class="kw">false</span>);</span>
-<span id="cb1092-2"><a href="#cb1092-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_ripple.sparql(<span class="st">&#39;SELECT ?s ?o WHERE { ?s :locatedIn ?o }&#39;</span>);</span>
-<span id="cb1092-3"><a href="#cb1092-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.sparql_update(<span class="st">&#39;INSERT DATA { ... }&#39;</span>);</span>
-<span id="cb1092-4"><a href="#cb1092-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_shacl(shacl_text);</span>
-<span id="cb1092-5"><a href="#cb1092-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.shacl_score(<span class="st">&#39;default&#39;</span>);</span>
-<span id="cb1092-6"><a href="#cb1092-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.shacl_report_scored(<span class="st">&#39;default&#39;</span>);</span></code></pre></div>
+<div class="sourceCode" id="cb1074"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1074-1"><a href="#cb1074-1" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_turtle(turtle_text, <span class="kw">false</span>);</span>
+<span id="cb1074-2"><a href="#cb1074-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_ripple.sparql(<span class="st">&#39;SELECT ?s ?o WHERE { ?s :locatedIn ?o }&#39;</span>);</span>
+<span id="cb1074-3"><a href="#cb1074-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.sparql_update(<span class="st">&#39;INSERT DATA { ... }&#39;</span>);</span>
+<span id="cb1074-4"><a href="#cb1074-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_shacl(shacl_text);</span>
+<span id="cb1074-5"><a href="#cb1074-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.shacl_score(<span class="st">&#39;default&#39;</span>);</span>
+<span id="cb1074-6"><a href="#cb1074-6" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.shacl_report_scored(<span class="st">&#39;default&#39;</span>);</span></code></pre></div>
 <pre class="sparql"><code>-- property paths (these work correctly):
 :a :adjacentTo+ ?n                    -- one-or-more, directed
 :a (:adjacentTo|^:adjacentTo)+ ?n     -- one-or-more, either direction</code></pre>
@@ -19622,15 +19484,15 @@ deletes <em>every</em> pattern per matched solution, not just the one
 you meant — use <code>DELETE DATA</code> with exact triples for anything
 you can’t afford to lose collaterally.</p>
 <h3 id="chapter-23-ontologies">Chapter 23 — Ontologies</h3>
-<div class="sourceCode" id="cb1094"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1094-1"><a href="#cb1094-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- correct, reliable way to query a class hierarchy (no infer() needed):</span></span>
-<span id="cb1094-2"><a href="#cb1094-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_ripple.sparql(</span>
-<span id="cb1094-3"><a href="#cb1094-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;SELECT ?super WHERE { :Category_seafood &lt;...#subClassOf&gt;* ?super }&#39;</span></span>
-<span id="cb1094-4"><a href="#cb1094-4" aria-hidden="true" tabindex="-1"></a>);</span>
-<span id="cb1094-5"><a href="#cb1094-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_rules_builtin(<span class="st">&#39;rdfs&#39;</span>);   <span class="co">-- valid names discovered via a bogus-name error:</span></span>
-<span id="cb1094-6"><a href="#cb1094-6" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- rdfs, owl-rl, owl-el, owl-ql, skos, skos-transitive,</span></span>
-<span id="cb1094-7"><a href="#cb1094-7" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- skosxl, dcterms, dcterms-integrity, schema,</span></span>
-<span id="cb1094-8"><a href="#cb1094-8" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- schema-integrity, foaf, foaf-integrity</span></span></code></pre></div>
+<div class="sourceCode" id="cb1076"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1076-1"><a href="#cb1076-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- correct, reliable way to query a class hierarchy (no infer() needed):</span></span>
+<span id="cb1076-2"><a href="#cb1076-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pg_ripple.sparql(</span>
+<span id="cb1076-3"><a href="#cb1076-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&#39;SELECT ?super WHERE { :Category_seafood &lt;...#subClassOf&gt;* ?super }&#39;</span></span>
+<span id="cb1076-4"><a href="#cb1076-4" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb1076-5"><a href="#cb1076-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pg_ripple.load_rules_builtin(<span class="st">&#39;rdfs&#39;</span>);   <span class="co">-- valid names discovered via a bogus-name error:</span></span>
+<span id="cb1076-6"><a href="#cb1076-6" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- rdfs, owl-rl, owl-el, owl-ql, skos, skos-transitive,</span></span>
+<span id="cb1076-7"><a href="#cb1076-7" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- skosxl, dcterms, dcterms-integrity, schema,</span></span>
+<span id="cb1076-8"><a href="#cb1076-8" aria-hidden="true" tabindex="-1"></a>                                                <span class="co">-- schema-integrity, foaf, foaf-integrity</span></span></code></pre></div>
 <p><strong>⚠ verified broken, and dangerous:</strong>
 <code>pg_ripple.infer('rdfs')</code> does not correctly propagate
 <code>rdf:type</code> up a class hierarchy, and was verified — twice,
@@ -19641,31 +19503,23 @@ classification triples</strong> with an incorrect self-type
 built-in rule set as a real write against the whole default graph, not a
 safe query. Back up before running it.</p>
 <h3 id="chapter-24-pgcolumnar">Chapter 24 — <code>pgColumnar</code></h3>
-<div class="sourceCode" id="cb1095"><pre
-class="sourceCode sql"><code class="sourceCode sql"><span id="cb1095-1"><a href="#cb1095-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> t (<span class="op">..</span>.) <span class="kw">USING</span> pgcolumnar;                        <span class="co">-- native columnar storage</span></span>
-<span id="cb1095-2"><a href="#cb1095-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;t&#39;</span>, <span class="st">&#39;col&#39;</span> [, <span class="st">&#39;col2&#39;</span>, <span class="op">..</span>.]);   <span class="co">-- physically sort, improves chunk-group skip</span></span>
-<span id="cb1095-3"><a href="#cb1095-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pgcolumnar.sort_status(<span class="st">&#39;t&#39;</span>);                     <span class="co">-- verify a table is actually sorted</span></span>
-<span id="cb1095-4"><a href="#cb1095-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;t&#39;</span>, <span class="st">&#39;/path/file.parquet&#39;</span>);   <span class="co">-- no compression option -- see warning below</span></span>
-<span id="cb1095-5"><a href="#cb1095-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pgcolumnar.read_parquet(<span class="st">&#39;/path/file.parquet&#39;</span>)</span>
-<span id="cb1095-6"><a href="#cb1095-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">AS</span> t(col1 type1, col2 type2, <span class="op">..</span>.);                           <span class="co">-- projection pushdown ONLY, see warning below</span></span>
-<span id="cb1095-7"><a href="#cb1095-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1095-8"><a href="#cb1095-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> SERVER pq <span class="kw">FOREIGN</span> <span class="kw">DATA</span> WRAPPER pgcolumnar_parquet;</span>
-<span id="cb1095-9"><a href="#cb1095-9" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">FOREIGN</span> <span class="kw">TABLE</span> t (<span class="op">..</span>.) SERVER pq OPTIONS (path <span class="st">&#39;/path/file.parquet&#39;</span>);</span>
-<span id="cb1095-10"><a href="#cb1095-10" aria-hidden="true" tabindex="-1"></a><span class="co">-- EXPLAIN ANALYZE reports: Row Groups, Row Groups Skipped, Row Groups Decoded</span></span></code></pre></div>
-<p><strong>⚠ verified gap:</strong>
-<code>pgcolumnar.export_parquet()</code> takes no compression argument
-at all — output is markedly larger than a deliberately
-Snappy/ZSTD-compressed export (405 MB vs. Chapter 17’s hand-tuned 16.7
-MB for the same table). <code>pgcolumnar.read_parquet()</code> does
-projection pushdown only — <code>EXPLAIN</code> shows a plain
-<code>Function Scan</code> that materializes the <em>entire</em> file
-before any <code>WHERE</code> clause runs, no matter how selective. And
-the <code>pgcolumnar_parquet</code> foreign data wrapper’s row-group
-skip — the one place predicate pushdown is actually documented to happen
-— reported <code>Row Groups Skipped: 0</code> in every test this book
-ran, including a column verified fully sorted and correctly typed. Filed
-upstream as <a
-href="https://github.com/commandprompt/pgcolumnar/issues/850">commandprompt/pgcolumnar#850</a>;
-check that issue before depending on this FDW for pruning.</p>
+<div class="sourceCode" id="cb1077"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb1077-1"><a href="#cb1077-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> t (<span class="op">..</span>.) <span class="kw">USING</span> pgcolumnar;                        <span class="co">-- columnar storage, real measured wins</span></span>
+<span id="cb1077-2"><a href="#cb1077-2" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.vacuum_sorted(<span class="st">&#39;t&#39;</span>, <span class="st">&#39;col&#39;</span> [, <span class="st">&#39;col2&#39;</span>, <span class="op">..</span>.]);   <span class="co">-- physically sort, improves chunk-group skip</span></span>
+<span id="cb1077-3"><a href="#cb1077-3" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pgcolumnar.sort_status(<span class="st">&#39;t&#39;</span>);                     <span class="co">-- verify a table is actually sorted</span></span>
+<span id="cb1077-4"><a href="#cb1077-4" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> pgcolumnar.export_parquet(<span class="st">&#39;t&#39;</span>, <span class="st">&#39;/path/file.parquet&#39;</span>);   <span class="co">-- no compression option, see note below</span></span>
+<span id="cb1077-5"><a href="#cb1077-5" aria-hidden="true" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> pgcolumnar.read_parquet(<span class="st">&#39;/path/file.parquet&#39;</span>)</span>
+<span id="cb1077-6"><a href="#cb1077-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">AS</span> t(col1 type1, col2 type2, <span class="op">..</span>.);                           <span class="co">-- decodes requested columns only, see note below</span></span></code></pre></div>
+<p><strong>Note:</strong> the storage engine above
+(<code>USING pgcolumnar</code> and <code>vacuum_sorted</code>) is this
+extension’s strength — real, measured compression and speed wins in
+Chapter 24. Its Parquet-reading side is weaker as tested:
+<code>export_parquet()</code> takes no compression argument (larger
+files than a deliberately compressed export),
+<code>read_parquet()</code> only saves decoding unwanted columns, not
+reading unwanted rows, and a <code>pgcolumnar_parquet</code> foreign
+table didn’t skip file chunks based on a <code>WHERE</code> filter in
+the version tested here. Worth rechecking against a newer release before
+leaning on that part.</p>
 </body>
 </html>

@@ -310,28 +310,20 @@ whole default graph, not a safe query. Back up before running it.
 ### Chapter 24 — `pgColumnar`
 
 ```sql
-CREATE TABLE t (...) USING pgcolumnar;                        -- native columnar storage
+CREATE TABLE t (...) USING pgcolumnar;                        -- columnar storage, real measured wins
 SELECT pgcolumnar.vacuum_sorted('t', 'col' [, 'col2', ...]);   -- physically sort, improves chunk-group skip
 SELECT * FROM pgcolumnar.sort_status('t');                     -- verify a table is actually sorted
-SELECT pgcolumnar.export_parquet('t', '/path/file.parquet');   -- no compression option -- see warning below
+SELECT pgcolumnar.export_parquet('t', '/path/file.parquet');   -- no compression option, see note below
 SELECT * FROM pgcolumnar.read_parquet('/path/file.parquet')
-  AS t(col1 type1, col2 type2, ...);                           -- projection pushdown ONLY, see warning below
-
-CREATE SERVER pq FOREIGN DATA WRAPPER pgcolumnar_parquet;
-CREATE FOREIGN TABLE t (...) SERVER pq OPTIONS (path '/path/file.parquet');
--- EXPLAIN ANALYZE reports: Row Groups, Row Groups Skipped, Row Groups Decoded
+  AS t(col1 type1, col2 type2, ...);                           -- decodes requested columns only, see note below
 ```
 
-**⚠ verified gap:** `pgcolumnar.export_parquet()` takes no compression
-argument at all — output is markedly larger than a deliberately
-Snappy/ZSTD-compressed export (405 MB vs. Chapter 17's hand-tuned 16.7
-MB for the same table). `pgcolumnar.read_parquet()` does projection
-pushdown only — `EXPLAIN` shows a plain `Function Scan` that
-materializes the *entire* file before any `WHERE` clause runs, no
-matter how selective. And the `pgcolumnar_parquet` foreign data
-wrapper's row-group skip — the one place predicate pushdown is
-actually documented to happen — reported `Row Groups Skipped: 0` in
-every test this book ran, including a column verified fully sorted and
-correctly typed. Filed upstream as
-[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850);
-check that issue before depending on this FDW for pruning.
+**Note:** the storage engine above (`USING pgcolumnar` and
+`vacuum_sorted`) is this extension's strength — real, measured
+compression and speed wins in Chapter 24. Its Parquet-reading side is
+weaker as tested: `export_parquet()` takes no compression argument
+(larger files than a deliberately compressed export), `read_parquet()`
+only saves decoding unwanted columns, not reading unwanted rows, and a
+`pgcolumnar_parquet` foreign table didn't skip file chunks based on a
+`WHERE` filter in the version tested here. Worth rechecking against a
+newer release before leaning on that part.

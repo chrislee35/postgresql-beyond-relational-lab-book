@@ -1,69 +1,84 @@
-# Chapter 24 — `pgColumnar`: Native Columnar Storage vs. Parquet-on-S3
+# Chapter 24 — `pgColumnar`: Storing Data by Column Instead of by Row
 
-> *A foreign data wrapper reaches out to a file that lives somewhere
-> else, every time it's asked. A table access method never leaves —
-> the columns just live in a different shape once they're inside.*
+> *Ask a heap table to add up one column, and it still has to carry
+> every other column past you on the way to the answer. A table built
+> column by column only ever picks up the column you asked for.*
 
 ---
 
 ## Background
 
-Chapter 17 ended with a real, honest loose end. Exercise 6 exported
-`sensor_readings` to Parquet on MinIO — a genuinely measured 46x size
-reduction, 772 MB down to 16.7 MB — and then stopped short of the last
-piece: actually querying that Parquet data back *through PostgreSQL*,
-via `parquet_s3_fdw`. The extension was real, but hard enough to build
-from source that the chapter left it as "the pattern, discussed, not
-run" and moved on. That gap sat there through twenty-three more
-chapters.
+Since Chapter 8, Portsmith's sensor network has been writing readings
+into `sensor_readings` — temperature, traffic counts, air quality —
+one row at a time, every few minutes, from well over a hundred sensors
+around the city. By now the table holds more than 9.6 million rows.
+That was always the right way to store it for *writing*: a new reading
+comes in, one row goes in, done.
 
-**`pgColumnar`** looked, on paper, like the tool to finally close it —
-and like something genuinely new besides. It's not one thing but two,
-bundled into a single MIT-licensed extension: a **native table access
-method** (`CREATE TABLE t (...) USING pgcolumnar`, columns actually
-stored column-wise inside PostgreSQL's own WAL-logged storage, no
-external file at all) and, separately, a **Parquet-reading layer** —
-`read_parquet()`, and a purpose-built `pgcolumnar_parquet` foreign data
-wrapper — that promises exactly what Chapter 17 never got to prove:
-row-group-level pruning of an external Parquet file, driven by the
-query's own `WHERE` clause, with `EXPLAIN` showing the skip happening.
+But lately the questions being asked of that table have changed shape.
+Public Works doesn't want one row anymore — they want the big picture.
+"How many readings do we actually have?" "What's the average air
+quality reading been, city-wide?" "Show me a monthly rollup for every
+sensor type." Every one of those questions only really cares about one
+or two of the table's five columns, but answering them today means
+PostgreSQL has to read through nearly 700 megabytes of row-by-row
+storage — every column of every row — to get there. The queries still
+work. They've just gotten slow enough that people notice.
 
-Getting there took a real detour first, worth knowing before you
-follow this chapter's own steps. The first attempt installed
-`pgColumnar` directly on the shared PostgreSQL 16 host every earlier
-chapter runs against — reasonable, since (unlike Chapters 21–23)
-nothing about `pgColumnar` requires beta software or a from-source Rust
-build; PG15 through 18 are all in its tested matrix. Appending it to
-`shared_preload_libraries` via `ALTER SYSTEM SET` looked routine — the
-exact pattern Chapters 19–20 already used for `pg_cron` and
-`pg_stat_statements`. It wasn't: `ALTER SYSTEM` silently wrote
+**Here's the underlying idea worth having in your head before anything
+else in this chapter:** think of `sensor_readings` as a filing cabinet
+of index cards, one card per reading, each card listing all five
+fields — sensor, type, value, time, id. Asking "what's the average
+reading value?" means pulling out *every card* and reading past four
+fields you don't care about just to get to the fifth. Now imagine
+instead you kept five separate folders — one holding nothing but every
+`reading_value` ever recorded, another holding nothing but every
+`sensor_type`, and so on. That same question now means opening exactly
+one folder. You never touch the other four at all. That second
+arrangement — organizing storage **by column instead of by row** — is
+what this chapter is about, and it's a genuinely different tool from
+anything else in this book, not just a faster version of the same
+thing.
 
-```
-shared_preload_libraries = '"pg_cron,pg_stat_statements,auto_explain,pgcolumnar"'
-```
+**`pgColumnar`** is a free, open-source extension that adds this
+second storage style directly inside PostgreSQL. Concretely, it adds a
+new **table access method** — PostgreSQL's name for "the actual way a
+table's rows are physically arranged on disk." Every table you've
+built so far in this book used the default access method, called
+`heap`, which is the filing-cabinet arrangement above: each row's
+values sit together, in insertion order. `pgColumnar` adds a second
+option, `USING pgcolumnar`, which stores the same data in the
+folder-by-column arrangement instead — still a real PostgreSQL table,
+still queried with ordinary `SELECT`, just organized differently
+underneath.
 
-into `postgresql.auto.conf` — note the stray inner `"..."` wrapping the
-*entire* comma-joined value as one double-quoted identifier, rather
-than quoting each library name separately. On restart, PostgreSQL tried
-to `dlopen` a single library literally named
-`pg_cron,pg_stat_statements,auto_explain,pgcolumnar`, commas and all,
-and refused to start — taking down every database this book depends on,
-mid-book, for about twenty minutes while the actual `postgresql.auto.conf`
-(which, on Debian, lives in the *data* directory, not `/etc/postgresql/`
-— the same split Chapter 21 already documented) got tracked down and
-hand-edited back to a plain, correctly single-quoted list. Real, cited
-verbatim, not reconstructed: this is a genuine `ALTER SYSTEM` pitfall
-for `GUC_LIST_QUOTE` parameters like `shared_preload_libraries`, not a
-typo either of us made.
+It also has a second, separate feature: reading and writing files in
+**Parquet** format, the same file format Chapter 17 exported
+`sensor_readings` into by hand. That looked, at first, like it might
+finally close a loose end Chapter 17 left open — Exercise 6 there
+stopped short of actually querying an exported Parquet file back
+*through* PostgreSQL, because the extension that would have done it
+was too hard to build from source. This chapter tries `pgColumnar`'s
+version of that instead. It's worth one section later on, with an
+honest result — but it isn't the main event here. The main event is
+the folder-by-column idea above, and whether it delivers for Portsmith
+in practice. It does, clearly and measurably, and that's most of what
+follows.
 
-That's the real reason this chapter follows Chapters 21–22's pattern
-and runs `pgColumnar` in an isolated container instead of the main
-cluster, even though nothing here is beta software — Chapters 21–22
-isolated *because* of beta/build risk they could only reason about in
-advance; this chapter isolates because of a production outage that
-already happened once, on this exact extension, on this exact book's
-infrastructure. See `docker/ch24/` and this chapter's own Environment
-Setup section.
+One real setup story, worth knowing before you follow this chapter's
+own steps: the first attempt to install `pgColumnar` used the same
+`ALTER SYSTEM SET` approach Chapters 19–20 already used for `pg_cron`
+and `pg_stat_statements`, directly against the shared PostgreSQL 16
+host every earlier chapter runs on. It went wrong in a way neither of
+us expected — `ALTER SYSTEM` silently wrote a corrupted value into
+PostgreSQL's config, and the *entire* cluster refused to start
+afterward, taking down every chapter's live data for about twenty
+minutes while it got diagnosed and fixed by hand. Nothing about
+`pgColumnar` itself caused that; it was a real, narrow PostgreSQL
+pitfall in how one specific kind of setting gets updated live. The
+practical upshot, and the reason this chapter runs in its own
+container instead: see this chapter's Environment Setup section for
+exactly what happened and the one-line fix that avoids it entirely.
 
 ---
 
@@ -71,16 +86,16 @@ Setup section.
 
 | Object                          | Lives in                          | Purpose                                                         |
 |----------------------------------|--------------------------------------|---------------------------------------------------------------------|
-| `sensor_readings_columnar`         | `portsmith24` (PG18 container)       | Columnar copy of Chapter 8/17's `sensor_readings` — same table, same 9.6M+ rows, migrated across live |
-| `/tmp/sensor_readings_sorted.parquet` | Container filesystem              | Native `export_parquet()` output — the same data Chapter 17 exported by hand with pyarrow |
-| `sensor_readings_pq`                | `portsmith24`, via `pgcolumnar_parquet` | Foreign table over that Parquet file — the piece Chapter 17 Exercise 6.3 never finished |
-| `skip_repro` / `skip_repro_pq`       | `portsmith24`                        | A minimal, dataset-independent 1M-row table built specifically to file a clean upstream bug report |
+| `sensor_readings_columnar`         | `portsmith24` (a new container)      | A column-organized copy of Chapter 8/17's `sensor_readings` — same data, same 9.6M+ rows, stored the other way |
+| `/tmp/sensor_readings.parquet`      | Container filesystem              | A Parquet export of that same data, produced by `pgColumnar` itself, for the "what about Chapter 17's files" section |
+| `sensor_readings_pq`                | `portsmith24`                        | A foreign table over that Parquet file — this chapter's attempt to finish what Chapter 17 Exercise 6 left undone |
 
-`sensor_readings` itself never moves — it stays exactly where Chapter 8
-built it, on the main PostgreSQL 16 cluster. Everything in this chapter
-is a live copy, migrated across with a plain `\copy` pipe, the same
-technique Chapter 21 used to get Chapter 12's data into its own
-isolated container.
+`sensor_readings` itself never moves — it stays exactly where Chapter
+8 built it, on the main PostgreSQL 16 cluster, still the table every
+sensor keeps writing into. Everything in this chapter is a live copy,
+piped across for analysis, the same "keep the operational table alone,
+build a separate copy for reporting" instinct Chapter 9's materialized
+views already taught.
 
 ---
 
@@ -88,28 +103,22 @@ isolated container.
 
 By the end of this chapter you will be able to:
 
-- Stand up `pgColumnar` in an isolated PostgreSQL 18 container, and
-  understand — from a real incident, not a hypothetical — why a young
-  extension's `shared_preload_libraries` setting belongs in
-  `postgresql.conf` before the first start, not in a live `ALTER
-  SYSTEM SET`.
-- Create a native columnar table, load real data into it, and measure
-  what changes: storage size, and the shape of query speed, against
-  the exact same table as a heap.
-- Reproduce Chapter 20's central lesson in a new setting: an unsorted
-  columnar table's chunk-group skip can lose to a plain heap scan, and
-  sorting fixes it — at a real, measured cost to compression.
-- Export a columnar table to Parquet and know precisely what that
-  export does and doesn't preserve, compared to Chapter 17's hand-built
-  pyarrow pipeline.
-- Tell apart two different claims about reading external Parquet from
-  inside PostgreSQL — "decodes only the columns you ask for" versus
-  "skips whole row groups your `WHERE` clause rules out" — and verify,
-  with `EXPLAIN`, which one is actually true for which code path.
-- Build a minimal, reproducible failing case for a real finding, and
-  understand what it took to confirm it wasn't a fluke of this book's
-  own environment (retested clean on a second PostgreSQL major) before
-  reporting it upstream.
+- Explain, in plain terms, the difference between row-organized and
+  column-organized storage, and why one favors writing single records
+  quickly while the other favors answering questions about millions of
+  records at once.
+- Create a column-organized copy of a real table with `pgColumnar`,
+  and measure exactly what changes — both storage size and query
+  speed — against the same data stored the ordinary way.
+- Understand why a column-organized table isn't automatically faster
+  for every query, and what "sorting the data" actually buys you when
+  it isn't.
+- Know, from a real incident, why a new extension's startup
+  configuration belongs in a config file before the database ever
+  starts, not in a live command against a running one.
+- Get an honest, tested answer to whether `pgColumnar` can also read
+  Chapter 17's exported Parquet files efficiently from inside
+  PostgreSQL — and know exactly what it can and can't do yet.
 
 ---
 
@@ -117,10 +126,7 @@ By the end of this chapter you will be able to:
 
 `docker/ch24/` — the same three-file shape as Chapters 21 and 22's
 containers (`Dockerfile`, `entrypoint.sh`, `docker-compose.yml`), built
-on **PostgreSQL 18** (GA — `pgColumnar`'s own docs list 15 through 18 as
-tested, 19 only validated against beta, so 18 is the newest fully
-covered major, and the version this chapter's central finding was
-double-checked against after first surfacing on the host's PG16).
+on PostgreSQL 18.
 
 ```bash
 cd docker/ch24
@@ -128,28 +134,33 @@ docker compose up --build
 ```
 
 Listens on host port **5435** (5432 = main cluster, 5433 = Chapter 21,
-5434 = Chapters 22–23). Two real things worth knowing, both already
-folded into the Dockerfile:
+5434 = Chapters 22–23).
 
-**1. `postgresql-server-dev-18` is not optional, and it's easy to miss.**
-`pgColumnar` builds via PGXS against an installed server's headers —
-`make PG_CONFIG=/path/to/pg_config` fails immediately with `fatal
-error: postgres.h: No such file or directory` without them. The plain
-`postgresql-18` package doesn't include them; the first attempt at this
-(on the host, before this container existed) hit exactly that error.
+**The real incident, in full, since it's a useful lesson on its own.**
+Loading a new extension into PostgreSQL requires listing it in a
+setting called `shared_preload_libraries` — a comma-separated list of
+libraries PostgreSQL loads the moment it starts. Chapters 19–20 added
+to this same list for `pg_cron` and `pg_stat_statements` with `ALTER
+SYSTEM SET`, run against an already-running server, and it worked
+fine both times. Doing the same thing for `pgcolumnar` didn't:
 
-```dockerfile
-RUN apt-get install -y --no-install-recommends \
-    postgresql-18 postgresql-client-18 postgresql-server-dev-18
+```
+shared_preload_libraries = '"pg_cron,pg_stat_statements,auto_explain,pgcolumnar"'
 ```
 
-**2. `shared_preload_libraries` goes into `postgresql.conf` before the
-first `pg_ctl start` — never as a live `ALTER SYSTEM SET` against a
-running server.** This is the Background section's incident, turned
-into a concrete rule: `entrypoint.sh` writes the setting directly into
-the fresh cluster's config file, before the cluster has ever accepted a
-connection, so there's no live GUC-list serialization step to get
-wrong in the first place.
+Look closely at that value: there's an extra pair of quotation marks
+wrapped around the *whole* list. PostgreSQL read that as one single
+library literally named
+`pg_cron,pg_stat_statements,auto_explain,pgcolumnar` — commas and all
+— tried to load it, failed, and refused to start at all. The whole
+cluster was down until that stray pair of quotes was found and removed
+by hand. This is a real, narrow bug in how `ALTER SYSTEM SET` handles
+this particular kind of list-shaped setting — not something either of
+us mistyped.
+
+The fix this chapter's container uses instead: write the setting
+straight into the config file *before* the database has ever started
+for the first time, so there's no live update to get wrong:
 
 ```bash
 # entrypoint.sh, before the first pg_ctl start
@@ -166,9 +177,14 @@ $ psql -h localhost -p 5435 -U chris -d portsmith24 -c "SELECT extname, extversi
  pgcolumnar | 1.0-alpha3
 ```
 
+One more small prerequisite, easy to miss: building `pgColumnar` needs
+PostgreSQL's *development headers* (`postgresql-server-dev-18`), not
+just the plain server package — without them the build fails
+immediately looking for a missing file, `postgres.h`. Already handled
+in `docker/ch24/Dockerfile`.
+
 **Getting `sensor_readings` across.** No PostGIS, no generated columns
-to worry about here — unlike Chapter 21's `intersections`, this table
-travels as-is:
+to worry about here:
 
 ```bash
 psql portsmith -t -A -c "\copy (SELECT id, sensor_id, sensor_type, reading_value, recorded_at FROM sensor_readings) TO STDOUT CSV" | \
@@ -188,11 +204,7 @@ in about 12 seconds.
 
 ---
 
-### Exercise 1 — Native Storage: What Changes
-
-`sensor_readings_columnar` mirrors `sensor_readings` exactly, minus the
-PostGIS-free table's one generated column (`reading_date`, which
-`pgColumnar` doesn't need any more than a heap copy would):
+### Exercise 1 — Building a Column-Organized Copy
 
 ```sql
 CREATE TABLE sensor_readings_columnar (
@@ -204,65 +216,77 @@ CREATE TABLE sensor_readings_columnar (
 ) USING pgcolumnar;
 ```
 
-No extra grant needed to create or use it — `USING pgcolumnar` is
-available to any role the moment the extension exists, the same as
-`USING heap` would be. (The `pgcolumnar.*` *maintenance* functions used
-later in this chapter are a separate story — Exercise 3.)
+That `USING pgcolumnar` is the entire difference from every `CREATE
+TABLE` earlier in this book — everything else about the table (its
+columns, its types, how you `INSERT` and `SELECT` from it) works
+exactly the same. No extra permission needed to create or use it,
+either; it's available the moment the extension exists.
 
-**1.1 — Storage, real numbers**
+**Storage, measured directly:**
 
 ```sql
 SELECT pg_size_pretty(sum(pg_relation_size(inhrelid))) AS heap_table_only
 FROM pg_inherits WHERE inhparent = 'sensor_readings'::regclass;
--- 708 MB   (742,481,920 bytes, table only, no indexes)
+-- 708 MB
 
 SELECT pg_size_pretty(pg_total_relation_size('sensor_readings_columnar'));
--- 18 MB    (18,374,656 bytes)
+-- 18 MB
 ```
 
-**708 MB down to 18 MB — a real, measured 40.4x**, on the exact table
-Chapter 17 got 46x on with hand-picked Snappy Parquet. Different
-mechanism, same order of magnitude, both real.
+**708 MB down to 18 MB — a real, measured 40x smaller**, for exactly
+the same 9,648,001 rows. Two things make that possible: values from
+the same column tend to look alike (a `sensor_type` column only ever
+holds one of three words), which compresses well once they're grouped
+together — and, just as important, the folder-by-column layout means a
+query never has to *read* the columns it doesn't need in the first
+place, which is what the next exercise measures.
 
-**1.2 — `count(*)`: the case metadata alone answers**
+---
+
+### Exercise 2 — The Easy Win: Answering Without Reading
+
+The simplest possible question — "how many readings do we have?" —
+turns out to be the clearest demonstration of what column storage
+buys you.
 
 ```sql
-EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings;         -- heap
--- Execution Time: 562.731 ms   (parallel seq scan across 12 partitions)
+EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings;          -- the original, row-organized table
+-- Execution Time: 562.7 ms
 
-EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings_columnar; -- columnar
+EXPLAIN (ANALYZE) SELECT count(*) FROM sensor_readings_columnar; -- the column-organized copy
 ```
 
 ```
  Custom Scan (PgColumnarScan)  (actual time=0.019..0.019 rows=1 loops=1)
    Columnar Vectorized Aggregates: 1
-   Columnar Pushed-Down Filters: 0
  Execution Time: 0.065 ms
 ```
 
-**562.7 ms down to 0.065 ms — roughly 8,700x.** Not decoding, not
-scanning — `count(*)` with no filter is answered entirely from each
-chunk group's own row-count metadata, the same reason Chapter 9's
+**562.7 ms down to 0.065 ms — roughly 8,700 times faster.** Nothing
+was decoded and nothing was scanned. `pgColumnar` keeps a running row
+count for each stored group of data as a side note, the way a librarian
+might keep a running tally of how many books are on a shelf instead of
+counting them fresh every time someone asks. `count(*)` with no filter
+is answered straight from that tally — the same reason Chapter 9's
 materialized views win: the answer was already sitting there, computed
-once, not recomputed per query.
+once, not recomputed from scratch on every query.
 
 ---
 
-### Exercise 2 — The Filtered Case: A Real Echo of Chapter 20
+### Exercise 3 — A Realistic Query: Why "Faster" Isn't Automatic
 
-`count(*)` with no `WHERE` is the easy case. What happens with a real
-filter is where this chapter's most useful lesson lives — and it isn't
-"columnar is faster."
-
-**2.1 — Slower, at first**
+Public Works rarely wants a citywide total — they want it broken down.
+"What's the average reading from our *temperature* sensors?" is a much
+more typical question, and this is where column storage stops being
+an automatic win.
 
 ```sql
 EXPLAIN (ANALYZE, BUFFERS) SELECT count(*), avg(reading_value)
-FROM sensor_readings WHERE sensor_type = 'temperature';        -- heap
+FROM sensor_readings WHERE sensor_type = 'temperature';          -- original table
 -- Execution Time: 486.6 ms
 
 EXPLAIN (ANALYZE, BUFFERS) SELECT count(*), avg(reading_value)
-FROM sensor_readings_columnar WHERE sensor_type = 'temperature'; -- columnar
+FROM sensor_readings_columnar WHERE sensor_type = 'temperature'; -- columnar copy
 ```
 
 ```
@@ -270,20 +294,30 @@ FROM sensor_readings_columnar WHERE sensor_type = 'temperature'; -- columnar
        Filter: (sensor_type = 'temperature'::text)
        Columnar Chunk Groups Total: 65
        Columnar Chunk Groups Removed by Filter: 0
-       Columnar Vectors Decoded: 965
  Execution Time: 1459.5 ms
 ```
 
-**The columnar table is slower — 1459.5 ms against the heap's 486.6
-ms.** Zero of 65 chunk groups got skipped. This is Chapter 20's
-`sensor_id`-scatter finding again, in a new engine: `sensor_type` is
-interleaved evenly through every chunk (confirmed directly — all 120
-distinct `sensor_id` values already show up within the *first*
-row-group-sized slice of rows), so every chunk group's min/max span the
-same full range as every other one, and there's nothing for a zone map
-to rule out.
+**The columnar copy is slower here — 1459.5 ms against the original's
+486.6 ms.** `pgColumnar` stores rows in large batches called **chunk
+groups** (think: which folder each index card's fields ended up
+filed into, in the order they arrived), and it keeps a note of the
+lowest and highest value each chunk group holds for each column — a
+**zone map** — so it can sometimes skip a whole chunk group without
+reading it, if the value you're filtering for can't possibly be in
+that range. Here, `"Columnar Chunk Groups Removed by Filter: 0"` — none
+were skipped. Readings from every sensor type arrive continuously, all
+day, every day, so a chunk group built from "whatever came in this
+hour" ends up with temperature, traffic, *and* air-quality readings
+mixed together — every group's range looks the same as every other
+group's, so the zone map has nothing useful to rule out.
 
-**2.2 — Sorting fixes it, and costs something real**
+---
+
+### Exercise 4 — Fixing It, and What It Costs
+
+`pgColumnar` can physically re-sort a table's stored data around a
+chosen column, which rebuilds those chunk groups so each one holds a
+narrower range of values instead of an even mix:
 
 ```sql
 SELECT pgcolumnar.vacuum_sorted('sensor_readings_columnar', 'sensor_type');
@@ -302,275 +336,83 @@ FROM sensor_readings_columnar WHERE sensor_type = 'temperature';
  Execution Time: 370.3 ms
 ```
 
-**370.3 ms — now genuinely faster than the heap's 486.6 ms**, 32 of 43
-groups pruned. But check storage again:
+**370.3 ms — now genuinely faster than the original table's 486.6
+ms**, with 32 of 43 chunk groups skipped entirely. But storage moved
+too:
 
 ```sql
 SELECT pg_size_pretty(pg_total_relation_size('sensor_readings_columnar'));
--- 27 MB   (up from 18 MB — ratio drops from 40.4x to 27.5x)
+-- 27 MB   (up from 18 MB)
 ```
 
-Sorting by `sensor_type` scrambled the time-ordering that made
-`recorded_at` compress so well in the first place — every column shares
-the same physical row order in a columnar table, so optimizing one
-column's skip quality can cost another column's compression. **This
-isn't a `pgColumnar` quirk — it's the same tradeoff Chapter 16's
-generated columns and Chapter 20's index choice both already made you
-confront: the "obvious" fix has a real cost, and the only way to know
-if it's worth paying is to measure both sides.**
+Sorting by `sensor_type` shuffled the arrival-time order that made
+`recorded_at` compress so well in Exercise 1 — every column shares the
+same physical row order in a column-organized table, so improving one
+column's ability to skip data can cost another column's compression.
+**This is the same lesson Chapter 20 already taught with an ordinary
+index: the "obvious" fix isn't free, and the only way to know whether
+it's worth the tradeoff is to measure both sides — which is exactly
+what deciding whether, and how, to sort a real `pgColumnar` table for
+Public Works' actual dashboard queries would require.**
 
-<img src="imgs/ch24_pgcolumnar_findings.svg" alt="Two-column contrast: verified working — native columnar table achieves 40.4x compression, sub-millisecond metadata-only count, and real chunk-group skip after vacuum_sorted (32 of 43 groups pruned); verified broken or missing — export_parquet has no compression option and produces a much larger file than Chapter 17's hand-tuned Snappy export, read_parquet only does projection pushdown despite documentation suggesting predicate pushdown, and the pgcolumnar_parquet foreign data wrapper's row-group skip stays at zero even on fully sorted, correctly-typed data, filed upstream as issue 850"/>
+<img src="imgs/ch24_pgcolumnar_findings.svg" alt="Side-by-side comparison: the original heap-organized sensor_readings table at 708 megabytes, where every column of every row is stored together, taking 562.7 milliseconds to count all rows and 486.6 milliseconds to average a filtered subset; against the columnar copy at 18 to 27 megabytes, where each column is stored and compressed separately, answering an unfiltered count in 0.065 milliseconds from metadata alone and a filtered, sorted average in 370.3 milliseconds by skipping most of the data entirely"/>
 
 ---
 
-### Exercise 3 — Exporting to Parquet: What's Actually Different From Chapter 17
+### Exercise 5 — What About the Parquet Files From Chapter 17?
+
+`pgColumnar` can also export a table to Parquet, and read Parquet
+files back — the same file format Chapter 17 used, and worth checking
+honestly, since it's the closest thing this book has found yet to
+finishing Chapter 17 Exercise 6's unfinished last step.
 
 ```sql
 SELECT pgcolumnar.export_parquet('sensor_readings_columnar', '/tmp/sensor_readings.parquet');
--- 9648001
 ```
 
 ```bash
 $ ls -la /tmp/sensor_readings.parquet
--rw------- 1 postgres postgres 405515796 sensor_readings.parquet
+-rw------- 1 postgres postgres 405515796 sensor_readings.parquet   -- 405 MB
 ```
 
-**405 MB.** Chapter 17's pyarrow script, exporting the same table,
-explicitly requesting Snappy compression, produced **16.7 MB**. The
-reason is in `pgcolumnar.export_parquet(rel, path)`'s own signature:
-**there's no compression argument at all** — unlike `import_parquet`,
-which reads Snappy/GZIP/ZSTD/LZ4_RAW pages, the export path writes
-Parquet with no codec option, full stop. The size checks out arithmetically
-too: roughly 9.6M rows × ~38 raw bytes/row lands right around 365–405
-MB — this looks like genuinely uncompressed output, not a bug so much
-as a real, undocumented asymmetry between what `pgColumnar` can *read*
-and what it can *write*.
+That's noticeably bigger than Chapter 17's hand-built export of the
+same table (16.7 MB) — the export function here doesn't compress the
+file at all, unlike the compression `pgColumnar`'s own storage uses.
+Worth knowing if you're choosing between the two: this export is fast
+and simple, but Chapter 17's more deliberate, hand-tuned pyarrow
+script still makes the smaller file.
 
-One more real, quiet difference, worth knowing if you round-trip
-timestamps: `parquet_schema()` reports `recorded_at` — a `timestamptz`
-in Postgres — as `timestamp without time zone` in the exported file.
-Parquet has no exact equivalent of PostgreSQL's session-relative
-`timestamptz`; the export just drops the distinction. Same running
-timezone-gotcha thread as Chapters 8, 9, 11, and 16 — one more format
-boundary where it quietly matters.
+Reading a Parquet file back works two ways. `read_parquet()` reads
+the whole file every time, decoding only the columns you ask for — a
+real, useful savings, but it doesn't skip rows based on a `WHERE`
+clause, so it isn't a substitute for an index or a zone map. A second
+way, a proper foreign table (`CREATE SERVER ... FOREIGN DATA WRAPPER
+pgcolumnar_parquet`), is documented to skip whole chunks of the file
+when a filter rules them out — the exact capability that would finish
+Chapter 17's story. Testing it directly, on data confirmed sorted the
+same way Exercise 4 sorted it, that skipping didn't happen in the
+version tested here: `EXPLAIN` reported reading every chunk of the
+file regardless of the filter, on both PostgreSQL 16 and a fresh
+PostgreSQL 18 install.
+
+**The honest takeaway: `pgColumnar`'s own storage — everything
+Exercises 1 through 4 just measured — is the real, working half of
+this chapter. Its ability to efficiently query Chapter 17's exported
+files is not there yet**, at least not in the version tested. That's a
+fine place to leave it — Chapter 17's pattern (export to Parquet, read
+it with a tool built for that job, like DuckDB) is still the
+dependable path for that specific need.
 
 ---
 
-### Exercise 4 — Reading Parquet Back: Two Different Claims
+## Decision Guide: When to Reach for `pgColumnar`
 
-`pgColumnar` offers two distinct ways to read an external Parquet file
-without importing it, and they are **not** the same capability, however
-similar the documentation makes them sound at a glance.
-
-**4.1 — `read_parquet()`: projection pushdown only**
-
-```sql
-EXPLAIN (ANALYZE, BUFFERS) SELECT count(*)
-FROM pgcolumnar.read_parquet('/tmp/sensor_readings.parquet')
-  AS t(id bigint, sensor_id int, sensor_type text, reading_value double precision, recorded_at timestamptz)
-WHERE sensor_id = 1;
-```
-
-```
- ->  Function Scan on read_parquet t
-       Filter: (sensor_id = 1)
-       Buffers: shared hit=12, temp read=63598 written=63598
- Execution Time: 2628.1 ms
-```
-
-A plain `Function Scan`, `temp read/written` in the tens of thousands
-of pages — the *entire* file gets materialized into a tuplestore before
-the `WHERE` clause ever runs. This is architecturally unavoidable, not
-a bug: **PostgreSQL's planner never pushes a `WHERE` clause into an
-ordinary set-returning function.** The authoritative SQL reference
-actually says this precisely, once you read past the friendlier
-features page: `read_parquet()` does projection pushdown (decodes only
-the columns you declare) and nothing else. Predicate pushdown is a
-different feature, described for a different object.
-
-**4.2 — The `pgcolumnar_parquet` FDW: this is the one that matters**
-
-```sql
-CREATE SERVER pq FOREIGN DATA WRAPPER pgcolumnar_parquet;
-```
-
-```
-ERROR:  permission denied for foreign-data wrapper pgcolumnar_parquet
-```
-
-The same wall Chapter 17 documented for `postgres_fdw`/`file_fdw` — a
-fresh FDW needs explicit `USAGE` before a non-superuser can touch it:
-
-```sql
-GRANT USAGE ON FOREIGN DATA WRAPPER pgcolumnar_parquet TO chris;
-```
-
-```sql
-CREATE FOREIGN TABLE sensor_readings_pq
-  (id bigint, sensor_id int, sensor_type text, reading_value double precision, recorded_at timestamp)
-  SERVER pq OPTIONS (path '/tmp/sensor_readings.parquet');
-```
-
-Unlike the plain function, a foreign table *is* something the planner
-can push quals into — this is the actual analog of Chapter 17's unbuilt
-`parquet_s3_fdw`, and the documentation for it is explicit:
-"row groups whose min/max statistics exclude the query's predicate are
-skipped." `EXPLAIN` reports the counters directly:
-
-```sql
-EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM sensor_readings_pq WHERE sensor_id = 1;
-```
-
-```
- ->  Foreign Scan on sensor_readings_pq
-       Filter: (sensor_id = 1)
-       Row Groups: 148
-       Row Groups Skipped: 0
-       Row Groups Decoded: 148
- Execution Time: 1274.9 ms
-```
-
-Zero skipped — but `sensor_id` has the exact same scatter problem
-Exercise 2 already found for `sensor_type`, so this alone doesn't prove
-anything is wrong. The real test needs data that's *actually* clustered
-on the filtered column.
-
----
-
-### Exercise 5 — The Wall: Row-Group Skip Doesn't Fire Even When It Should
-
-**5.1 — Build the fair test**
-
-Sort the columnar table by `id` — a real, verified, complete sort, not
-an assumption:
-
-```sql
-SELECT pgcolumnar.vacuum_sorted('sensor_readings_columnar', 'id');
-SELECT * FROM pgcolumnar.sort_status('sensor_readings_columnar');
-```
-
-```
- sort_key | sorted_kind   | total_groups | sorted_groups | appended_groups
-----------+---------------+--------------+----------------+------------------
- {id}     | lexicographic |           65 |             65 |                0
-```
-
-Fully sorted — no unsorted tail. Re-export, and confirm the file itself
-preserves that order:
-
-```sql
-SELECT pgcolumnar.export_parquet('sensor_readings_columnar', '/tmp/sensor_readings_sorted.parquet');
-```
-
-```sql
-SELECT id FROM sensor_readings_pq_sorted LIMIT 5;  -- 892801, 892802, 892803, 892804, 892805
-```
-
-**5.2 — The test that should work, and doesn't**
-
-```sql
-EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*)
-FROM sensor_readings_pq_sorted WHERE id < 942801::bigint;
-```
-
-```
- ->  Foreign Scan on sensor_readings_pq_sorted
-       Filter: (id < '942801'::bigint)
-       Row Groups: 148
-       Row Groups Skipped: 0
-       Row Groups Decoded: 148
- Execution Time: 1348.7 ms
-```
-
-Every documented condition is met: a genuinely, fully sorted `bigint`
-column, a plain `column < constant` comparison, the constant explicitly
-typed to match (`::bigint`, visible right there in the `Filter:` line —
-no cross-type mismatch hiding anywhere). **Zero row groups skipped
-anyway.**
-
-**5.3 — Ruling out "maybe this needs a newer PostgreSQL"**
-
-`pgColumnar`'s own docs gate several *other* features behind PostgreSQL
-17 — `read_stream` prefetch, `MERGE`'s `WHEN NOT MATCHED BY SOURCE`,
-`ALTER TABLE ... SET ACCESS METHOD` on a partitioned table. None of
-those notes actually mention the Parquet FDW's skip logic, but it was a
-reasonable hypothesis worth eliminating cheaply — which is exactly what
-this chapter's own container was built for. The identical test, run
-fresh on PostgreSQL 18.6 instead of the host's PostgreSQL 16, with a
-brand-new install and a freshly sorted, freshly exported file:
-
-```
- Row Groups: 148
- Row Groups Skipped: 0
- Row Groups Decoded: 148
- Execution Time: 1348.689 ms
-```
-
-**Identical result, both majors.** Not a PG16 artifact, not
-version-gated — a real gap between this build's own documentation and
-its own `EXPLAIN` output.
-
-**5.4 — A minimal repro, and reporting it**
-
-Chapter 17's 9.6-million-row table is not a fair thing to hand a
-maintainer as a bug report. A clean, dataset-independent repro, built
-and verified before filing anything:
-
-```sql
-CREATE TABLE skip_repro (id bigint, val int) USING pgcolumnar;
-INSERT INTO skip_repro SELECT g, (random()*1000)::int FROM generate_series(1, 1000000) g;
-SELECT pgcolumnar.vacuum_sorted('skip_repro', 'id');
-SELECT pgcolumnar.export_parquet('skip_repro', '/tmp/skip_repro.parquet');
-CREATE SERVER pq_repro FOREIGN DATA WRAPPER pgcolumnar_parquet;
-CREATE FOREIGN TABLE skip_repro_pq (id bigint, val int)
-  SERVER pq_repro OPTIONS (path '/tmp/skip_repro.parquet');
-```
-
-```sql
--- control: the native table, same sorted data
-EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM skip_repro WHERE id < 5000::bigint;
---   Columnar Chunk Groups Removed by Filter: 6 (of 7)
---   Execution Time: 0.994 ms
-
--- the FDW, identical predicate, exported moments earlier
-EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*) FROM skip_repro_pq WHERE id < 5000::bigint;
---   Row Groups Skipped: 0 (of 16)
---   Execution Time: 127.201 ms
-```
-
-The control proves the skip *machinery* works fine in this build — it's
-isolated to the external-Parquet read path specifically. A search
-across every open and closed issue in `commandprompt/pgcolumnar`
-(a genuinely fast-moving tracker — hundreds of issues, most opened and
-closed within hours) turned up close relatives — #620, an earlier
-"reads the whole file before returning any row" bug in this exact FDW,
-fixed well before this build — but nothing matching this specific
-symptom. Filed as
-**[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850)**,
-with this minimal repro, the sort-status proof, and the PG16/PG18
-cross-check.
-
----
-
-## Decision Guide: Native Table vs. External Parquet, as Tested
-
-| Need | Use | Verified here |
-|---|---|---|
-| Fast, compressed, query-time analytics fully inside PostgreSQL | `pgColumnar` native table (`USING pgcolumnar`) | 40.4x compression, ~8,700x on unfiltered aggregates, real chunk-group skip once sorted |
-| Portable, engine-agnostic export other tools can read | Chapter 17's hand-rolled pyarrow + Snappy | 46x compression, genuinely smaller than `export_parquet()`'s uncompressed 405 MB output |
-| Querying an external Parquet file's *columns* without importing | `pgcolumnar.read_parquet()` | Works exactly as documented — projection pushdown only, reads the whole file every time |
-| Querying an external Parquet file with row-group-level `WHERE` pruning | `pgcolumnar_parquet` FDW | **Does not currently deliver this** — verified `Row Groups Skipped: 0` under textbook conditions, filed as #850 |
-
-The honest bottom line: `pgColumnar`'s native storage is the real,
-working half of this chapter's contrast with Chapter 17 — a genuinely
-different, faster tool for keeping compressed analytics inside
-PostgreSQL. Its Parquet-FDW half, the piece built specifically to
-finish what Chapter 17 left open, does not yet do what its own
-documentation says it does. Both conclusions came from running the
-same kind of test — create real data, sort it, measure it, read
-`EXPLAIN`'s own counters — not from trusting either the marketing page
-or the pessimistic assumption that "it's alpha, so it probably doesn't
-work."
+| Situation | What to use |
+|---|---|
+| A table gets written to constantly, one row at a time (sensors, permit applications, orders) | An ordinary heap table — this is what it's built for |
+| Big-picture questions over millions of existing rows — totals, averages, monthly rollups | A `pgColumnar` copy: real, measured wins here (40x smaller, up to ~8,700x faster on the right query) |
+| You know which column you'll usually filter by | Sort the columnar copy on that column (`vacuum_sorted`) — but expect a real compression tradeoff, and measure before assuming it's worth it |
+| Reading a Parquet file exported elsewhere, efficiently, from inside PostgreSQL | Not yet dependable here — use Chapter 17's export-and-read-with-DuckDB pattern instead |
 
 ---
 
@@ -578,36 +420,31 @@ work."
 
 | Concept | What it does |
 |---------|----------------|
-| `CREATE TABLE ... USING pgcolumnar` | Native columnar storage inside PostgreSQL — real WAL, real MVCC, no external file |
-| `shared_preload_libraries` before first start | The safe way to load a new extension's library — a live `ALTER SYSTEM SET` on a `GUC_LIST_QUOTE` parameter can silently corrupt the whole list |
-| Chunk-group skip, unsorted vs. sorted | Scattered filter columns get zero benefit from zone maps, exactly like Chapter 20's b-tree finding — `vacuum_sorted` fixes it, at a real compression cost to other columns |
-| `pgcolumnar.export_parquet()` | No compression option — genuinely larger output than a deliberately-compressed hand-rolled export |
-| `read_parquet()` vs. `pgcolumnar_parquet` FDW | Projection-only vs. (documented, not yet delivered) predicate pushdown — a plain SQL function can never receive a pushed-down qual, a foreign table can |
-| `Row Groups Skipped` in `EXPLAIN` | The real, checkable proof of whether pruning happened — reads 0 here even on fully sorted, correctly-typed data (filed upstream, #850) |
-| Cross-version retest before reporting a bug | Confirmed the finding on both PostgreSQL 16 and 18 before filing, ruling out a version-gating explanation the docs made plausible |
+| Row storage vs. column storage | Row storage (the default) keeps a record's fields together — good for writing one row at a time. Column storage keeps each field together across every record — good for questions that only touch a few columns out of many |
+| `CREATE TABLE ... USING pgcolumnar` | Adds a column-organized copy of a table, right inside PostgreSQL — no separate warehouse system |
+| Real, measured wins | 708 MB → 18 MB (40x smaller); `count(*)` 562.7 ms → 0.065 ms (~8,700x) |
+| Chunk groups and zone maps | Data is stored in batches, each with a note of its min/max values per column — lets a query skip a whole batch it can't match, but only if the filtered column is actually grouped that way |
+| `vacuum_sorted` | Physically re-sorts a table around one column, so its zone maps become useful — at a real cost to how well *other* columns compress |
+| `shared_preload_libraries` before first start | The safe way to load a new extension — a live `ALTER SYSTEM SET` on this particular kind of setting can silently corrupt the whole list |
+| Reading Chapter 17's Parquet files back | Not yet a strength of this extension — its own native storage is the part worth using today |
 
-**The key design insight** from this chapter is the same discipline
-Chapters 21 and 22 already established for young software, applied
-this time to something with real production ambitions rather than
-research-beta uncertainty: a well-documented, MIT-licensed extension
-with an active issue tracker and hundreds of self-reported, fixed bugs
-is still worth exactly what you can verify about it yourself, feature
-by feature. `pgColumnar`'s native storage held up completely under
-direct measurement. Its promise to finish what Chapter 17 started did
-not — and the difference between those two verdicts was only visible
-because this chapter tested both halves separately instead of taking
-"it supports Parquet" as one claim.
+**The key design insight** from this chapter is the one Public Works
+actually needed answered: keep writing sensor readings the ordinary
+way, one row at a time, and keep a second, column-organized copy
+around specifically for the big questions. Neither storage style is
+better in general — a heap table is still the right choice for
+`sensor_readings` itself, exactly as Chapter 8 built it, and a
+`pgColumnar` copy is the right choice for the reporting queries layered
+on top of it. That's the same instinct behind Chapter 9's materialized
+views, applied one level deeper: sometimes the fastest way to answer a
+different *kind* of question isn't a smarter query — it's storing the
+same data a second way.
 
 ---
 
-*Going further: issue **#850** is open as of this writing — this
-chapter's finding, not yet resolved upstream. The retest is a queued,
-not-yet-done task: once the issue is closed (or the maintainer responds
-with a reason it isn't a bug), Exercise 5 should be re-run against
-whatever build fixes it, and this chapter's Decision Guide row for the
-Parquet FDW updated to match — the same "verify again against whatever
-release you're actually running" discipline Chapter 21 named explicitly
-for PostgreSQL 19's own beta gap. Until then, treat `pgcolumnar_parquet`
-as Chapter 17 Exercise 6.3 already implicitly did: a real, promising
-pattern, not yet something to depend on for row-group pruning in
-production.*
+*Going further: the Parquet-reading gap noted in Exercise 5 is worth
+revisiting later, since `pgColumnar` is young, actively developed
+software — what didn't work during this chapter's testing may well
+work in a newer release. If you pick this chapter back up, it's worth
+checking whether a newer `pgColumnar` version closes that gap before
+assuming Chapter 17's DuckDB-based pattern is still the only option.*

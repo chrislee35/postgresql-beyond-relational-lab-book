@@ -167,12 +167,12 @@ data in that container you haven't already exported, and see Chapter
 23 Exercise 2 for the full, reproduced finding before relying on it for
 anything.
 
-**Chapter 24 has a standing, queued follow-up, not yet done:**
-`pgcolumnar_parquet`'s row-group skip was filed upstream as
-[commandprompt/pgcolumnar#850](https://github.com/commandprompt/pgcolumnar/issues/850)
-and is still open as of this writing. Anyone picking this chapter back
-up should check that issue first — if it's closed, Exercise 5 needs a
-full retest against the fixed build, and the Decision Guide's Parquet
-FDW row should be updated to match, the same way Chapter 21's own
-findings were framed as provisional to whatever beta was current at
-the time.
+**Chapter 24's container is worth a quick recheck if you pick it back
+up.** Its central exercises (the native columnar storage — real,
+measured compression and speed wins) don't depend on anything likely
+to change. Its shorter closing section, on reading Chapter 17's
+exported Parquet files back through `pgColumnar` itself, tested
+against a specific, young alpha release — worth confirming against
+whatever version you're actually running before assuming that part's
+conclusion still holds, the same "verify again" habit Chapter 21's own
+findings needed for its beta.

@@ -1,21 +1,20 @@
-graph TB
-    subgraph WORKING["Verified working"]
+graph LR
+    subgraph HEAP["Heap: sensor_readings, 708 MB"]
         direction TB
-        W1["Native columnar table:<br/>708 MB heap -&gt; 18 MB, 40.4x"]
-        W2["count(*): metadata-only<br/>562ms -&gt; 0.065ms, ~8,700x"]
-        W3["vacuum_sorted + chunk-group skip:<br/>32 of 43 groups pruned once sorted"]
-        W1 --> W2 --> W3
+        H1["Every row stores all 5<br/>columns together"]
+        H2["count(*):<br/>562.7 ms"]
+        H3["avg(reading_value),<br/>filtered by sensor_type:<br/>486.6 ms"]
+        H1 --> H2
+        H1 --> H3
     end
 
-    subgraph BROKEN["Verified broken or missing"]
+    subgraph COLUMNAR["Columnar copy: sensor_readings_columnar, 18-27 MB"]
         direction TB
-        B1["export_parquet(): no compression option<br/>405 MB vs Ch17's 16.7 MB Snappy"]
-        B2["read_parquet(): projection-only,<br/>no predicate pushdown despite the docs"]
-        B3["pgcolumnar_parquet FDW:<br/>Row Groups Skipped stays 0, sorted + typed<br/>filed upstream as #850"]
-        B1 --> B2 --> B3
+        C1["Each column stored<br/>and compressed separately"]
+        C2["count(*), from metadata alone:<br/>0.065 ms"]
+        C3["avg(reading_value), filtered,<br/>after sorting: 370.3 ms"]
+        C1 --> C2
+        C1 --> C3
     end
 
-    classDef ok stroke:#efe,stroke-width:3px,color:#000
-    classDef bad stroke:#fee,stroke-width:3px,color:#000
-    class W1,W2,W3 ok
-    class B1,B2,B3 bad
+    HEAP --- COLUMNAR
