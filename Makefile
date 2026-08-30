@@ -34,7 +34,17 @@ EXTRA_SVG := imgs/portsmith_map.svg \
 	imgs/ch06_ivfflat_clustering.svg \
 	imgs/ch06_vector_disagreement.svg \
 	imgs/ch07_cidr_nesting.svg \
-	imgs/ch12_road_graph.svg
+	imgs/ch12_road_graph.svg \
+	imgs/logo_postgresql.svg \
+	imgs/logo_docker.svg \
+	imgs/logo_python.svg \
+	imgs/logo_duckdb.svg \
+	imgs/logo_debian.svg \
+	imgs/logo_gnu.svg \
+	imgs/logo_apache.svg \
+	imgs/logo_anthropic.svg \
+	imgs/logo_claude_symbol.svg \
+	imgs/logo_minio.svg
 EXTRA_PNG := $(EXTRA_SVG:.svg=.png)
 
 $(EXTRA_PNG): imgs/%.png: imgs/%.svg

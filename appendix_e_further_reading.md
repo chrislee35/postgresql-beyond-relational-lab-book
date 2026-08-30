@@ -39,6 +39,8 @@ for the parts a single lab exercise can't cover.
 | 22 | SHACL | [w3.org/TR/shacl](https://www.w3.org/TR/shacl/) |
 | 23 | RDF Schema (RDFS) | [w3.org/TR/rdf-schema](https://www.w3.org/TR/rdf-schema/) |
 | 23 | OWL 2 Web Ontology Language | [w3.org/TR/owl2-overview](https://www.w3.org/TR/owl2-overview/) |
+| 24 | `pgColumnar` | [github.com/commandprompt/pgcolumnar](https://github.com/commandprompt/pgcolumnar) |
+| 24 | Apache Parquet format | [parquet.apache.org/docs](https://parquet.apache.org/docs/) |
 
 ## A note on reading these versus running the exercises
 

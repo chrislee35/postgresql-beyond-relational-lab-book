@@ -1365,6 +1365,26 @@ id="toc-chapter-23-ontologies">Chapter 23 — Ontologies</a></li>
 id="toc-chapter-24-pgcolumnar">Chapter 24 —
 <code>pgColumnar</code></a></li>
 </ul></li>
+<li><a href="#appendix-g-acknowledgments"
+id="toc-appendix-g-acknowledgments">Appendix G — Acknowledgments</a>
+<ul>
+<li><a href="#postgresql-1" id="toc-postgresql-1">PostgreSQL</a></li>
+<li><a href="#extensions-and-companion-databases"
+id="toc-extensions-and-companion-databases">Extensions and Companion
+Databases</a></li>
+<li><a href="#tools-built-around-postgresql"
+id="toc-tools-built-around-postgresql">Tools Built Around
+PostgreSQL</a></li>
+<li><a href="#python-and-its-libraries"
+id="toc-python-and-its-libraries">Python and Its Libraries</a></li>
+<li><a href="#building-this-book-itself"
+id="toc-building-this-book-itself">Building This Book Itself</a></li>
+<li><a href="#specifications-and-open-standards"
+id="toc-specifications-and-open-standards">Specifications and Open
+Standards</a></li>
+<li><a href="#ai-assistance" id="toc-ai-assistance">AI
+Assistance</a></li>
+</ul></li>
 </ul>
 </nav>
 <h1 id="the-portsmith-papers">The Portsmith Papers</h1>
@@ -19241,6 +19261,18 @@ href="https://www.w3.org/TR/rdf-schema/">w3.org/TR/rdf-schema</a></td>
 <td><a
 href="https://www.w3.org/TR/owl2-overview/">w3.org/TR/owl2-overview</a></td>
 </tr>
+<tr class="odd">
+<td>24</td>
+<td><code>pgColumnar</code></td>
+<td><a
+href="https://github.com/commandprompt/pgcolumnar">github.com/commandprompt/pgcolumnar</a></td>
+</tr>
+<tr class="even">
+<td>24</td>
+<td>Apache Parquet format</td>
+<td><a
+href="https://parquet.apache.org/docs/">parquet.apache.org/docs</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="a-note-on-reading-these-versus-running-the-exercises">A note on
@@ -19521,5 +19553,178 @@ reading unwanted rows, and a <code>pgcolumnar_parquet</code> foreign
 table didn’t skip file chunks based on a <code>WHERE</code> filter in
 the version tested here. Worth rechecking against a newer release before
 leaning on that part.</p>
+<h1 id="appendix-g-acknowledgments">Appendix G — Acknowledgments</h1>
+<p>Twenty-four chapters of a fictional city rest on a very real stack of
+software this book didn’t write a line of. PostgreSQL itself, every
+extension bolted onto it, the languages and libraries that generated
+Portsmith’s synthetic data, and the tools that turned two dozen Markdown
+files into the HTML, PDF, and EPUB you’re reading — none of it was built
+for this book, and all of it made this book possible. This page is a
+plain, direct thank-you to the people and projects behind that
+stack.</p>
+<hr />
+<h2 id="postgresql-1">PostgreSQL</h2>
+<p><img src="imgs/logo_postgresql.svg" alt="PostgreSQL elephant logo" width="90"/></p>
+<p>Every chapter in this book is, at bottom, a chapter about
+<strong>PostgreSQL</strong> — free, open-source, and developed by a
+global group of volunteers and companies coordinated through the
+PostgreSQL Global Development Group. Thirty years of that work is the
+reason a single database can hold JSON documents, geospatial polygons,
+vector embeddings, RDF triples, and a columnar table side by side, and
+still feel like one coherent system. <a
+href="https://www.postgresql.org/">postgresql.org</a></p>
+<hr />
+<h2 id="extensions-and-companion-databases">Extensions and Companion
+Databases</h2>
+<p>Nearly every chapter after the first turned on one extension or
+another. In the order this book met them:</p>
+<ul>
+<li><strong>PostGIS</strong>
+<img src="imgs/logo_postgis.png" alt="PostGIS logo" width="28"/> —
+geospatial types and operators (Chapter 2), maintained by the PostGIS
+Project Steering Committee. <a
+href="https://postgis.net/">postgis.net</a></li>
+<li><strong><code>pg_trgm</code></strong> — trigram fuzzy matching
+(Chapter 5), bundled with PostgreSQL core.</li>
+<li><strong>pgvector</strong> — vector similarity search (Chapter 6),
+created by Andrew Kane and maintained with the broader pgvector
+community. <a
+href="https://github.com/pgvector/pgvector">github.com/pgvector/pgvector</a></li>
+<li><strong><code>ip4r</code></strong> — IPv4/IPv6 range and CIDR types
+(Chapter 7), maintained by Andrew Gierth (RhodiumToad). <a
+href="https://github.com/RhodiumToad/ip4r">github.com/RhodiumToad/ip4r</a></li>
+<li><strong><code>postgres_fdw</code></strong> and
+<strong><code>file_fdw</code></strong> — foreign data wrappers (Chapter
+17), bundled with PostgreSQL core.</li>
+<li><strong><code>parquet_s3_fdw</code></strong> — the Parquet-over-S3
+foreign data wrapper Chapter 17 discussed honestly rather than
+pretending to have finished building.</li>
+<li><strong><code>pg_cron</code></strong> — in-database job scheduling
+(Chapter 19), originally created at Citus Data, now maintained under
+<code>citusdata/pg_cron</code>. <a
+href="https://github.com/citusdata/pg_cron">github.com/citusdata/pg_cron</a></li>
+<li><strong><code>pg_stat_statements</code></strong> and
+<strong><code>auto_explain</code></strong> — query statistics and
+automatic plan logging (Chapter 20), bundled with PostgreSQL core.</li>
+<li><strong><code>pg-ripple</code></strong> — RDF triples, SPARQL, and
+SHACL inside PostgreSQL (Chapters 22–23), from Trickle Labs. <a
+href="https://github.com/trickle-labs/pg-ripple">github.com/trickle-labs/pg-ripple</a></li>
+<li><strong><code>pgColumnar</code></strong> — columnar table storage
+(Chapter 24), from CommandPrompt, Inc. <a
+href="https://github.com/commandprompt/pgcolumnar">github.com/commandprompt/pgcolumnar</a>.
+Particular thanks to <strong>OffgridwithJD</strong>, one of the
+project’s developers, for real, direct help while this book was working
+through Chapter 24.</li>
+</ul>
+<p>Chapter 21’s <code>CREATE PROPERTY GRAPH</code> and
+<code>GRAPH_TABLE</code> needed no extension at all — thanks there go to
+the PostgreSQL contributors who landed SQL/PGQ in core.</p>
+<hr />
+<h2 id="tools-built-around-postgresql">Tools Built Around
+PostgreSQL</h2>
+<ul>
+<li><strong>PostgREST</strong> — turns a PostgreSQL schema into a REST
+API (Chapter 10), created by Joe Nelson and maintained by the PostgREST
+community. <a href="https://postgrest.org/">postgrest.org</a></li>
+<li><strong>DuckDB</strong>
+<img src="imgs/logo_duckdb.svg" alt="DuckDB logo" width="70"/> — the
+independent, in-process analytical engine used to verify Chapter 17’s
+Parquet export actually worked. <a
+href="https://duckdb.org/">duckdb.org</a></li>
+<li><strong>MinIO</strong>
+<img src="imgs/logo_minio.svg" alt="MinIO logo" width="70"/> — the
+self-hosted, S3-compatible object storage Chapter 17’s Parquet files
+lived in. <a href="https://min.io/">min.io</a></li>
+</ul>
+<hr />
+<h2 id="python-and-its-libraries">Python and Its Libraries</h2>
+<p><img src="imgs/logo_python.svg" alt="Python logo" width="45"/></p>
+<p>Every synthetic data generator, migration script, and RAG demo in
+this book is <strong>Python</strong> — created by Guido van Rossum and
+maintained by the Python Software Foundation. <a
+href="https://www.python.org/">python.org</a></p>
+<p>The libraries doing the real work underneath those scripts:
+<strong>psycopg</strong> (the PostgreSQL driver every script in this
+book connects through), <strong>pyarrow</strong> and
+<strong>boto3</strong> (Chapter 17’s Parquet export and S3 upload),
+<strong>pgvector</strong>’s Python client and
+<strong>sentence-transformers</strong> (Chapter 6),
+<strong>duckdb</strong>’s Python bindings (Chapter 17’s independent
+verification), <strong>PyJWT</strong> (Chapter 10’s token minting),
+<strong>NumPy</strong>, <strong>Pillow</strong>, and
+<strong>requests</strong>. Thank you to every maintainer of every one of
+them — this book leaned on all of it without a second thought, which is
+exactly what good infrastructure earns.</p>
+<p><strong>Ollama</strong>, used in Chapter 6’s bonus local RAG section
+to run an open-weight model entirely on-device, deserves its own mention
+— <a href="https://ollama.com/">ollama.com</a>.</p>
+<hr />
+<h2 id="building-this-book-itself">Building This Book Itself</h2>
+<p>None of the above gets read without a second stack, the one that
+turns Markdown source into the book in your hands:</p>
+<ul>
+<li><strong>Markdown</strong>, the plain-text format every chapter is
+written in, designed by John Gruber with Aaron Swartz.</li>
+<li><strong>Pandoc</strong>, the “universal document converter” that
+turns this book’s Markdown into HTML, PDF, and EPUB in one pass —
+created by John MacFarlane. <a
+href="https://pandoc.org/">pandoc.org</a></li>
+<li><strong>Mermaid.js</strong>, which renders every diagram in this
+book — flowcharts, sequence diagrams, the graph contrasts in Chapters 17
+through 24 — from plain text descriptions, created by Knut Sveidqvist
+and maintained by the Mermaid team. Reached in this book’s build through
+<strong><code>mermaidx</code></strong>, a CLI wrapper around it. <a
+href="https://mermaid.js.org/">mermaid.js.org</a></li>
+<li><strong>GNU Make</strong>
+<img src="imgs/logo_gnu.svg" alt="GNU logo" width="45"/> — the build
+tool coordinating every step above, part of the GNU Project. <a
+href="https://www.gnu.org/software/make/">gnu.org/software/make</a></li>
+<li><strong>WeasyPrint</strong>, which lays out this book’s PDF from
+styled HTML. <a href="https://weasyprint.org/">weasyprint.org</a></li>
+<li><strong>Inkscape</strong>, converting hand-made diagrams to the PNGs
+the PDF build needs.</li>
+<li><strong>Debian</strong>
+<img src="imgs/logo_debian.svg" alt="Debian logo" width="45"/> and
+<strong>Docker</strong>
+<img src="imgs/logo_docker.svg" alt="Docker logo" width="70"/> — the
+operating system and containerization underneath every isolated
+environment in Chapters 21, 22, and 24, letting three different
+PostgreSQL majors coexist on one machine without touching each other. <a
+href="https://www.debian.org/">debian.org</a>, <a
+href="https://www.docker.com/">docker.com</a></li>
+</ul>
+<hr />
+<h2 id="specifications-and-open-standards">Specifications and Open
+Standards</h2>
+<p><img src="imgs/logo_apache.svg" alt="Apache feather logo" width="40"/></p>
+<p><strong>Apache Arrow</strong> and <strong>Apache Parquet</strong>,
+the in-memory and on-disk columnar formats behind Chapters 17 and 24,
+both projects of the Apache Software Foundation. <a
+href="https://arrow.apache.org/">arrow.apache.org</a>, <a
+href="https://parquet.apache.org/">parquet.apache.org</a></p>
+<p>Chapters 22 and 23 rest on a stack of World Wide Web Consortium
+standards — <strong>SPARQL</strong>, <strong>Turtle</strong>,
+<strong>SHACL</strong>, <strong>RDF Schema</strong>, and <strong>OWL
+2</strong> — the product of years of working-group effort to make data
+meaning machine-checkable, long before “AI-ready data” was a phrase
+anyone used.</p>
+<hr />
+<h2 id="ai-assistance">AI Assistance</h2>
+<p><img src="imgs/logo_anthropic.svg" alt="Anthropic logo" width="140"/></p>
+<p>This book was written with <strong>Claude Code</strong>, from
+<strong>Anthropic</strong>, as a genuine collaborator throughout —
+drafting exercises, standing up and tearing down disposable PostgreSQL
+environments, running the real queries whose output fills these pages,
+and, more than once, finding and diagnosing the book’s own mistakes (a
+broken build script, a mis-set config value that took down the working
+cluster mid-chapter) before they became someone else’s problem. <a
+href="https://www.anthropic.com/">anthropic.com</a></p>
+<hr />
+<p><em>If you maintain something on this page and think it deserves more
+than a line here, that’s fair — open an issue or a pull request. This
+list exists because none of Portsmith’s twenty-four chapters would have
+been possible without every project named on it. I am deeply grateful
+for the years of dedicated effort into all these foundational
+tools.</em></p>
 </body>
 </html>
