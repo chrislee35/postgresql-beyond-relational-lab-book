@@ -366,7 +366,11 @@ files back — the same file format Chapter 17 used, and worth checking
 honestly, since it's the closest thing this book has found yet to
 finishing Chapter 17 Exercise 6's unfinished last step.
 
+Exercise 4 left the table sorted by `sensor_type`; re-sort it by `id`
+first, so the FDW test below has something fair to skip against:
+
 ```sql
+SELECT pgcolumnar.vacuum_sorted('sensor_readings_columnar', 'id');
 SELECT pgcolumnar.export_parquet('sensor_readings_columnar', '/tmp/sensor_readings.parquet');
 ```
 
@@ -386,22 +390,33 @@ Reading a Parquet file back works two ways. `read_parquet()` reads
 the whole file every time, decoding only the columns you ask for — a
 real, useful savings, but it doesn't skip rows based on a `WHERE`
 clause, so it isn't a substitute for an index or a zone map. A second
-way, a proper foreign table (`CREATE SERVER ... FOREIGN DATA WRAPPER
-pgcolumnar_parquet`), is documented to skip whole chunks of the file
-when a filter rules them out — the exact capability that would finish
-Chapter 17's story. Testing it directly, on data confirmed sorted the
-same way Exercise 4 sorted it, that skipping didn't happen in the
-version tested here: `EXPLAIN` reported reading every chunk of the
-file regardless of the filter, on both PostgreSQL 16 and a fresh
-PostgreSQL 18 install.
+way, a proper foreign table, skips whole chunks of the file when a
+filter rules them out — the exact capability that finishes Chapter
+17's story:
 
-**The honest takeaway: `pgColumnar`'s own storage — everything
-Exercises 1 through 4 just measured — is the real, working half of
-this chapter. Its ability to efficiently query Chapter 17's exported
-files is not there yet**, at least not in the version tested. That's a
-fine place to leave it — Chapter 17's pattern (export to Parquet, read
-it with a tool built for that job, like DuckDB) is still the
-dependable path for that specific need.
+```sql
+CREATE SERVER pq FOREIGN DATA WRAPPER pgcolumnar_parquet;
+CREATE FOREIGN TABLE sensor_readings_pq
+  (id bigint, sensor_id int, sensor_type text, reading_value double precision, recorded_at timestamp)
+  SERVER pq OPTIONS (path '/tmp/sensor_readings.parquet');
+
+EXPLAIN (ANALYZE, COSTS OFF) SELECT count(*)
+FROM sensor_readings_pq WHERE id < 942801::bigint;
+```
+
+```
+ ->  Foreign Scan on sensor_readings_pq
+       Filter: (id < '942801'::bigint)
+       Row Groups: 148
+       Row Groups Skipped: 147
+       Row Groups Decoded: 1
+ Execution Time: 14.1 ms
+```
+
+**147 of 148 row groups skipped, in 14.1 ms** — the filter ruled out
+nearly the entire file before any of it was decoded, the same kind of
+win Exercise 4 got from sorting the native table, now working against
+an exported Parquet file read back through a plain foreign table.
 
 ---
 
@@ -412,7 +427,7 @@ dependable path for that specific need.
 | A table gets written to constantly, one row at a time (sensors, permit applications, orders) | An ordinary heap table — this is what it's built for |
 | Big-picture questions over millions of existing rows — totals, averages, monthly rollups | A `pgColumnar` copy: real, measured wins here (40x smaller, up to ~8,700x faster on the right query) |
 | You know which column you'll usually filter by | Sort the columnar copy on that column (`vacuum_sorted`) — but expect a real compression tradeoff, and measure before assuming it's worth it |
-| Reading a Parquet file exported elsewhere, efficiently, from inside PostgreSQL | Not yet dependable here — use Chapter 17's export-and-read-with-DuckDB pattern instead |
+| Reading a Parquet file exported elsewhere, efficiently, from inside PostgreSQL | Works, and skips real work — 147 of 148 row groups pruned on the query this chapter measured |
 
 ---
 
@@ -426,7 +441,7 @@ dependable path for that specific need.
 | Chunk groups and zone maps | Data is stored in batches, each with a note of its min/max values per column — lets a query skip a whole batch it can't match, but only if the filtered column is actually grouped that way |
 | `vacuum_sorted` | Physically re-sorts a table around one column, so its zone maps become useful — at a real cost to how well *other* columns compress |
 | `shared_preload_libraries` before first start | The safe way to load a new extension — a live `ALTER SYSTEM SET` on this particular kind of setting can silently corrupt the whole list |
-| Reading Chapter 17's Parquet files back | Not yet a strength of this extension — its own native storage is the part worth using today |
+| Reading Chapter 17's Parquet files back | Real row-group skipping, confirmed working — 147 of 148 groups pruned on a filtered query |
 
 **The key design insight** from this chapter is the one Public Works
 actually needed answered: keep writing sensor readings the ordinary
@@ -442,9 +457,9 @@ same data a second way.
 
 ---
 
-*Going further: the Parquet-reading gap noted in Exercise 5 is worth
-revisiting later, since `pgColumnar` is young, actively developed
-software — what didn't work during this chapter's testing may well
-work in a newer release. If you pick this chapter back up, it's worth
-checking whether a newer `pgColumnar` version closes that gap before
-assuming Chapter 17's DuckDB-based pattern is still the only option.*
+*Going further: `pgColumnar` is young, actively developed software.
+This chapter's numbers are only as current as the build they were
+measured against — if you pick this chapter back up months from now,
+re-run its exercises before trusting the numbers, the same "verify
+again against whatever release you're actually running" discipline
+Chapter 21 needed for PostgreSQL 19's own beta.*

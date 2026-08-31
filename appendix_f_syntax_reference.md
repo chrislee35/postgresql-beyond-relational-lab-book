@@ -320,10 +320,11 @@ SELECT * FROM pgcolumnar.read_parquet('/path/file.parquet')
 
 **Note:** the storage engine above (`USING pgcolumnar` and
 `vacuum_sorted`) is this extension's strength — real, measured
-compression and speed wins in Chapter 24. Its Parquet-reading side is
-weaker as tested: `export_parquet()` takes no compression argument
-(larger files than a deliberately compressed export), `read_parquet()`
-only saves decoding unwanted columns, not reading unwanted rows, and a
-`pgcolumnar_parquet` foreign table didn't skip file chunks based on a
-`WHERE` filter in the version tested here. Worth rechecking against a
-newer release before leaning on that part.
+compression and speed wins in Chapter 24. `export_parquet()` takes no
+compression argument (larger files than a deliberately compressed
+export) and `read_parquet()` only saves decoding unwanted columns, not
+reading unwanted rows — but a `pgcolumnar_parquet` foreign table's
+row-group skipping works well: 147 of 148 groups skipped on a filtered
+query in Chapter 24's own test. Worth rechecking against whatever
+release you're actually running, the same as any fast-moving young
+extension.

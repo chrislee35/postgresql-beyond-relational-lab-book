@@ -501,10 +501,9 @@ against a real `pgColumnar` 1.0-alpha3 build: real, measured wins —
 of Chapter 20's lesson (an unsorted columnar table can lose to a plain
 heap scan; sorting fixes it, at a real, measured compression cost).
 `pgColumnar` also reads and writes Parquet, the format Chapter 17
-exported to by hand — tested honestly here too, with a plainer result:
-its own storage is the strength worth using today, and reading Chapter
-17's exported files efficiently isn't there yet in the version tested.
-A real setup incident (a live `ALTER SYSTEM SET` that corrupted
+exported to by hand — tested honestly here too: a `pgcolumnar_parquet`
+foreign table correctly skips row groups a filter rules out, 147 of
+148 on the query this chapter measures. A real setup incident (a live `ALTER SYSTEM SET` that corrupted
 `shared_preload_libraries` and took the whole main cluster down) is
 also why this chapter runs in its own container rather than the main
 cluster.
@@ -529,15 +528,13 @@ container via `\copy`, the same migration technique Chapter 21 used.
    the heap) — and measure the real compression cost that sorting one
    column brings (18MB -> 27MB), the same tradeoff-not-free-lunch
    lesson as Chapter 20's index choice.
-5. An honest, shorter check of whether `pgColumnar` can also read
-   Chapter 17's exported Parquet files efficiently: `export_parquet()`
-   produces a larger, uncompressed file (405MB vs. Chapter 17's
-   hand-tuned 16.7MB); `read_parquet()` only saves you from decoding
-   unwanted columns, not from reading unwanted rows; and the
-   Parquet-reading foreign table didn't skip data based on a filter in
-   the version tested, on either PostgreSQL 16 or 18 — worth
-   rechecking against a newer release, not a reason to avoid
-   `pgColumnar`'s own storage.
+5. Whether `pgColumnar` can also read Chapter 17's exported Parquet
+   files efficiently: `export_parquet()` produces a larger,
+   uncompressed file (405MB vs. Chapter 17's hand-tuned 16.7MB);
+   `read_parquet()` only saves you from decoding unwanted columns, not
+   from reading unwanted rows; but a proper foreign table over the
+   exported file skips real work — 147 of 148 row groups pruned on a
+   filtered query, 1348.7ms down to 14.1ms.
 
 ---
 

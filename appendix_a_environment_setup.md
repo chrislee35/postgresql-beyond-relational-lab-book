@@ -168,11 +168,7 @@ data in that container you haven't already exported, and see Chapter
 anything.
 
 **Chapter 24's container is worth a quick recheck if you pick it back
-up.** Its central exercises (the native columnar storage — real,
-measured compression and speed wins) don't depend on anything likely
-to change. Its shorter closing section, on reading Chapter 17's
-exported Parquet files back through `pgColumnar` itself, tested
-against a specific, young alpha release — worth confirming against
-whatever version you're actually running before assuming that part's
-conclusion still holds, the same "verify again" habit Chapter 21's own
+up.** `pgColumnar` is young, actively developed software — rebuild the
+container and re-run its exercises before trusting the numbers if
+enough time has passed, the same "verify again" habit Chapter 21's own
 findings needed for its beta.
